@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sbilibin2017/go-yandex-practicum-gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
 )
 

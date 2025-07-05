@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/sbilibin2017/go-yandex-practicum-gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 // Registerer определяет интерфейс для сервисов регистрации пользователя.

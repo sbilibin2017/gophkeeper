@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	models "github.com/sbilibin2017/go-yandex-practicum-gophkeeper/internal/models"
+	models "github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 // MockRegisterer is a mock of Registerer interface.
