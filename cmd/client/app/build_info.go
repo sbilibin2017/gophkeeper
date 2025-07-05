@@ -13,11 +13,12 @@ var (
 	buildCommit   string
 )
 
-// NewBuildInfoCommand returns a cobra.Command that prints build info.
+// newBuildInfoCommand returns a cobra.Command
+// that outputs build information: platform, version, date, and commit.
 func newBuildInfoCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "build-info",
-		Short: "Show build platform, version, date and commit",
+		Short: "Show build platform, version, date, and commit",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			printBuildInfo()
 			return nil
@@ -25,6 +26,8 @@ func newBuildInfoCommand() *cobra.Command {
 	}
 }
 
+// printBuildInfo prints build information to the console,
+// substituting "N/A" if the respective data is not set.
 func printBuildInfo() {
 	if buildPlatform == "" {
 		buildPlatform = "N/A"

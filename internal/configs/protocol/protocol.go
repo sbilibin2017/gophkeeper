@@ -6,18 +6,18 @@ import (
 	"strings"
 )
 
-// Список поддерживаемых протоколов подключения.
+// List of supported connection protocols.
 const (
-	HTTP  = "http"  // HTTP — протокол без шифрования.
-	HTTPS = "https" // HTTPS — протокол с шифрованием (SSL/TLS).
-	GRPC  = "grpc"  // GRPC — протокол на базе HTTP/2.
+	HTTP  = "http"  // HTTP — protocol without encryption.
+	HTTPS = "https" // HTTPS — protocol with encryption (SSL/TLS).
+	GRPC  = "grpc"  // GRPC — protocol based on HTTP/2.
 )
 
-// GetProtocol разбирает протокол (схему) из переданного адреса.
+// GetProtocol parses the protocol (scheme) from the given address.
 //
-// Принимает строку адреса (например, "https://example.com").
-// Возвращает один из поддерживаемых протоколов ("http", "https", "grpc") или ошибку,
-// если протокол отсутствует или не поддерживается.
+// Accepts an address string (for example, "https://example.com").
+// Returns one of the supported protocols ("http", "https", "grpc") or an error
+// if the protocol is missing or not supported.
 func GetProtocol(address string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(address))
 	if err != nil {

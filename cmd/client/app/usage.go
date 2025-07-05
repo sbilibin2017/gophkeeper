@@ -2,7 +2,8 @@ package app
 
 import "github.com/spf13/cobra"
 
-// NewUsageCommand returns a cobra.Command that shows usage info.
+// newUsageCommand creates a cobra.Command that displays usage information of the application.
+// When called, it outputs the help for the root command.
 func newUsageCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "usage",

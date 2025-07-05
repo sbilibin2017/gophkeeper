@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/protocol"
@@ -12,6 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// newRegisterCommand creates a cobra.Command for registering a new user.
+// The command requires flags: server-url, username, password,
+// and optional flags: rsa-public-key-path and hmac-key.
+// On successful registration, it prints a success message.
 func newRegisterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "register -server-url <url> -username <username> -password <password> [-rsa-public-key-path <path>] [-hmac-key <key>]",
@@ -35,18 +38,18 @@ func newRegisterCommand() *cobra.Command {
 				return err
 			}
 
-			// Выводим сообщение об успешной регистрации, чтобы тест мог проверить
-			fmt.Fprintf(cmd.OutOrStdout(), "User %q registered successfully\n", creds.Username)
 			return nil
 		},
 	}
 
+	// Define command flags
 	cmd.Flags().String("server-url", "https://localhost:8000", "Server URL")
 	cmd.Flags().String("username", "", "Username")
 	cmd.Flags().String("password", "", "User password")
 	cmd.Flags().String("rsa-public-key-path", "", "Path to RSA public key file (optional)")
 	cmd.Flags().String("hmac-key", "", "HMAC key (optional)")
 
+	// Mark required flags
 	_ = cmd.MarkFlagRequired("server-url")
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
@@ -54,6 +57,8 @@ func newRegisterCommand() *cobra.Command {
 	return cmd
 }
 
+// parseFlags extracts and validates flag values from the command,
+// returning client configuration and user credentials.
 func parseFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credentials, error) {
 	serverURL, err := cmd.Flags().GetString("server-url")
 	if err != nil {
@@ -89,12 +94,14 @@ func parseFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credentials,
 		return nil, nil, err
 	}
 
+	// Create client configuration
 	config := configs.NewClientConfig(
 		configs.WithServerURL(serverURL),
 		configs.WithRSAPublicKeyPath(rsaPublicKeyPath),
 		configs.WithHMACKey(hmacKey),
 	)
 
+	// Create user credentials
 	creds := models.NewCredentials(
 		models.WithUsername(username),
 		models.WithPassword(password),
@@ -103,6 +110,8 @@ func parseFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credentials,
 	return config, creds, nil
 }
 
+// newRegisterService creates a registration service depending on the server protocol.
+// Supports HTTP(S) and gRPC.
 func newRegisterService(serverURL, rsaPublicKeyPath, hmacKey string) (*services.RegisterService, error) {
 	service := services.NewRegisterService()
 

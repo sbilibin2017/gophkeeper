@@ -1,19 +1,19 @@
 package configs
 
-// ClientConfig содержит конфигурацию для подключения к серверу.
-// Включает URL сервера, путь к файлу публичного RSA-ключа и ключ HMAC.
+// ClientConfig contains the configuration for connecting to the server.
+// Includes the server URL, path to the public RSA key file, and HMAC key.
 type ClientConfig struct {
-	ServerURL        string // ServerURL — адрес сервера для подключения.
-	RSAPublicKeyPath string // RSAPublicKeyPath — путь к файлу публичного RSA-ключа на локальной файловой системе.
-	HMACKey          string // HMACKey — ключ HMAC для подписи или аутентификации.
+	ServerURL        string // ServerURL — address of the server to connect to.
+	RSAPublicKeyPath string // RSAPublicKeyPath — path to the public RSA key file on the local filesystem.
+	HMACKey          string // HMACKey — HMAC key for signing or authentication.
 }
 
-// ClientConfigOpt определяет функцию, изменяющую ClientConfig.
-// Используется для настройки ClientConfig с помощью функциональных опций.
+// ClientConfigOpt defines a function that modifies ClientConfig.
+// Used to configure ClientConfig via functional options.
 type ClientConfigOpt func(*ClientConfig)
 
-// NewClientConfig создаёт новый экземпляр ClientConfig и применяет к нему переданные опции.
-// Возвращает указатель на сконфигурированный ClientConfig.
+// NewClientConfig creates a new instance of ClientConfig and applies the given options.
+// Returns a pointer to the configured ClientConfig.
 func NewClientConfig(opts ...ClientConfigOpt) *ClientConfig {
 	config := &ClientConfig{}
 	for _, opt := range opts {
@@ -22,21 +22,21 @@ func NewClientConfig(opts ...ClientConfigOpt) *ClientConfig {
 	return config
 }
 
-// WithServerURL возвращает опцию ClientConfigOpt, которая устанавливает поле ServerURL.
+// WithServerURL returns a ClientConfigOpt option that sets the ServerURL field.
 func WithServerURL(u string) ClientConfigOpt {
 	return func(c *ClientConfig) {
 		c.ServerURL = u
 	}
 }
 
-// WithRSAPublicKeyPath возвращает опцию ClientConfigOpt, которая устанавливает путь к публичному RSA-ключу.
+// WithRSAPublicKeyPath returns a ClientConfigOpt option that sets the path to the public RSA key.
 func WithRSAPublicKeyPath(path string) ClientConfigOpt {
 	return func(c *ClientConfig) {
 		c.RSAPublicKeyPath = path
 	}
 }
 
-// WithHMACKey возвращает опцию ClientConfigOpt, которая устанавливает ключ HMAC.
+// WithHMACKey returns a ClientConfigOpt option that sets the HMAC key.
 func WithHMACKey(key string) ClientConfigOpt {
 	return func(c *ClientConfig) {
 		c.HMACKey = key
