@@ -14,7 +14,7 @@ const (
 
 // Secret represents a generic structure for storing a secret of any type.
 type Secret struct {
-	ID        string    `json:"id" db:"id"`                 // Unique identifier of the secret (UUID)
+	SecretID  string    `json:"secret_id" db:"secret_id"`   // Unique identifier of the secret (UUID)
 	OwnerID   string    `json:"owner_id" db:"owner_id"`     // Identifier of the secret owner (UUID)
 	SType     string    `json:"type" db:"type"`             // Type of secret (one of the constants above)
 	Payload   []byte    `json:"payload" db:"payload"`       // Secret content in serialized form (JSON)
