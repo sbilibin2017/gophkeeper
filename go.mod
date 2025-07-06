@@ -4,7 +4,6 @@ go 1.24.4
 
 require (
 	github.com/golang/mock v1.6.0
-	github.com/sbilibin2017/go-yandex-practicum-gophkeeper v0.0.0-20250705015813-e4c32d50ee55
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 )
