@@ -12,40 +12,47 @@ const (
 	Card          = "card"           // Payment card
 )
 
-// Secret represents a generic structure for storing a secret of any type.
-type Secret struct {
+type SecretDB struct {
 	SecretID  string    `json:"secret_id" db:"secret_id"`   // Unique identifier of the secret (UUID)
+	TypeID    string    `json:"type_id" db:"type_id"`       // Type identifier of the secret
 	OwnerID   string    `json:"owner_id" db:"owner_id"`     // Identifier of the secret owner (UUID)
-	SType     string    `json:"type" db:"type"`             // Type of secret (one of the constants above)
-	Payload   []byte    `json:"payload" db:"payload"`       // Secret content in serialized form (JSON)
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"` // Date and time of last update
 }
 
-// PayloadLoginPassword describes the data of a secret of type "login and password".
-type PayloadLoginPassword struct {
-	Login    string            `json:"login"`          // Username or login
-	Password string            `json:"password"`       // Password
-	Meta     map[string]string `json:"meta,omitempty"` // Additional metadata (e.g., website, description, etc.)
+type TypeDB struct {
+	TypeID    string    `json:"type_id" db:"type_id"`
+	Name      string    `json:"name" db:"name"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+type LoginPasswordDB struct {
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique identifier of the secret (UUID)
+	Login    string            `json:"login" db:"login"`
+	Password string            `json:"password" db:"password"`
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Assuming meta is stored as JSON in DB
 }
 
 // PayloadText describes the data of a secret of type "text".
-type PayloadText struct {
-	Content string            `json:"content"`        // Main text content
-	Meta    map[string]string `json:"meta,omitempty"` // Additional metadata
+type PayloadTextDB struct {
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique identifier of the secret (UUID)
+	Content  string            `json:"content" db:"content"`     // Main text content
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Additional metadata
 }
 
 // PayloadBinary describes the data of a secret of type "binary data".
-type PayloadBinary struct {
-	Data []byte            `json:"data"`           // Raw binary data
-	Meta map[string]string `json:"meta,omitempty"` // Additional metadata
+type PayloadBinaryDB struct {
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique identifier of the secret (UUID)
+	Data     []byte            `json:"data" db:"data"`           // Raw binary data
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Additional metadata
 }
 
 // PayloadCard describes the data of a secret of type "payment card".
-type PayloadCard struct {
-	Number   string            `json:"number"`         // Card number
-	Holder   string            `json:"holder"`         // Cardholder name
-	ExpMonth int               `json:"exp_month"`      // Expiration month
-	ExpYear  int               `json:"exp_year"`       // Expiration year
-	CVV      string            `json:"cvv"`            // CVV code
-	Meta     map[string]string `json:"meta,omitempty"` // Additional metadata (e.g., bank, card type)
+type PayloadCardDB struct {
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique identifier of the secret (UUID)
+	Number   string            `json:"number" db:"number"`       // Card number
+	Holder   string            `json:"holder" db:"holder"`       // Cardholder name
+	ExpMonth int               `json:"exp_month" db:"exp_month"` // Expiration month
+	ExpYear  int               `json:"exp_year" db:"exp_year"`   // Expiration year
+	CVV      string            `json:"cvv" db:"cvv"`             // CVV code
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Additional metadata (e.g., bank, card type)
 }
