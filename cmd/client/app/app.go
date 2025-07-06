@@ -2,17 +2,49 @@ package app
 
 import "github.com/spf13/cobra"
 
-// NewAppCommand creates the root command "gophkeeper" and adds child commands to it.
+var (
+	use   = "gophkeeper"
+	short = "GophKeeper is a CLI tool for securely managing personal data"
+	long  = `GophKeeper is a CLI tool for securely managing personal data.
+
+Usage:
+  gophkeeper [command] [flags]
+
+Available Commands:
+  build-info       Show build platform, version, date, and commit
+  config           Manage client configuration (get, set, unset)
+  register         Register a new user
+  login            Authenticate an existing user
+  logout           Logout from current session
+  add              Add new data/secrets from file or interactively
+  get              Retrieve specific data/secret from the server
+  list             List stored secrets with filtering and sorting
+  sync             Synchronize client with server and resolve conflicts  
+
+Use "gophkeeper [command] --help" for more information about a command.`
+)
+
+// NewAppCommand creates the root command "gophkeeper" and adds all top-level child commands to it.
 func NewAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "gophkeeper",
-		Short: "GophKeeper is a CLI tool for securely managing personal data",
+		Use:   use,
+		Short: short,
+		Long:  long,
 	}
 
-	// Add child commands
 	cmd.AddCommand(newBuildInfoCommand())
-	cmd.AddCommand(newUsageCommand())
+
+	cmd.AddCommand(newClientConfigGetCommand())
+	cmd.AddCommand(newClientConfigSetCommand())
+	cmd.AddCommand(newClientConfigUnsetCommand())
+
 	cmd.AddCommand(newRegisterCommand())
+	cmd.AddCommand(newLoginCommand())
+	cmd.AddCommand(newLogoutCommand())
+	cmd.AddCommand(newAddCommand())
+	cmd.AddCommand(newGetCommand())
+	cmd.AddCommand(newListCommand())
+	cmd.AddCommand(newSyncCommand())
 
 	return cmd
 }
