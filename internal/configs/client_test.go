@@ -1,44 +1,90 @@
 package configs
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNewClientConfig_WithOptions(t *testing.T) {
-	cfg := NewClientConfig(
-		WithServerURL("https://example.com"),
-		WithRSAPublicKeyPath("/path/to/key.pub"),
-		WithHMACKey("supersecretkey"),
-	)
+func TestWithHMACEncoder(t *testing.T) {
+	key := "mysecret"
+	cfg, err := NewClientConfig(WithHMACEncoder(key))
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.NotNil(t, cfg.hmacEncoder)
 
-	assert.NotNil(t, cfg)
-	assert.Equal(t, "https://example.com", cfg.ServerURL)
-	assert.Equal(t, "/path/to/key.pub", cfg.RSAPublicKeyPath)
-	assert.Equal(t, "supersecretkey", cfg.HMACKey)
+	data := []byte("test")
+	mac := cfg.hmacEncoder(data)
+	require.NotEmpty(t, mac)
 }
 
-func TestWithServerURL(t *testing.T) {
-	cfg := &ClientConfig{}
-	opt := WithServerURL("http://localhost:8080")
-	opt(cfg)
-
-	assert.Equal(t, "http://localhost:8080", cfg.ServerURL)
+func TestWithHMACEncoder_EmptyKey(t *testing.T) {
+	_, err := NewClientConfig(WithHMACEncoder(""))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "HMAC key cannot be empty")
 }
 
-func TestWithRSAPublicKeyPath(t *testing.T) {
-	cfg := &ClientConfig{}
-	opt := WithRSAPublicKeyPath("/my/key.pub")
-	opt(cfg)
-
-	assert.Equal(t, "/my/key.pub", cfg.RSAPublicKeyPath)
+func TestWithRSAEncoder_InvalidPath(t *testing.T) {
+	_, err := NewClientConfig(WithRSAEncoder("no-such-file.pem"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to read RSA public key file")
 }
 
-func TestWithHMACKey(t *testing.T) {
-	cfg := &ClientConfig{}
-	opt := WithHMACKey("my-hmac-key")
-	opt(cfg)
+func TestWithRSAEncoder_ValidKey(t *testing.T) {
+	const pemData = `-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwXTAvZiw5eE0LGB79u0K
+7M1EnuW1rZOmD5sKeac1TIDrbi7MeME8ONxWHP8bHD+nnhcX3F0PiI98bhQhVctN
+M5EOhBBv1KhKNflRMgJzvVGuqJAGxUv5C8sPa2F4N8A9HYIHRtL7Ih1CTN4Fd5YJ
+8FcI9F6ZQYDcM1orQGu8t82SYdTqCThPAu6q4zR9NFgJQzoMbd3vLjBoQoHHcuWh
+QGyctPYb4JoQnQ63y4kMNYQJmXNOyoqMjYoBLV5cl9UO3P8mVGBXpmdT9OzBbI9d
+twjlsFTh6FWAK2PLR0NzHlXieMSA8FnUjUVpI1prK7eUQ9A9gh0bSUovVf5EJNa2
+4QIDAQAB
+-----END PUBLIC KEY-----`
 
-	assert.Equal(t, "my-hmac-key", cfg.HMACKey)
+	tmpFile := filepath.Join(t.TempDir(), "key.pem")
+	err := os.WriteFile(tmpFile, []byte(pemData), 0600)
+	require.NoError(t, err)
+
+	cfg, err := NewClientConfig(WithRSAEncoder(tmpFile))
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.NotNil(t, cfg.rsaEncoder)
+
+	encrypted, err := cfg.rsaEncoder([]byte("hello"))
+	require.NoError(t, err)
+	require.NotEmpty(t, encrypted)
+}
+
+func TestWithClient_Http(t *testing.T) {
+	cfg, err := NewClientConfig(WithClient("http://localhost"))
+	require.NoError(t, err)
+	require.NotNil(t, cfg.httpClient)
+	require.Nil(t, cfg.grpcClient)
+}
+
+func TestWithClient_InvalidURL(t *testing.T) {
+	_, err := NewClientConfig(WithClient("%%invalid"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid server URL")
+}
+
+func TestWithClient_UnsupportedScheme(t *testing.T) {
+	_, err := NewClientConfig(WithClient("ftp://example.com"))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unsupported URL scheme")
+}
+
+func TestWithClient_Grpc_Success(t *testing.T) {
+	cfg := &ClientConfig{}
+	err := WithClient("grpc://localhost:12345")(cfg)
+	require.NoError(t, err)
+	require.NotNil(t, cfg.grpcClient)
+}
+
+func TestWithClient_InvalidScheme(t *testing.T) {
+	cfg := &ClientConfig{}
+	err := WithClient("ftp://localhost:12345")(cfg)
+	require.Error(t, err)
 }
