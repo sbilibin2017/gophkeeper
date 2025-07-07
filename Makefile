@@ -1,18 +1,21 @@
-mockgen:	
+PROTO_SRC = api/protos
+OUT_DIR = pkg/grpc
+
+PROTO_FILES := $(wildcard $(PROTO_SRC)/*.proto)
+
+gen-proto:
+	protoc \
+		--go_out=$(OUT_DIR) --go_opt=paths=source_relative \
+		--go-grpc_out=$(OUT_DIR) --go-grpc_opt=paths=source_relative \
+		$(PROTO_FILES)	
+	mv $(OUT_DIR)/api/protos/*.pb.go $(OUT_DIR)/
+	rm -rf $(OUT_DIR)/api
+
+
+gen-mock:	
 	mockgen -source=$(file) \
 		-destination=$(dir $(file))$(notdir $(basename $(file)))_mock.go \
 		-package=$(shell basename $(dir $(file)))
 
 test:
-	go test ./... -cover	
-
-migrate:
-	goose -dir ./migrations postgres "postgres://user:password@localhost:5432/db?sslmode=disable" up
-
-docker-run:
-	docker run --name metrics-postgres \
-		-e POSTGRES_USER=user \
-		-e POSTGRES_PASSWORD=password \
-		-e POSTGRES_DB=db \
-		-p 5432:5432 \
-		-d postgres:15
+	go test ./... -cover
