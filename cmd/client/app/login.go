@@ -69,11 +69,6 @@ func parseLoginFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credent
 	hmacKey, _ := cmd.Flags().GetString("hmac-key")
 	rsaPublicKeyPath, _ := cmd.Flags().GetString("rsa-public-key")
 
-	creds := models.NewCredentials(
-		models.WithUsername(username),
-		models.WithPassword(password),
-	)
-
 	config, err := configs.NewClientConfig(
 		configs.WithClient(serverURL),
 		configs.WithHMACEncoder(hmacKey),
@@ -82,6 +77,11 @@ func parseLoginFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credent
 	if err != nil {
 		return nil, nil, err
 	}
+
+	creds := models.NewCredentials(
+		models.WithUsername(username),
+		models.WithPassword(password),
+	)
 
 	return config, creds, nil
 }

@@ -73,11 +73,6 @@ func parseRegisterFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Cred
 	hmacKey, _ := cmd.Flags().GetString("hmac-key")
 	rsaPublicKeyPath, _ := cmd.Flags().GetString("rsa-public-key")
 
-	creds := models.NewCredentials(
-		models.WithUsername(username),
-		models.WithPassword(password),
-	)
-
 	config, err := configs.NewClientConfig(
 		configs.WithClient(serverURL),
 		configs.WithHMACEncoder(hmacKey),
@@ -86,6 +81,11 @@ func parseRegisterFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Cred
 	if err != nil {
 		return nil, nil, err
 	}
+
+	creds := models.NewCredentials(
+		models.WithUsername(username),
+		models.WithPassword(password),
+	)
 
 	return config, creds, nil
 }
