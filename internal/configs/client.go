@@ -18,10 +18,10 @@ import (
 
 // ClientConfig содержит конфигурацию клиента (HTTP/gRPC) и функции кодирования (HMAC/RSA).
 type ClientConfig struct {
-	httpClient  *resty.Client
-	grpcClient  *grpc.ClientConn
-	hmacEncoder func([]byte) []byte
-	rsaEncoder  func([]byte) ([]byte, error)
+	HTTPClient  *resty.Client
+	GRPCClient  *grpc.ClientConn
+	HMACEncoder func([]byte) []byte
+	RSAEncoder  func([]byte) ([]byte, error)
 }
 
 // ClientConfigOpt определяет функцию, модифицирующую ClientConfig и, возможно, возвращающую ошибку.
@@ -39,8 +39,6 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	return c, nil
 }
 
-// WithClient инициализирует HTTP- или gRPC-клиент в зависимости от схемы URL.
-// Поддерживаемые схемы: "http", "https", "grpc".
 func WithClient(serverURL string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		parsed, err := url.Parse(serverURL)
@@ -50,20 +48,21 @@ func WithClient(serverURL string) ClientConfigOpt {
 
 		switch parsed.Scheme {
 		case "http", "https":
-			c.httpClient = resty.New().
+			c.HTTPClient = resty.New().
 				SetBaseURL(serverURL).
 				SetHeader("Accept", "application/json")
 			return nil
 
 		case "grpc":
-			clientConn, err := grpc.NewClient(
-				serverURL,
+			grpcClient, err := grpc.NewClient(
+				parsed.Host,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			if err != nil {
-				return fmt.Errorf("failed to connect to gRPC server: %w", err)
+				return fmt.Errorf("failed to create gRPC client: %w", err)
 			}
-			c.grpcClient = clientConn
+
+			c.GRPCClient = grpcClient
 			return nil
 
 		default:
@@ -77,11 +76,11 @@ func WithClient(serverURL string) ClientConfigOpt {
 func WithHMACEncoder(key string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		if key == "" {
-			return fmt.Errorf("HMAC key cannot be empty")
+			return nil
 		}
 		keyBytes := []byte(key)
 
-		c.hmacEncoder = func(data []byte) []byte {
+		c.HMACEncoder = func(data []byte) []byte {
 			mac := hmac.New(sha256.New, keyBytes)
 			mac.Write(data)
 			return mac.Sum(nil)
@@ -94,6 +93,10 @@ func WithHMACEncoder(key string) ClientConfigOpt {
 // Ожидается PEM-блок с типом "PUBLIC KEY".
 func WithRSAEncoder(publicKeyPath string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
+		if publicKeyPath == "" {
+			return nil
+		}
+
 		data, err := os.ReadFile(publicKeyPath)
 		if err != nil {
 			return fmt.Errorf("failed to read RSA public key file: %w", err)
@@ -114,7 +117,7 @@ func WithRSAEncoder(publicKeyPath string) ClientConfigOpt {
 			return fmt.Errorf("provided key is not a valid RSA public key")
 		}
 
-		c.rsaEncoder = func(data []byte) ([]byte, error) {
+		c.RSAEncoder = func(data []byte) ([]byte, error) {
 			return rsa.EncryptPKCS1v15(rand.Reader, rsaPub, data)
 		}
 

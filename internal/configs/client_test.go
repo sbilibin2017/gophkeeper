@@ -13,17 +13,18 @@ func TestWithHMACEncoder(t *testing.T) {
 	cfg, err := NewClientConfig(WithHMACEncoder(key))
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.NotNil(t, cfg.hmacEncoder)
+	require.NotNil(t, cfg.HMACEncoder)
 
 	data := []byte("test")
-	mac := cfg.hmacEncoder(data)
+	mac := cfg.HMACEncoder(data)
 	require.NotEmpty(t, mac)
 }
 
 func TestWithHMACEncoder_EmptyKey(t *testing.T) {
-	_, err := NewClientConfig(WithHMACEncoder(""))
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "HMAC key cannot be empty")
+	cfg, err := NewClientConfig(WithHMACEncoder(""))
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	require.Nil(t, cfg.HMACEncoder)
 }
 
 func TestWithRSAEncoder_InvalidPath(t *testing.T) {
@@ -50,9 +51,9 @@ twjlsFTh6FWAK2PLR0NzHlXieMSA8FnUjUVpI1prK7eUQ9A9gh0bSUovVf5EJNa2
 	cfg, err := NewClientConfig(WithRSAEncoder(tmpFile))
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.NotNil(t, cfg.rsaEncoder)
+	require.NotNil(t, cfg.RSAEncoder)
 
-	encrypted, err := cfg.rsaEncoder([]byte("hello"))
+	encrypted, err := cfg.RSAEncoder([]byte("hello"))
 	require.NoError(t, err)
 	require.NotEmpty(t, encrypted)
 }
@@ -60,8 +61,8 @@ twjlsFTh6FWAK2PLR0NzHlXieMSA8FnUjUVpI1prK7eUQ9A9gh0bSUovVf5EJNa2
 func TestWithClient_Http(t *testing.T) {
 	cfg, err := NewClientConfig(WithClient("http://localhost"))
 	require.NoError(t, err)
-	require.NotNil(t, cfg.httpClient)
-	require.Nil(t, cfg.grpcClient)
+	require.NotNil(t, cfg.HTTPClient)
+	require.Nil(t, cfg.GRPCClient)
 }
 
 func TestWithClient_InvalidURL(t *testing.T) {
@@ -80,7 +81,7 @@ func TestWithClient_Grpc_Success(t *testing.T) {
 	cfg := &ClientConfig{}
 	err := WithClient("grpc://localhost:12345")(cfg)
 	require.NoError(t, err)
-	require.NotNil(t, cfg.grpcClient)
+	require.NotNil(t, cfg.GRPCClient)
 }
 
 func TestWithClient_InvalidScheme(t *testing.T) {

@@ -4,27 +4,25 @@ import "github.com/spf13/cobra"
 
 var (
 	use   = "gophkeeper"
-	short = "GophKeeper is a CLI tool for securely managing personal data"
-	long  = `GophKeeper is a CLI tool for securely managing personal data.
+	short = "GophKeeper — CLI-инструмент для безопасного управления личными данными"
+	long  = `GophKeeper — CLI-инструмент для безопасного управления личными данными.
 
-Usage:
-  gophkeeper [command] [flags]
+Использование:
+  gophkeeper [команда] [флаги]
 
-Available Commands:
-  build-info       Show build platform, version, date, and commit
-  config           Manage client configuration (get, set, unset)
-  register         Register a new user
-  login            Authenticate an existing user
-  logout           Logout from current session
-  add              Add new data/secrets from file or interactively
-  get              Retrieve specific data/secret from the server
-  list             List stored secrets with filtering and sorting
-  sync             Synchronize client with server and resolve conflicts  
+Доступные команды:
+  build-info       Показать информацию о сборке: платформу, версию, дату и коммит  
+  register         Зарегистрировать нового пользователя
+  login            Аутентифицировать существующего пользователя  
+  add              Добавить новые данные/секреты из файла или интерактивно
+  get              Получить конкретные данные/секрет с сервера
+  list             Список сохранённых секретов с фильтрацией и сортировкой
+  sync             Синхронизировать клиент с сервером и разрешить конфликты  
 
-Use "gophkeeper [command] --help" for more information about a command.`
+Используйте "gophkeeper [команда] --help" для получения дополнительной информации о команде.`
 )
 
-// NewAppCommand creates the root command "gophkeeper" and adds all top-level child commands to it.
+// NewAppCommand создает корневую команду "gophkeeper" и добавляет все дочерние команды.
 func NewAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   use,
@@ -33,14 +31,8 @@ func NewAppCommand() *cobra.Command {
 	}
 
 	cmd.AddCommand(newBuildInfoCommand())
-
-	cmd.AddCommand(newClientConfigGetCommand())
-	cmd.AddCommand(newClientConfigSetCommand())
-	cmd.AddCommand(newClientConfigUnsetCommand())
-
 	cmd.AddCommand(newRegisterCommand())
-	cmd.AddCommand(newLoginCommand())
-	cmd.AddCommand(newLogoutCommand())
+	// cmd.AddCommand(newLoginCommand())
 	cmd.AddCommand(newAddCommand())
 	cmd.AddCommand(newGetCommand())
 	cmd.AddCommand(newListCommand())
