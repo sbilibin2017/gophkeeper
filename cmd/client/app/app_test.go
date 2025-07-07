@@ -3,27 +3,46 @@ package app
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewClientCommand(t *testing.T) {
+func TestNewAppCommand(t *testing.T) {
 	cmd := NewAppCommand()
-
 	require.NotNil(t, cmd)
-	require.Equal(t, "gophkeeper", cmd.Use)
-	require.Equal(t, "GophKeeper is a secure personal data manager CLI", cmd.Short)
 
-	// Collect subcommand names
+	// Проверяем основные поля команды
+	require.Equal(t, "gophkeeper", cmd.Use)
+	require.Contains(t, cmd.Short, "CLI-инструмент")
+	require.Contains(t, cmd.Long, "Доступные команды:")
+
+	// Проверяем, что добавлены дочерние команды
 	subCmds := cmd.Commands()
 	require.NotEmpty(t, subCmds)
 
-	names := make(map[string]struct{}, len(subCmds))
-	for _, c := range subCmds {
-		names[c.Name()] = struct{}{}
+	// Список имен дочерних команд, которые мы ожидаем
+	expectedCmds := []string{
+		"build-info",
+		"register",
+		"login",
+		"add",
+		"get",
+		"list",
+		"sync",
 	}
 
-	// Check expected subcommands are present
-	require.Contains(t, names, "build-info")
-	require.Contains(t, names, "usage")
-	require.Contains(t, names, "register")
+	// Проверяем, что все ожидаемые команды есть
+	for _, name := range expectedCmds {
+		require.Truef(t, containsCommand(subCmds, name), "ожидается команда %q", name)
+	}
+}
+
+// Вспомогательная функция проверяет, есть ли команда с таким именем в срезе
+func containsCommand(cmds []*cobra.Command, name string) bool {
+	for _, c := range cmds {
+		if c.Name() == name {
+			return true
+		}
+	}
+	return false
 }

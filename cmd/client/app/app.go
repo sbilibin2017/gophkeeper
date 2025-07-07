@@ -32,7 +32,7 @@ func NewAppCommand() *cobra.Command {
 
 	cmd.AddCommand(newBuildInfoCommand())
 	cmd.AddCommand(newRegisterCommand())
-	// cmd.AddCommand(newLoginCommand())
+	cmd.AddCommand(newLoginCommand())
 	cmd.AddCommand(newAddCommand())
 	cmd.AddCommand(newGetCommand())
 	cmd.AddCommand(newListCommand())
