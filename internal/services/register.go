@@ -2,127 +2,101 @@ package services
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/go-resty/resty/v2"
 
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// Registerer defines the interface for user registration services.
+// Registerer описывает интерфейс сервиса регистрации пользователя.
 type Registerer interface {
-	// Register performs user registration with the provided credentials.
+	// Register выполняет регистрацию пользователя с указанными учётными данными.
 	Register(ctx context.Context, creds *models.Credentials) error
 }
 
-// RegisterService holds a Registerer and delegates registration calls to it.
-type RegisterService struct {
-	context Registerer
+// RegisterContextService предоставляет обёртку для вызова регистрации через Registerer.
+type RegisterContextService struct {
+	registerer Registerer
 }
 
-// NewRegisterService creates a new instance of RegisterService.
-func NewRegisterService() *RegisterService {
-	return &RegisterService{}
+// NewRegisterContextService создаёт новый экземпляр RegisterContextService.
+func NewRegisterContextService() *RegisterContextService {
+	return &RegisterContextService{}
 }
 
-// SetContext sets a specific Registerer implementation for the service.
-func (svc *RegisterService) SetContext(r Registerer) {
-	svc.context = r
+// SetContext задаёт реализацию интерфейса Registerer для последующих вызовов.
+func (r *RegisterContextService) SetContext(registerer Registerer) {
+	r.registerer = registerer
 }
 
-// Register calls registration via the set Registerer.
-// Returns an error if the registration context is not set.
-func (svc *RegisterService) Register(ctx context.Context, creds *models.Credentials) error {
-	if svc.context == nil {
-		return errors.New("no context set")
+// Register вызывает регистрацию пользователя через установленный Registerer.
+// Возвращает ошибку, если Registerer не установлен или регистрация не удалась.
+func (r *RegisterContextService) Register(
+	ctx context.Context,
+	creds *models.Credentials,
+) error {
+	if r.registerer == nil {
+		return fmt.Errorf("registerer not set")
 	}
-	return svc.context.Register(ctx, creds)
+	return r.registerer.Register(ctx, creds)
 }
 
-// RegisterHTTPServiceOption — functional option for configuring RegisterHTTPService.
-type RegisterHTTPServiceOption func(*RegisterHTTPService)
-
-// RegisterHTTPService handles user registration over HTTP.
-type RegisterHTTPService struct {
-	serverURL     string
-	publicKeyPath string
-	hmacKey       string
+// HTTPRegisterService реализует регистрацию через HTTP API.
+type HTTPRegisterService struct {
+	client *resty.Client
 }
 
-// NewRegisterHTTPService creates a new RegisterHTTPService with options.
-func NewRegisterHTTPService(opts ...RegisterHTTPServiceOption) *RegisterHTTPService {
-	svc := &RegisterHTTPService{}
-	for _, opt := range opts {
-		opt(svc)
+// NewHTTPRegisterService создаёт новый HTTPRegisterService с заданным HTTP клиентом.
+func NewHTTPRegisterService(client *resty.Client) *HTTPRegisterService {
+	return &HTTPRegisterService{client: client}
+}
+
+// Register отправляет HTTP POST запрос для регистрации пользователя.
+// Возвращает ошибку, если запрос не удался или сервер вернул статус отличный от 200 OK.
+func (r *HTTPRegisterService) Register(
+	ctx context.Context,
+	creds *models.Credentials,
+) error {
+	resp, err := r.client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetBody(creds).
+		Post("/register")
+
+	if err != nil {
+		return err
 	}
-	return svc
-}
 
-// WithHTTPServerURL sets the server URL for RegisterHTTPService.
-func WithHTTPServerURL(url string) RegisterHTTPServiceOption {
-	return func(s *RegisterHTTPService) {
-		s.serverURL = url
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("registration failed: %s", resp.String())
 	}
-}
 
-// WithHTTPPublicKeyPath sets the public key path for RegisterHTTPService.
-func WithHTTPPublicKeyPath(path string) RegisterHTTPServiceOption {
-	return func(s *RegisterHTTPService) {
-		s.publicKeyPath = path
-	}
-}
-
-// WithHTTPHMACKey sets the HMAC key for RegisterHTTPService.
-func WithHTTPHMACKey(key string) RegisterHTTPServiceOption {
-	return func(s *RegisterHTTPService) {
-		s.hmacKey = key
-	}
-}
-
-// Register performs user registration over HTTP.
-func (svc *RegisterHTTPService) Register(ctx context.Context, creds *models.Credentials) error {
 	return nil
 }
 
-// RegisterGRPCServiceOption — functional option for configuring RegisterGRPCService.
-type RegisterGRPCServiceOption func(*RegisterGRPCService)
-
-// RegisterGRPCService handles user registration over gRPC.
-type RegisterGRPCService struct {
-	serverURL     string
-	publicKeyPath string
-	hmacKey       string
+// GRPCRegisterService реализует регистрацию через gRPC сервис.
+type GRPCRegisterService struct {
+	client pb.RegisterServiceClient
 }
 
-// NewRegisterGRPCService creates a new RegisterGRPCService with options.
-func NewRegisterGRPCService(opts ...RegisterGRPCServiceOption) *RegisterGRPCService {
-	svc := &RegisterGRPCService{}
-	for _, opt := range opts {
-		opt(svc)
+// NewGRPCRegisterService создаёт новый GRPCRegisterService с заданным gRPC клиентом.
+func NewGRPCRegisterService(client pb.RegisterServiceClient) *GRPCRegisterService {
+	return &GRPCRegisterService{client: client}
+}
+
+// Register отправляет gRPC запрос для регистрации пользователя.
+// Возвращает ошибку, если запрос не удался.
+func (r *GRPCRegisterService) Register(ctx context.Context, creds *models.Credentials) error {
+	_, err := r.client.Register(ctx, &pb.RegisterRequest{
+		Username: creds.Username,
+		Password: creds.Password,
+	})
+	if err != nil {
+		return err
 	}
-	return svc
-}
 
-// WithGRPCServerURL sets the server URL for RegisterGRPCService.
-func WithGRPCServerURL(url string) RegisterGRPCServiceOption {
-	return func(s *RegisterGRPCService) {
-		s.serverURL = url
-	}
-}
-
-// WithGRPCPublicKeyPath sets the public key path for RegisterGRPCService.
-func WithGRPCPublicKeyPath(path string) RegisterGRPCServiceOption {
-	return func(s *RegisterGRPCService) {
-		s.publicKeyPath = path
-	}
-}
-
-// WithGRPCHMACKey sets the HMAC key for RegisterGRPCService.
-func WithGRPCHMACKey(key string) RegisterGRPCServiceOption {
-	return func(s *RegisterGRPCService) {
-		s.hmacKey = key
-	}
-}
-
-// Register performs user registration over gRPC.
-func (svc *RegisterGRPCService) Register(ctx context.Context, creds *models.Credentials) error {
 	return nil
 }

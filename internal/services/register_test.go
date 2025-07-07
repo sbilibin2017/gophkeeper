@@ -2,144 +2,156 @@ package services
 
 import (
 	"context"
+	"errors"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/golang/mock/gomock"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/test/bufconn"
+
+	"github.com/sbilibin2017/gophkeeper/internal/models"
+	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// -----------------------
-// RegisterService (with mock)
-// -----------------------
+func TestRegisterContextService_Register(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-func TestRegisterService_Register(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
+	mockRegisterer := NewMockRegisterer(ctrl)
+	service := NewRegisterContextService()
+	service.SetContext(mockRegisterer)
 
-		mockRegisterer := NewMockRegisterer(ctrl)
-		svc := NewRegisterService()
-		svc.SetContext(mockRegisterer)
+	ctx := context.Background()
+	creds := &models.Credentials{
+		Username: "testuser",
+		Password: "testpass",
+	}
 
-		creds := &models.Credentials{
-			Username: "testuser",
-			Password: "testpass",
-		}
-
-		mockRegisterer.
-			EXPECT().
-			Register(gomock.Any(), creds).
+	t.Run("successful registration", func(t *testing.T) {
+		mockRegisterer.EXPECT().
+			Register(ctx, creds).
 			Return(nil)
 
-		err := svc.Register(context.Background(), creds)
+		err := service.Register(ctx, creds)
 		assert.NoError(t, err)
 	})
 
-	t.Run("no context set", func(t *testing.T) {
-		svc := NewRegisterService()
-		creds := &models.Credentials{
-			Username: "testuser",
-			Password: "testpass",
-		}
+	t.Run("registration error", func(t *testing.T) {
+		expectedErr := errors.New("register error")
+		mockRegisterer.EXPECT().
+			Register(ctx, creds).
+			Return(expectedErr)
 
-		err := svc.Register(context.Background(), creds)
-		assert.EqualError(t, err, "no context set")
+		err := service.Register(ctx, creds)
+		assert.EqualError(t, err, expectedErr.Error())
+	})
+
+	t.Run("registerer not set", func(t *testing.T) {
+		serviceWithoutRegisterer := NewRegisterContextService()
+		err := serviceWithoutRegisterer.Register(ctx, creds)
+		assert.EqualError(t, err, "registerer not set")
 	})
 }
 
-// -----------------------
-// RegisterHTTPService
-// -----------------------
+// --- HTTPRegisterService: интеграционный тест с httptest.Server ---
 
-func TestRegisterHTTPService_Register(t *testing.T) {
-	tests := []struct {
-		name    string
-		opts    []RegisterHTTPServiceOption
-		creds   *models.Credentials
-		wantErr bool
-	}{
-		{
-			name: "valid config",
-			opts: []RegisterHTTPServiceOption{
-				WithHTTPServerURL("http://localhost"),
-				WithHTTPPublicKeyPath("/tmp/key.pub"),
-				WithHTTPHMACKey("hmac-key-123"),
-			},
-			creds: &models.Credentials{
-				Username: "httpuser",
-				Password: "httppass",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty config still succeeds (placeholder logic)",
-			opts: []RegisterHTTPServiceOption{},
-			creds: &models.Credentials{
-				Username: "user",
-				Password: "pass",
-			},
-			wantErr: false,
-		},
-	}
+func TestHTTPRegisterService_Register(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/register" || r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := NewRegisterHTTPService(tt.opts...)
-			err := svc.Register(context.Background(), tt.creds)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
+	client := resty.New()
+	client.SetHostURL(server.URL)
+
+	service := NewHTTPRegisterService(client)
+
+	err := service.Register(context.Background(), &models.Credentials{
+		Username: "user",
+		Password: "pass",
+	})
+
+	assert.NoError(t, err)
 }
 
-// -----------------------
-// RegisterGRPCService
-// -----------------------
+// --- gRPC сервис и сервер для теста ---
 
-func TestRegisterGRPCService_Register(t *testing.T) {
-	tests := []struct {
-		name    string
-		opts    []RegisterGRPCServiceOption
-		creds   *models.Credentials
-		wantErr bool
-	}{
-		{
-			name: "valid config",
-			opts: []RegisterGRPCServiceOption{
-				WithGRPCServerURL("localhost:50051"),
-				WithGRPCPublicKeyPath("/tmp/key.pub"),
-				WithGRPCHMACKey("grpc-hmac-456"),
-			},
-			creds: &models.Credentials{
-				Username: "grpcuser",
-				Password: "grpcpass",
-			},
-			wantErr: false,
-		},
-		{
-			name: "empty config still succeeds (placeholder logic)",
-			opts: []RegisterGRPCServiceOption{},
-			creds: &models.Credentials{
-				Username: "user",
-				Password: "pass",
-			},
-			wantErr: false,
-		},
+type testRegisterServer struct {
+	pb.UnimplementedRegisterServiceServer
+	shouldFail bool
+}
+
+func (s *testRegisterServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+	if s.shouldFail {
+		return nil, errors.New("registration failed")
+	}
+	return &pb.RegisterResponse{Error: ""}, nil
+}
+
+func TestGRPCRegisterService_Register(t *testing.T) {
+	const bufSize = 1024 * 1024
+	lis := bufconn.Listen(bufSize)
+
+	srv := grpc.NewServer()
+	testSrv := &testRegisterServer{}
+	pb.RegisterRegisterServiceServer(srv, testSrv)
+
+	errCh := make(chan error, 1)
+	go func() {
+		if err := srv.Serve(lis); err != nil {
+			errCh <- err
+		}
+	}()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("failed to start gRPC server: %v", err)
+	default:
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := NewRegisterGRPCService(tt.opts...)
-			err := svc.Register(context.Background(), tt.creds)
-			if tt.wantErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
+	defer srv.Stop()
+
+	ctx := context.Background()
+	conn, err := grpc.Dial(
+		"bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return lis.Dial()
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	assert.NoError(t, err)
+	defer conn.Close()
+
+	client := pb.NewRegisterServiceClient(conn)
+	service := NewGRPCRegisterService(client)
+
+	t.Run("successful registration", func(t *testing.T) {
+		testSrv.shouldFail = false
+
+		err := service.Register(ctx, &models.Credentials{
+			Username: "grpcuser",
+			Password: "grpcpass",
 		})
-	}
+		assert.NoError(t, err)
+	})
+
+	t.Run("failed registration", func(t *testing.T) {
+		testSrv.shouldFail = true
+
+		err := service.Register(ctx, &models.Credentials{
+			Username: "grpcuser",
+			Password: "grpcpass",
+		})
+		assert.Error(t, err)
+	})
 }
