@@ -1,18 +1,18 @@
 package models
 
-// Credentials stores user credentials.
-// Contains username and password.
+// Credentials хранит учетные данные пользователя.
+// Содержит имя пользователя и пароль.
 type Credentials struct {
-	Username string `json:"username"` // Username — the user's name.
-	Password string `json:"password"` // Password — the user's password.
+	Username string `json:"username"` // Username — имя пользователя.
+	Password string `json:"password"` // Password — пароль пользователя.
 }
 
-// CredentialsOpt defines a functional parameter to configure Credentials.
-// Allows setting struct fields via options.
+// CredentialsOpt определяет функциональный параметр для настройки Credentials.
+// Позволяет задавать поля структуры через опции.
 type CredentialsOpt func(*Credentials)
 
-// NewCredentials creates a new Credentials object and applies the given options.
-// Returns a pointer to the configured Credentials struct.
+// NewCredentials создает новый объект Credentials и применяет переданные опции.
+// Возвращает указатель на настроенную структуру Credentials.
 func NewCredentials(opts ...CredentialsOpt) *Credentials {
 	c := &Credentials{}
 	for _, opt := range opts {
@@ -21,14 +21,14 @@ func NewCredentials(opts ...CredentialsOpt) *Credentials {
 	return c
 }
 
-// WithUsername returns a CredentialsOpt option that sets the Username field.
+// WithUsername возвращает опцию CredentialsOpt, которая устанавливает поле Username.
 func WithUsername(username string) CredentialsOpt {
 	return func(c *Credentials) {
 		c.Username = username
 	}
 }
 
-// WithPassword returns a CredentialsOpt option that sets the Password field.
+// WithPassword возвращает опцию CredentialsOpt, которая устанавливает поле Password.
 func WithPassword(password string) CredentialsOpt {
 	return func(c *Credentials) {
 		c.Password = password
