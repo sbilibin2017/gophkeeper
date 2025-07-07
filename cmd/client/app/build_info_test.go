@@ -16,12 +16,16 @@ func TestNewBuildInfoCommand_RunE(t *testing.T) {
 
 	cmd := newBuildInfoCommand()
 
+	// Disable cobra's default error and usage printing to keep test output clean
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
 	// Capture output by redirecting cmd.OutOrStdout
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)
 
-	// Run the command
-	err := cmd.Execute()
+	// Run the command's RunE function directly
+	err := cmd.RunE(cmd, []string{})
 	assert.NoError(t, err)
 
 	out := buf.String()

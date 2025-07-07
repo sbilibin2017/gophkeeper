@@ -4,25 +4,25 @@ import "github.com/spf13/cobra"
 
 var (
 	use   = "gophkeeper"
-	short = "GophKeeper — CLI-инструмент для безопасного управления личными данными"
-	long  = `GophKeeper — CLI-инструмент для безопасного управления личными данными.
+	short = "GophKeeper — CLI tool for secure management of personal data"
+	long  = `GophKeeper — CLI tool for secure management of personal data.
 
-Использование:
-  gophkeeper [команда] [флаги]
+Usage:
+  gophkeeper [command] [flags]
 
-Доступные команды:
-  build-info       Показать информацию о сборке: платформу, версию, дату и коммит  
-  register         Зарегистрировать нового пользователя
-  login            Аутентифицировать существующего пользователя  
-  add              Добавить новые данные/секреты из файла или интерактивно
-  get              Получить конкретные данные/секрет с сервера
-  list             Список сохранённых секретов с фильтрацией и сортировкой
-  sync             Синхронизировать клиент с сервером и разрешить конфликты  
+Available commands:
+  build-info       Show build information: platform, version, date, and commit  
+  register         Register a new user
+  login            Authenticate an existing user  
+  add              Add new data/secrets from a file or interactively
+  get              Retrieve specific data/secret from the server
+  list             List saved secrets with filtering and sorting
+  sync             Synchronize client with server and resolve conflicts  
 
-Используйте "gophkeeper [команда] --help" для получения дополнительной информации о команде.`
+Use "gophkeeper [command] --help" for more information about a command.`
 )
 
-// NewAppCommand создает корневую команду "gophkeeper" и добавляет все дочерние команды.
+// NewAppCommand creates the root "gophkeeper" command and adds all child commands.
 func NewAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   use,

@@ -11,16 +11,15 @@ func TestNewAppCommand(t *testing.T) {
 	cmd := NewAppCommand()
 	require.NotNil(t, cmd)
 
-	// Проверяем основные поля команды
+	// Check main command fields
 	require.Equal(t, "gophkeeper", cmd.Use)
-	require.Contains(t, cmd.Short, "CLI-инструмент")
-	require.Contains(t, cmd.Long, "Доступные команды:")
+	require.Contains(t, cmd.Short, "CLI tool")
+	require.Contains(t, cmd.Long, "Available commands:")
 
-	// Проверяем, что добавлены дочерние команды
+	// Check child commands exist
 	subCmds := cmd.Commands()
 	require.NotEmpty(t, subCmds)
 
-	// Список имен дочерних команд, которые мы ожидаем
 	expectedCmds := []string{
 		"build-info",
 		"register",
@@ -31,13 +30,12 @@ func TestNewAppCommand(t *testing.T) {
 		"sync",
 	}
 
-	// Проверяем, что все ожидаемые команды есть
 	for _, name := range expectedCmds {
-		require.Truef(t, containsCommand(subCmds, name), "ожидается команда %q", name)
+		require.Truef(t, containsCommand(subCmds, name), "expected command %q", name)
 	}
 }
 
-// Вспомогательная функция проверяет, есть ли команда с таким именем в срезе
+// containsCommand checks if a command with the given name exists in cmds
 func containsCommand(cmds []*cobra.Command, name string) bool {
 	for _, c := range cmds {
 		if c.Name() == name {

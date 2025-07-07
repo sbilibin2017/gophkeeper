@@ -4,63 +4,63 @@ import (
 	"time"
 )
 
-// Константы, определяющие типы сохраняемых секретов.
+// Constants defining types of stored secrets.
 const (
-	LoginPassword = "login_password" // Логин и пароль
-	Text          = "text"           // Текстовая информация
-	Binary        = "binary"         // Бинарные данные
-	Card          = "card"           // Платёжная карта
+	LoginPassword = "login_password" // Login and password
+	Text          = "text"           // Text information
+	Binary        = "binary"         // Binary data
+	Card          = "card"           // Payment card
 )
 
-// SecretDB представляет основную метаинформацию о сохранённом секрете.
-// Содержит идентификаторы и временные метки, общие для всех типов секретов.
+// SecretDB represents the basic metadata of a stored secret.
+// Contains identifiers and timestamps common to all secret types.
 type SecretDB struct {
-	SecretID  string    `json:"secret_id" db:"secret_id"`   // Уникальный идентификатор секрета (UUID)
-	TypeID    string    `json:"type_id" db:"type_id"`       // Идентификатор типа секрета, ссылается на TypeDB.TypeID
-	OwnerID   string    `json:"owner_id" db:"owner_id"`     // Идентификатор владельца секрета (UUID)
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"` // Временная метка последнего обновления
+	SecretID  string    `json:"secret_id" db:"secret_id"`   // Unique secret identifier (UUID)
+	TypeID    string    `json:"type_id" db:"type_id"`       // Secret type identifier, refers to TypeDB.TypeID
+	OwnerID   string    `json:"owner_id" db:"owner_id"`     // Secret owner's identifier (UUID)
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"` // Timestamp of the last update
 }
 
-// TypeDB представляет определение типа секрета.
+// TypeDB represents the definition of a secret type.
 type TypeDB struct {
-	TypeID    string    `json:"type_id" db:"type_id"`       // Уникальный идентификатор типа секрета
-	Name      string    `json:"name" db:"name"`             // Человекочитаемое имя типа секрета
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"` // Временная метка последнего обновления
+	TypeID    string    `json:"type_id" db:"type_id"`       // Unique identifier of the secret type
+	Name      string    `json:"name" db:"name"`             // Human-readable name of the secret type
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"` // Timestamp of the last update
 }
 
-// LoginPasswordDB представляет секрет типа "login_password".
-// Сохраняет учетные данные и необязательные метаданные.
+// LoginPasswordDB represents a secret of type "login_password".
+// Stores credentials and optional metadata.
 type LoginPasswordDB struct {
-	SecretID string            `json:"secret_id" db:"secret_id"` // Уникальный идентификатор секрета (UUID)
-	Login    string            `json:"login" db:"login"`         // Имя пользователя или логин
-	Password string            `json:"password" db:"password"`   // Пароль
-	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Необязательные метаданные
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique secret identifier (UUID)
+	Login    string            `json:"login" db:"login"`         // Username or login
+	Password string            `json:"password" db:"password"`   // Password
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Optional metadata
 }
 
-// PayloadTextDB представляет секрет типа "text".
-// Сохраняет произвольный текст и необязательные метаданные.
+// PayloadTextDB represents a secret of type "text".
+// Stores arbitrary text and optional metadata.
 type PayloadTextDB struct {
-	SecretID string            `json:"secret_id" db:"secret_id"` // Уникальный идентификатор секрета (UUID)
-	Content  string            `json:"content" db:"content"`     // Основной текст
-	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Необязательные метаданные
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique secret identifier (UUID)
+	Content  string            `json:"content" db:"content"`     // Main text content
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Optional metadata
 }
 
-// PayloadBinaryDB представляет секрет типа "binary".
-// Сохраняет необработанные бинарные данные и необязательные метаданные.
+// PayloadBinaryDB represents a secret of type "binary".
+// Stores raw binary data and optional metadata.
 type PayloadBinaryDB struct {
-	SecretID string            `json:"secret_id" db:"secret_id"` // Уникальный идентификатор секрета (UUID)
-	Data     []byte            `json:"data" db:"data"`           // Сырые бинарные данные
-	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Необязательные метаданные
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique secret identifier (UUID)
+	Data     []byte            `json:"data" db:"data"`           // Raw binary data
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Optional metadata
 }
 
-// PayloadCardDB представляет секрет типа "card".
-// Сохраняет данные платёжной карты и необязательные метаданные.
+// PayloadCardDB represents a secret of type "card".
+// Stores payment card data and optional metadata.
 type PayloadCardDB struct {
-	SecretID string            `json:"secret_id" db:"secret_id"` // Уникальный идентификатор секрета (UUID)
-	Number   string            `json:"number" db:"number"`       // Номер карты
-	Holder   string            `json:"holder" db:"holder"`       // Имя держателя карты
-	ExpMonth int               `json:"exp_month" db:"exp_month"` // Месяц окончания срока действия (1-12)
-	ExpYear  int               `json:"exp_year" db:"exp_year"`   // Год окончания срока действия (четыре цифры)
-	CVV      string            `json:"cvv" db:"cvv"`             // CVV-код
-	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Необязательные метаданные (например, банк, тип карты)
+	SecretID string            `json:"secret_id" db:"secret_id"` // Unique secret identifier (UUID)
+	Number   string            `json:"number" db:"number"`       // Card number
+	Holder   string            `json:"holder" db:"holder"`       // Cardholder's name
+	ExpMonth int               `json:"exp_month" db:"exp_month"` // Expiry month (1-12)
+	ExpYear  int               `json:"exp_year" db:"exp_year"`   // Expiry year (four digits)
+	CVV      string            `json:"cvv" db:"cvv"`             // CVV code
+	Meta     map[string]string `json:"meta,omitempty" db:"meta"` // Optional metadata (e.g., bank, card type)
 }

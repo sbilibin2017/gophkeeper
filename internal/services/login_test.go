@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -18,46 +17,6 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
-
-func TestLoginContextService_Login(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockLoginer := NewMockLoginer(ctrl)
-	service := NewLoginContextService()
-	service.SetContext(mockLoginer)
-
-	ctx := context.Background()
-	creds := &models.Credentials{
-		Username: "testuser",
-		Password: "testpass",
-	}
-
-	t.Run("successful login", func(t *testing.T) {
-		mockLoginer.EXPECT().
-			Login(ctx, creds).
-			Return(nil)
-
-		err := service.Login(ctx, creds)
-		assert.NoError(t, err)
-	})
-
-	t.Run("login error", func(t *testing.T) {
-		expectedErr := errors.New("login error")
-		mockLoginer.EXPECT().
-			Login(ctx, creds).
-			Return(expectedErr)
-
-		err := service.Login(ctx, creds)
-		assert.EqualError(t, err, expectedErr.Error())
-	})
-
-	t.Run("loginer not set", func(t *testing.T) {
-		serviceWithoutLoginer := NewLoginContextService()
-		err := serviceWithoutLoginer.Login(ctx, creds)
-		assert.EqualError(t, err, "loginer not set")
-	})
-}
 
 // --- HTTPLoginService: integration test with httptest.Server ---
 

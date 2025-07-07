@@ -14,8 +14,9 @@ import (
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// newRegisterCommand создаёт новую команду cobra для регистрации пользователя.
-// Команда принимает параметры сервера, имя пользователя и пароль, а также опциональные ключи для HMAC и RSA.
+// newRegisterCommand creates a new cobra command for user registration.
+// The command accepts server URL, username, and password parameters,
+// as well as optional keys for HMAC and RSA.
 func newRegisterCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "register --server-url <url> --username <username> --password <password>",
@@ -49,21 +50,22 @@ func newRegisterCommand() *cobra.Command {
 		},
 	}
 
+	// Move the server-url flag to the first position
 	cmd.Flags().StringP("server-url", "s", "", "Server URL")
 	cmd.Flags().StringP("username", "u", "", "Username")
 	cmd.Flags().StringP("password", "p", "", "User password")
 	cmd.Flags().String("hmac-key", "", "HMAC key")
 	cmd.Flags().String("rsa-public-key", "", "Path to RSA public key")
 
+	_ = cmd.MarkFlagRequired("server-url")
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
-	_ = cmd.MarkFlagRequired("server-url")
 
 	return cmd
 }
 
-// parseRegisterFlags парсит флаги команды регистрации и возвращает конфигурацию клиента,
-// учётные данные пользователя и возможную ошибку.
+// parseRegisterFlags parses the flags of the register command and returns
+// the client configuration, user credentials, and any error.
 func parseRegisterFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credentials, error) {
 	username, _ := cmd.Flags().GetString("username")
 	password, _ := cmd.Flags().GetString("password")
@@ -88,23 +90,25 @@ func parseRegisterFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Cred
 	return config, creds, nil
 }
 
-// newRegisterService создаёт и возвращает сервис регистрации на основе переданной конфигурации клиента.
-// В зависимости от типа клиента (HTTP или gRPC) создаётся соответствующий сервис.
-// Возвращает ошибку, если схема сервера не поддерживается.
-func newRegisterService(config *configs.ClientConfig) (services.Registerer, error) {
-	svc := services.NewRegisterContextService()
+// Registerer describes the user registration service interface.
+type Registerer interface {
+	// Register performs user registration with the specified credentials.
+	Register(ctx context.Context, creds *models.Credentials) error
+}
 
+// newRegisterService creates and returns a registration service based on the provided client configuration.
+// Depending on the client type (HTTP or gRPC), it creates the corresponding service.
+// Returns an error if the server scheme is not supported.
+func newRegisterService(config *configs.ClientConfig) (Registerer, error) {
 	switch {
 	case config.HTTPClient != nil:
-		httpRegister := services.NewHTTPRegisterService(config.HTTPClient)
-		svc.SetContext(httpRegister)
+		svc := services.NewHTTPRegisterService(config.HTTPClient)
+		return svc, nil
 	case config.GRPCClient != nil:
 		grpcClient := pb.NewRegisterServiceClient(config.GRPCClient)
-		grpcRegister := services.NewGRPCRegisterService(grpcClient)
-		svc.SetContext(grpcRegister)
+		svc := services.NewGRPCRegisterService(grpcClient)
+		return svc, nil
 	default:
 		return nil, errors.New("unsupported server scheme")
 	}
-
-	return svc, nil
 }

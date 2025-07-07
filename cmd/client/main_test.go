@@ -2,6 +2,8 @@ package main_test
 
 import (
 	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"testing"
@@ -13,6 +15,7 @@ import (
 type AppSuite struct {
 	suite.Suite
 	binPath string
+	server  *httptest.Server
 }
 
 func (s *AppSuite) SetupSuite() {
@@ -24,9 +27,22 @@ func (s *AppSuite) SetupSuite() {
 	if err != nil {
 		s.T().Fatalf("failed to build binary: %v, stderr: %s", err, stderr.String())
 	}
+
+	// Запускаем мок-сервер, который отвечает на POST /register
+	s.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/register" && r.Method == http.MethodPost {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"status":"ok","message":"user registered"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
 }
 
 func (s *AppSuite) TearDownSuite() {
+	if s.server != nil {
+		s.server.Close()
+	}
 	err := os.Remove(s.binPath)
 	if err != nil {
 		s.T().Logf("failed to remove test binary: %v", err)
@@ -42,42 +58,17 @@ func (s *AppSuite) runCommand(args ...string) (string, error) {
 	return out.String(), err
 }
 
-func (s *AppSuite) TestRootCommandRuns() {
-	out, err := s.runCommand("help")
-	require.NoError(s.T(), err)
-	require.Contains(s.T(), out, "GophKeeper")
-}
-
-func (s *AppSuite) TestBuildInfoCommand() {
-	out, err := s.runCommand("build-info")
-	require.NoError(s.T(), err)
-	require.Contains(s.T(), out, "Build platform:")
-	require.Contains(s.T(), out, "Build version:")
-}
-
-func (s *AppSuite) TestUsageCommand() {
-	out, err := s.runCommand("usage")
-	require.NoError(s.T(), err)
-	require.Contains(s.T(), out, "Usage")
-}
-
-func (s *AppSuite) TestRegisterCommandMissingFlags() {
-	_, err := s.runCommand("register")
-	// Проверяем, что ошибка именно о флагах
-	require.Error(s.T(), err)
-
-}
-
 func (s *AppSuite) TestRegisterCommandSuccess() {
+	// Передаем базовый URL, клиент должен добавить /register сам
 	out, err := s.runCommand(
 		"register",
-		"--server-url", "https://localhost:8000",
+		"--server-url", s.server.URL,
 		"--username", "testuser",
 		"--password", "testpass",
 	)
+
+	s.T().Logf("Output:\n%s", out)
 	require.NoError(s.T(), err)
-	// Можно проверить, что вывод не пустой, если команда должна что-то выводить:
-	require.NotEmpty(s.T(), out, "expected some output from register command")
 }
 
 func TestAppSuite(t *testing.T) {

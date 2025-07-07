@@ -11,51 +11,18 @@ import (
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// Registerer описывает интерфейс сервиса регистрации пользователя.
-type Registerer interface {
-	// Register выполняет регистрацию пользователя с указанными учётными данными.
-	Register(ctx context.Context, creds *models.Credentials) error
-}
-
-// RegisterContextService предоставляет обёртку для вызова регистрации через Registerer.
-type RegisterContextService struct {
-	registerer Registerer
-}
-
-// NewRegisterContextService создаёт новый экземпляр RegisterContextService.
-func NewRegisterContextService() *RegisterContextService {
-	return &RegisterContextService{}
-}
-
-// SetContext задаёт реализацию интерфейса Registerer для последующих вызовов.
-func (r *RegisterContextService) SetContext(registerer Registerer) {
-	r.registerer = registerer
-}
-
-// Register вызывает регистрацию пользователя через установленный Registerer.
-// Возвращает ошибку, если Registerer не установлен или регистрация не удалась.
-func (r *RegisterContextService) Register(
-	ctx context.Context,
-	creds *models.Credentials,
-) error {
-	if r.registerer == nil {
-		return fmt.Errorf("registerer not set")
-	}
-	return r.registerer.Register(ctx, creds)
-}
-
-// HTTPRegisterService реализует регистрацию через HTTP API.
+// HTTPRegisterService implements registration via HTTP API.
 type HTTPRegisterService struct {
 	client *resty.Client
 }
 
-// NewHTTPRegisterService создаёт новый HTTPRegisterService с заданным HTTP клиентом.
+// NewHTTPRegisterService creates a new HTTPRegisterService with the specified HTTP client.
 func NewHTTPRegisterService(client *resty.Client) *HTTPRegisterService {
 	return &HTTPRegisterService{client: client}
 }
 
-// Register отправляет HTTP POST запрос для регистрации пользователя.
-// Возвращает ошибку, если запрос не удался или сервер вернул статус отличный от 200 OK.
+// Register sends an HTTP POST request to register the user.
+// Returns an error if the request failed or the server returned a status other than 200 OK.
 func (r *HTTPRegisterService) Register(
 	ctx context.Context,
 	creds *models.Credentials,
@@ -77,18 +44,18 @@ func (r *HTTPRegisterService) Register(
 	return nil
 }
 
-// GRPCRegisterService реализует регистрацию через gRPC сервис.
+// GRPCRegisterService implements registration via gRPC service.
 type GRPCRegisterService struct {
 	client pb.RegisterServiceClient
 }
 
-// NewGRPCRegisterService создаёт новый GRPCRegisterService с заданным gRPC клиентом.
+// NewGRPCRegisterService creates a new GRPCRegisterService with the specified gRPC client.
 func NewGRPCRegisterService(client pb.RegisterServiceClient) *GRPCRegisterService {
 	return &GRPCRegisterService{client: client}
 }
 
-// Register отправляет gRPC запрос для регистрации пользователя.
-// Возвращает ошибку, если запрос не удался.
+// Register sends a gRPC request to register the user.
+// Returns an error if the request failed.
 func (r *GRPCRegisterService) Register(ctx context.Context, creds *models.Credentials) error {
 	_, err := r.client.Register(ctx, &pb.RegisterRequest{
 		Username: creds.Username,

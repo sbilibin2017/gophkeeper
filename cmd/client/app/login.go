@@ -14,7 +14,6 @@ import (
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// newLoginCommand создаёт новую команду cobra для аутентификации пользователя.
 func newLoginCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login --server-url <url> --username <username> --password <password>",
@@ -54,15 +53,15 @@ func newLoginCommand() *cobra.Command {
 	cmd.Flags().String("hmac-key", "", "HMAC key")
 	cmd.Flags().String("rsa-public-key", "", "Path to RSA public key")
 
+	_ = cmd.MarkFlagRequired("server-url")
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
-	_ = cmd.MarkFlagRequired("server-url")
 
 	return cmd
 }
 
-// parseLoginFlags парсит флаги команды login и возвращает конфигурацию клиента,
-// учётные данные пользователя и ошибку (если есть).
+// parseLoginFlags parses the flags of the login command and returns the client configuration,
+// user credentials, and an error (if any).
 func parseLoginFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credentials, error) {
 	username, _ := cmd.Flags().GetString("username")
 	password, _ := cmd.Flags().GetString("password")
@@ -87,21 +86,23 @@ func parseLoginFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Credent
 	return config, creds, nil
 }
 
-// newLoginService создаёт сервис аутентификации пользователя в зависимости от типа клиента.
-func newLoginService(config *configs.ClientConfig) (services.Loginer, error) {
-	svc := services.NewLoginContextService()
+// Loginer describes the interface for the user authentication service.
+type Loginer interface {
+	// Login performs user authentication with the specified credentials.
+	Login(ctx context.Context, creds *models.Credentials) error
+}
 
+// newLoginService creates a user authentication service depending on the client type.
+func newLoginService(config *configs.ClientConfig) (Loginer, error) {
 	switch {
 	case config.HTTPClient != nil:
-		httpLogin := services.NewHTTPLoginService(config.HTTPClient)
-		svc.SetContext(httpLogin)
+		svc := services.NewHTTPLoginService(config.HTTPClient)
+		return svc, nil
 	case config.GRPCClient != nil:
 		grpcClient := pb.NewLoginServiceClient(config.GRPCClient)
-		grpcLogin := services.NewGRPCLoginService(grpcClient)
-		svc.SetContext(grpcLogin)
+		svc := services.NewGRPCLoginService(grpcClient)
+		return svc, nil
 	default:
 		return nil, errors.New("unsupported server scheme")
 	}
-
-	return svc, nil
 }

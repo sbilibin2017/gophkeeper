@@ -11,48 +11,18 @@ import (
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// Loginer описывает интерфейс сервиса аутентификации пользователя.
-type Loginer interface {
-	// Login выполняет аутентификацию пользователя с указанными учётными данными.
-	Login(ctx context.Context, creds *models.Credentials) error
-}
-
-// LoginContextService предоставляет обёртку для вызова аутентификации через Loginer.
-type LoginContextService struct {
-	loginer Loginer
-}
-
-// NewLoginContextService создаёт новый экземпляр LoginContextService.
-func NewLoginContextService() *LoginContextService {
-	return &LoginContextService{}
-}
-
-// SetContext задаёт реализацию интерфейса Loginer для последующих вызовов.
-func (l *LoginContextService) SetContext(loginer Loginer) {
-	l.loginer = loginer
-}
-
-// Login вызывает аутентификацию пользователя через установленный Loginer.
-// Возвращает ошибку, если Loginer не установлен или аутентификация не удалась.
-func (l *LoginContextService) Login(ctx context.Context, creds *models.Credentials) error {
-	if l.loginer == nil {
-		return fmt.Errorf("loginer not set")
-	}
-	return l.loginer.Login(ctx, creds)
-}
-
-// HTTPLoginService реализует аутентификацию через HTTP API.
+// HTTPLoginService implements authentication via HTTP API.
 type HTTPLoginService struct {
 	client *resty.Client
 }
 
-// NewHTTPLoginService создаёт новый HTTPLoginService с заданным HTTP клиентом.
+// NewHTTPLoginService creates a new HTTPLoginService with the given HTTP client.
 func NewHTTPLoginService(client *resty.Client) *HTTPLoginService {
 	return &HTTPLoginService{client: client}
 }
 
-// Login отправляет HTTP POST запрос для аутентификации пользователя.
-// Возвращает ошибку, если запрос не удался или сервер вернул статус отличный от 200 OK.
+// Login sends an HTTP POST request to authenticate the user.
+// Returns an error if the request fails or the server returns a status other than 200 OK.
 func (l *HTTPLoginService) Login(ctx context.Context, creds *models.Credentials) error {
 	resp, err := l.client.R().
 		SetContext(ctx).
@@ -71,18 +41,18 @@ func (l *HTTPLoginService) Login(ctx context.Context, creds *models.Credentials)
 	return nil
 }
 
-// GRPCLoginService реализует аутентификацию через gRPC сервис.
+// GRPCLoginService implements authentication via gRPC service.
 type GRPCLoginService struct {
 	client pb.LoginServiceClient
 }
 
-// NewGRPCLoginService создаёт новый GRPCLoginService с заданным gRPC клиентом.
+// NewGRPCLoginService creates a new GRPCLoginService with the given gRPC client.
 func NewGRPCLoginService(client pb.LoginServiceClient) *GRPCLoginService {
 	return &GRPCLoginService{client: client}
 }
 
-// Login отправляет gRPC запрос для аутентификации пользователя.
-// Возвращает ошибку, если запрос не удался.
+// Login sends a gRPC request to authenticate the user.
+// Returns an error if the request fails.
 func (l *GRPCLoginService) Login(ctx context.Context, creds *models.Credentials) error {
 	_, err := l.client.Login(ctx, &pb.LoginRequest{
 		Username: creds.Username,

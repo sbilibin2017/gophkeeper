@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -18,46 +17,6 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
-
-func TestRegisterContextService_Register(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockRegisterer := NewMockRegisterer(ctrl)
-	service := NewRegisterContextService()
-	service.SetContext(mockRegisterer)
-
-	ctx := context.Background()
-	creds := &models.Credentials{
-		Username: "testuser",
-		Password: "testpass",
-	}
-
-	t.Run("successful registration", func(t *testing.T) {
-		mockRegisterer.EXPECT().
-			Register(ctx, creds).
-			Return(nil)
-
-		err := service.Register(ctx, creds)
-		assert.NoError(t, err)
-	})
-
-	t.Run("registration error", func(t *testing.T) {
-		expectedErr := errors.New("register error")
-		mockRegisterer.EXPECT().
-			Register(ctx, creds).
-			Return(expectedErr)
-
-		err := service.Register(ctx, creds)
-		assert.EqualError(t, err, expectedErr.Error())
-	})
-
-	t.Run("registerer not set", func(t *testing.T) {
-		serviceWithoutRegisterer := NewRegisterContextService()
-		err := serviceWithoutRegisterer.Register(ctx, creds)
-		assert.EqualError(t, err, "registerer not set")
-	})
-}
 
 // --- HTTPRegisterService: интеграционный тест с httptest.Server ---
 
