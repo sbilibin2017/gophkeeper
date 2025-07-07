@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+// RegisterService provides user registration functionality.
+service RegisterService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+}
+
+// RegisterRequest contains the user's credentials for registration.
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// RegisterResponse contains the result of the registration attempt.
+message RegisterResponse {
+  string error = 1; // Empty means success
+}
