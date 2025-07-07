@@ -2,16 +2,16 @@ package buildinfo
 
 import "fmt"
 
-// BuildInfo holds information about the software build.
+// BuildInfo содержит сведения о сборке программного обеспечения.
 type BuildInfo struct {
-	Platform string // Build platform (e.g., linux/amd64)
-	Version  string // Build version (e.g., v1.2.3)
-	Date     string // Build date (e.g., 2025-07-06)
-	Commit   string // Build commit hash
+	Platform string // Платформа сборки (например, linux/amd64)
+	Version  string // Версия сборки (например, v1.2.3)
+	Date     string // Дата сборки (например, 2025-07-06)
+	Commit   string // Хеш коммита сборки
 }
 
-// NewBuildInfo creates a new BuildInfo instance applying the given options.
-// If an option is not set, default values "N/A" are used.
+// NewBuildInfo создает новый экземпляр BuildInfo, применяя переданные опции.
+// Если какая-либо опция не задана, используются значения по умолчанию "N/A".
 func NewBuildInfo(opts ...Opt) *BuildInfo {
 	b := &BuildInfo{
 		Platform: "N/A",
@@ -25,31 +25,31 @@ func NewBuildInfo(opts ...Opt) *BuildInfo {
 	return b
 }
 
-// Opt defines a functional option for configuring BuildInfo.
+// Opt определяет функциональную опцию для настройки BuildInfo.
 type Opt func(*BuildInfo)
 
-// WithPlatform sets the build platform.
+// WithPlatform задает платформу сборки.
 func WithPlatform(platform string) Opt {
 	return func(b *BuildInfo) { b.Platform = platform }
 }
 
-// WithVersion sets the build version.
+// WithVersion задает версию сборки.
 func WithVersion(version string) Opt {
 	return func(b *BuildInfo) { b.Version = version }
 }
 
-// WithDate sets the build date.
+// WithDate задает дату сборки.
 func WithDate(date string) Opt {
 	return func(b *BuildInfo) { b.Date = date }
 }
 
-// WithCommit sets the build commit hash.
+// WithCommit задает хеш коммита сборки.
 func WithCommit(commit string) Opt {
 	return func(b *BuildInfo) { b.Commit = commit }
 }
 
-// String returns a formatted string representation of the BuildInfo.
-// It implements the fmt.Stringer interface.
+// String возвращает отформатированную строку с информацией о сборке.
+// Реализует интерфейс fmt.Stringer.
 func (b *BuildInfo) String() string {
 	return fmt.Sprintf(
 		"Build platform: %s\nBuild version: %s\nBuild date: %s\nBuild commit: %s",

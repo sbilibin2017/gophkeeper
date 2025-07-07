@@ -16,7 +16,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// ClientConfig holds HTTP/gRPC clients and HMAC/RSA encoding functions.
+// ClientConfig содержит конфигурацию клиента (HTTP/gRPC) и функции кодирования (HMAC/RSA).
 type ClientConfig struct {
 	httpClient  *resty.Client
 	grpcClient  *grpc.ClientConn
@@ -24,11 +24,11 @@ type ClientConfig struct {
 	rsaEncoder  func([]byte) ([]byte, error)
 }
 
-// ClientConfigOpt defines a function that modifies a ClientConfig and may return an error.
+// ClientConfigOpt определяет функцию, модифицирующую ClientConfig и, возможно, возвращающую ошибку.
 type ClientConfigOpt func(*ClientConfig) error
 
-// NewClientConfig creates a new ClientConfig instance and applies the provided options.
-// Returns an error if any option fails.
+// NewClientConfig создает новый экземпляр ClientConfig и применяет переданные опции.
+// Возвращает ошибку, если какая-либо из опций завершилась неудачно.
 func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	c := &ClientConfig{}
 	for _, opt := range opts {
@@ -39,8 +39,8 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	return c, nil
 }
 
-// WithClient initializes either an HTTP or gRPC client depending on the URL scheme.
-// Supported schemes: "http", "https", "grpc".
+// WithClient инициализирует HTTP- или gRPC-клиент в зависимости от схемы URL.
+// Поддерживаемые схемы: "http", "https", "grpc".
 func WithClient(serverURL string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		parsed, err := url.Parse(serverURL)
@@ -72,8 +72,8 @@ func WithClient(serverURL string) ClientConfigOpt {
 	}
 }
 
-// WithHMACEncoder sets up an HMAC-SHA256 encoding function using the provided secret key.
-// Returns an error if the key is empty.
+// WithHMACEncoder устанавливает функцию кодирования HMAC-SHA256 с использованием заданного ключа.
+// Возвращает ошибку, если ключ пустой.
 func WithHMACEncoder(key string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		if key == "" {
@@ -90,8 +90,8 @@ func WithHMACEncoder(key string) ClientConfigOpt {
 	}
 }
 
-// WithRSAEncoder sets up RSA encryption using a public key from a PEM file.
-// Expects a PEM block of type "PUBLIC KEY".
+// WithRSAEncoder устанавливает функцию RSA-шифрования, используя открытый ключ из PEM-файла.
+// Ожидается PEM-блок с типом "PUBLIC KEY".
 func WithRSAEncoder(publicKeyPath string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		data, err := os.ReadFile(publicKeyPath)
