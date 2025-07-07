@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+// AddService provides secret storing functionality.
+service AddService {
+  // AddLoginPassword adds a login/password secret.
+  rpc AddLoginPassword(LoginPassword) returns (AddResponse);
+
+  // AddText adds a textual secret.
+  rpc AddText(Text) returns (AddResponse);
+
+  // AddBinary adds a binary secret.
+  rpc AddBinary(Binary) returns (AddResponse);
+
+  // AddCard adds a card secret.
+  rpc AddCard(Card) returns (AddResponse);
+}
+
+// LoginPassword represents login and password.
+message LoginPassword {
+  string secret_id = 1;
+  string login = 2;
+  string password = 3;
+  map<string, string> meta = 4;
+  int64 updated_at = 5; // Unix timestamp in seconds
+}
+
+// Text represents a textual secret.
+message Text {
+  string secret_id = 1;
+  string content = 2;
+  map<string, string> meta = 3;
+  int64 updated_at = 4;
+}
+
+// Binary represents a binary secret.
+message Binary {
+  string secret_id = 1;
+  bytes data = 2;
+  map<string, string> meta = 3;
+  int64 updated_at = 4;
+}
+
+// Card represents card details.
+message Card {
+  string secret_id = 1;
+  string number = 2;
+  string holder = 3;
+  int32 exp_month = 4;
+  int32 exp_year = 5;
+  string cvv = 6;
+  map<string, string> meta = 7;
+  int64 updated_at = 8;
+}
+
+// AddResponse contains the result of an add operation.
+message AddResponse {
+  string error = 1; // empty means success
+}

@@ -13,10 +13,11 @@ func TestWithHMACEncoder(t *testing.T) {
 	cfg, err := NewClientConfig(WithHMACEncoder(key))
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.NotNil(t, cfg.HMACEncoder)
+	require.NotEmpty(t, cfg.Encoders)
 
 	data := []byte("test")
-	mac := cfg.HMACEncoder(data)
+	mac, err := cfg.Encoders[0](data)
+	require.NoError(t, err)
 	require.NotEmpty(t, mac)
 }
 
@@ -24,7 +25,7 @@ func TestWithHMACEncoder_EmptyKey(t *testing.T) {
 	cfg, err := NewClientConfig(WithHMACEncoder(""))
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.Nil(t, cfg.HMACEncoder)
+	require.Empty(t, cfg.Encoders)
 }
 
 func TestWithRSAEncoder_InvalidPath(t *testing.T) {
@@ -51,9 +52,9 @@ twjlsFTh6FWAK2PLR0NzHlXieMSA8FnUjUVpI1prK7eUQ9A9gh0bSUovVf5EJNa2
 	cfg, err := NewClientConfig(WithRSAEncoder(tmpFile))
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-	require.NotNil(t, cfg.RSAEncoder)
+	require.NotEmpty(t, cfg.Encoders)
 
-	encrypted, err := cfg.RSAEncoder([]byte("hello"))
+	encrypted, err := cfg.Encoders[0]([]byte("hello"))
 	require.NoError(t, err)
 	require.NotEmpty(t, encrypted)
 }

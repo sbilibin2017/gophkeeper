@@ -16,19 +16,14 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// ClientConfig holds the client configuration (HTTP/gRPC) and encoding functions (HMAC/RSA).
 type ClientConfig struct {
-	HTTPClient  *resty.Client
-	GRPCClient  *grpc.ClientConn
-	HMACEncoder func([]byte) []byte
-	RSAEncoder  func([]byte) ([]byte, error)
+	HTTPClient *resty.Client
+	GRPCClient *grpc.ClientConn
+	Encoders   []func(data []byte) ([]byte, error)
 }
 
-// ClientConfigOpt defines a function that modifies ClientConfig and may return an error.
 type ClientConfigOpt func(*ClientConfig) error
 
-// NewClientConfig creates a new instance of ClientConfig and applies the given options.
-// Returns an error if any of the options fail.
 func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	c := &ClientConfig{}
 	for _, opt := range opts {
@@ -39,8 +34,6 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	return c, nil
 }
 
-// WithClient configures the client based on the server URL scheme.
-// Supports HTTP(S) and gRPC protocols.
 func WithClient(serverURL string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		parsed, err := url.Parse(serverURL)
@@ -56,14 +49,13 @@ func WithClient(serverURL string) ClientConfigOpt {
 			return nil
 
 		case "grpc":
-			grpcClient, err := grpc.NewClient(
+			grpcClient, err := grpc.Dial(
 				parsed.Host,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
 			if err != nil {
 				return fmt.Errorf("failed to create gRPC client: %w", err)
 			}
-
 			c.GRPCClient = grpcClient
 			return nil
 
@@ -73,8 +65,6 @@ func WithClient(serverURL string) ClientConfigOpt {
 	}
 }
 
-// WithHMACEncoder sets an HMAC-SHA256 encoding function using the provided key.
-// Returns an error if the key is empty.
 func WithHMACEncoder(key string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		if key == "" {
@@ -82,17 +72,17 @@ func WithHMACEncoder(key string) ClientConfigOpt {
 		}
 		keyBytes := []byte(key)
 
-		c.HMACEncoder = func(data []byte) []byte {
+		hmacEnc := func(data []byte) ([]byte, error) {
 			mac := hmac.New(sha256.New, keyBytes)
 			mac.Write(data)
-			return mac.Sum(nil)
+			return mac.Sum(nil), nil
 		}
+
+		c.Encoders = append(c.Encoders, hmacEnc)
 		return nil
 	}
 }
 
-// WithRSAEncoder sets an RSA encryption function using a public key read from a PEM file.
-// Expects a PEM block of type "PUBLIC KEY".
 func WithRSAEncoder(publicKeyPath string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		if publicKeyPath == "" {
@@ -119,10 +109,11 @@ func WithRSAEncoder(publicKeyPath string) ClientConfigOpt {
 			return fmt.Errorf("provided key is not a valid RSA public key")
 		}
 
-		c.RSAEncoder = func(data []byte) ([]byte, error) {
+		rsaEnc := func(data []byte) ([]byte, error) {
 			return rsa.EncryptPKCS1v15(rand.Reader, rsaPub, data)
 		}
 
+		c.Encoders = append(c.Encoders, rsaEnc)
 		return nil
 	}
 }

@@ -14,13 +14,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// --- HTTPRegisterService: интеграционный тест с httptest.Server ---
-
-func TestHTTPRegisterService_Register(t *testing.T) {
+func TestRegisterHTTP(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/register" || r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusNotFound)
@@ -31,19 +28,21 @@ func TestHTTPRegisterService_Register(t *testing.T) {
 	defer server.Close()
 
 	client := resty.New()
-	client.SetHostURL(server.URL)
+	client.SetBaseURL(server.URL)
 
-	service := NewHTTPRegisterService(client)
-
-	err := service.Register(context.Background(), &models.Credentials{
-		Username: "user",
-		Password: "pass",
-	})
-
+	err := RegisterHTTP(
+		context.Background(),
+		"user",
+		"pass",
+		WithRegisterHTTPClient(client),
+		// nil encoders can be omitted, or you can explicitly pass them:
+		// WithHMACEncoder(nil),
+		// WithRSAEncoder(nil),
+	)
 	assert.NoError(t, err)
 }
 
-// --- gRPC сервис и сервер для теста ---
+// --- gRPC test setup ---
 
 type testRegisterServer struct {
 	pb.UnimplementedRegisterServiceServer
@@ -57,7 +56,7 @@ func (s *testRegisterServer) Register(ctx context.Context, req *pb.RegisterReque
 	return &pb.RegisterResponse{Error: ""}, nil
 }
 
-func TestGRPCRegisterService_Register(t *testing.T) {
+func TestRegisterGRPC(t *testing.T) {
 	const bufSize = 1024 * 1024
 	lis := bufconn.Listen(bufSize)
 
@@ -72,16 +71,11 @@ func TestGRPCRegisterService_Register(t *testing.T) {
 		}
 	}()
 
-	select {
-	case err := <-errCh:
-		t.Fatalf("failed to start gRPC server: %v", err)
-	default:
-	}
-
 	defer srv.Stop()
 
 	ctx := context.Background()
-	conn, err := grpc.Dial(
+	conn, err := grpc.DialContext(
+		ctx,
 		"bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return lis.Dial()
@@ -92,25 +86,31 @@ func TestGRPCRegisterService_Register(t *testing.T) {
 	defer conn.Close()
 
 	client := pb.NewRegisterServiceClient(conn)
-	service := NewGRPCRegisterService(client)
 
 	t.Run("successful registration", func(t *testing.T) {
 		testSrv.shouldFail = false
 
-		err := service.Register(ctx, &models.Credentials{
-			Username: "grpcuser",
-			Password: "grpcpass",
-		})
+		err := RegisterGRPC(
+			ctx,
+			"grpcuser",
+			"grpcpass",
+			WithRegisterGRPCClient(client),
+			// omit encoders or explicitly pass nil:
+			// WithGRPCHMACEncoder(nil),
+			// WithGRPCRSAEncoder(nil),
+		)
 		assert.NoError(t, err)
 	})
 
 	t.Run("failed registration", func(t *testing.T) {
 		testSrv.shouldFail = true
 
-		err := service.Register(ctx, &models.Credentials{
-			Username: "grpcuser",
-			Password: "grpcpass",
-		})
+		err := RegisterGRPC(
+			ctx,
+			"grpcuser",
+			"grpcpass",
+			WithRegisterGRPCClient(client),
+		)
 		assert.Error(t, err)
 	})
 }
