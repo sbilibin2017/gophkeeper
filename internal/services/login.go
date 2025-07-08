@@ -2,151 +2,146 @@ package services
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// private options struct for LoginHTTP
-type loginHTTPOptions struct {
+// --- LoginHTTP with functional options ---
+
+type LoginHTTPOpt func(*loginHTTPConfig)
+
+type loginHTTPConfig struct {
+	encoders []func([]byte) ([]byte, error)
 	client   *resty.Client
-	encoders []func(data []byte) ([]byte, error)
 }
 
-type LoginHTTPOption func(*loginHTTPOptions)
-
-func WithLoginHTTPClient(client *resty.Client) LoginHTTPOption {
-	return func(o *loginHTTPOptions) {
-		o.client = client
+func WithLoginHTTPEncoders(enc []func([]byte) ([]byte, error)) LoginHTTPOpt {
+	return func(c *loginHTTPConfig) {
+		c.encoders = enc
 	}
 }
 
-func WithLoginHMACEncoder(enc func([]byte) []byte) LoginHTTPOption {
-	return func(o *loginHTTPOptions) {
-		o.encoders = append(o.encoders, func(data []byte) ([]byte, error) {
-			return enc(data), nil
-		})
+func WithLoginHTTPClient(client *resty.Client) LoginHTTPOpt {
+	return func(c *loginHTTPConfig) {
+		c.client = client
 	}
 }
 
-func WithLoginRSAEncoder(enc func([]byte) ([]byte, error)) LoginHTTPOption {
-	return func(o *loginHTTPOptions) {
-		o.encoders = append(o.encoders, enc)
-	}
-}
-
-func LoginHTTP(
-	ctx context.Context,
-	username, password string,
-	opts ...LoginHTTPOption,
-) error {
-	options := &loginHTTPOptions{}
+func LoginHTTP(ctx context.Context, user *models.User, opts ...LoginHTTPOpt) error {
+	config := &loginHTTPConfig{}
 	for _, opt := range opts {
-		opt(options)
+		opt(config)
 	}
 
-	encodedUsername := []byte(username)
-	var err error
-	for _, enc := range options.encoders {
-		encodedUsername, err = enc(encodedUsername)
-		if err != nil {
-			return fmt.Errorf("failed to encode username: %w", err)
+	encode := func(data string) (string, error) {
+		b := []byte(data)
+		var err error
+		for _, enc := range config.encoders {
+			b, err = enc(b)
+			if err != nil {
+				return "", err
+			}
 		}
+		return base64.StdEncoding.EncodeToString(b), nil
 	}
-	encodedUsernameHex := hex.EncodeToString(encodedUsername)
 
-	encodedPassword := []byte(password)
-	for _, enc := range options.encoders {
-		encodedPassword, err = enc(encodedPassword)
-		if err != nil {
-			return fmt.Errorf("failed to encode password: %w", err)
-		}
+	encodedUsername, err := encode(user.Username)
+	if err != nil {
+		return fmt.Errorf("encoding username failed: %w", err)
 	}
-	encodedPasswordHex := hex.EncodeToString(encodedPassword)
 
-	resp, err := options.client.R().
+	encodedPassword, err := encode(user.Password)
+	if err != nil {
+		return fmt.Errorf("encoding password failed: %w", err)
+	}
+
+	data := map[string]string{
+		"username": encodedUsername,
+		"password": encodedPassword,
+	}
+
+	resp, err := config.client.R().
 		SetContext(ctx).
 		SetHeader("Content-Type", "application/json").
-		SetBody(map[string]string{
-			"username": encodedUsernameHex,
-			"password": encodedPasswordHex,
-		}).
+		SetBody(data).
 		Post("/login")
-
 	if err != nil {
-		return err
+		return fmt.Errorf("HTTP request failed: %w", err)
 	}
 
-	if resp.StatusCode() != 200 {
-		return fmt.Errorf("login failed: %s", resp.String())
+	if resp.IsError() {
+		return fmt.Errorf("server returned error: %s", resp.String())
 	}
 
 	return nil
 }
 
-// ------------------------------------------------------------
+// --- LoginGRPC with functional options ---
 
-type loginGRPCOptions struct {
+type LoginGRPCOpt func(*loginGRPCConfig)
+
+type loginGRPCConfig struct {
+	encoders []func([]byte) ([]byte, error)
 	client   pb.LoginServiceClient
-	encoders []func(data []byte) ([]byte, error)
 }
 
-type LoginGRPCOption func(*loginGRPCOptions)
-
-func WithLoginGRPCClient(client pb.LoginServiceClient) LoginGRPCOption {
-	return func(o *loginGRPCOptions) {
-		o.client = client
+func WithLoginGRPCEncoders(enc []func([]byte) ([]byte, error)) LoginGRPCOpt {
+	return func(c *loginGRPCConfig) {
+		c.encoders = enc
 	}
 }
 
-func WithLoginGRPCHMACEncoder(enc func([]byte) []byte) LoginGRPCOption {
-	return func(o *loginGRPCOptions) {
-		o.encoders = append(o.encoders, func(data []byte) ([]byte, error) {
-			return enc(data), nil
-		})
+func WithLoginGRPCClient(client pb.LoginServiceClient) LoginGRPCOpt {
+	return func(c *loginGRPCConfig) {
+		c.client = client
 	}
 }
 
-func WithLoginGRPCRSAEncoder(enc func([]byte) ([]byte, error)) LoginGRPCOption {
-	return func(o *loginGRPCOptions) {
-		o.encoders = append(o.encoders, enc)
-	}
-}
-
-func LoginGRPC(
-	ctx context.Context,
-	username, password string,
-	opts ...LoginGRPCOption,
-) error {
-	options := &loginGRPCOptions{}
+func LoginGRPC(ctx context.Context, user *models.User, opts ...LoginGRPCOpt) error {
+	config := &loginGRPCConfig{}
 	for _, opt := range opts {
-		opt(options)
+		opt(config)
 	}
 
-	encodedUsername := []byte(username)
-	var err error
-	for _, enc := range options.encoders {
-		encodedUsername, err = enc(encodedUsername)
-		if err != nil {
-			return fmt.Errorf("failed to encode username: %w", err)
+	encode := func(data string) (string, error) {
+		b := []byte(data)
+		var err error
+		for _, enc := range config.encoders {
+			b, err = enc(b)
+			if err != nil {
+				return "", err
+			}
 		}
+		return base64.StdEncoding.EncodeToString(b), nil
 	}
 
-	encodedPassword := []byte(password)
-	for _, enc := range options.encoders {
-		encodedPassword, err = enc(encodedPassword)
-		if err != nil {
-			return fmt.Errorf("failed to encode password: %w", err)
-		}
+	encodedUsername, err := encode(user.Username)
+	if err != nil {
+		return fmt.Errorf("encoding username failed: %w", err)
 	}
 
-	encodedPasswordHex := hex.EncodeToString(encodedPassword)
+	encodedPassword, err := encode(user.Password)
+	if err != nil {
+		return fmt.Errorf("encoding password failed: %w", err)
+	}
 
-	_, err = options.client.Login(ctx, &pb.LoginRequest{
-		Username: string(encodedUsername),
-		Password: encodedPasswordHex,
-	})
-	return err
+	req := &pb.LoginRequest{
+		Username: encodedUsername,
+		Password: encodedPassword,
+	}
+
+	resp, err := config.client.Login(ctx, req)
+	if err != nil {
+		return fmt.Errorf("gRPC request failed: %w", err)
+	}
+
+	if resp.Error != "" {
+		return fmt.Errorf("login failed: %s", resp.Error)
+	}
+
+	return nil
 }
