@@ -4,18 +4,23 @@ package gophkeeper.grpc;
 
 option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
 
-// AddService provides secret storing functionality.
-service AddService {
-  // AddLoginPassword adds a login/password secret.
+// Service to add login/password secrets
+service AddLoginPasswordService {
   rpc AddLoginPassword(LoginPassword) returns (AddResponse);
+}
 
-  // AddText adds a textual secret.
+// Service to add textual secrets
+service AddTextService {
   rpc AddText(Text) returns (AddResponse);
+}
 
-  // AddBinary adds a binary secret.
+// Service to add binary secrets
+service AddBinaryService {
   rpc AddBinary(Binary) returns (AddResponse);
+}
 
-  // AddCard adds a card secret.
+// Service to add card secrets
+service AddCardService {
   rpc AddCard(Card) returns (AddResponse);
 }
 
