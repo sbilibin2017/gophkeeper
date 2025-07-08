@@ -12,6 +12,8 @@ import (
 	"os"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -20,6 +22,7 @@ type ClientConfig struct {
 	HTTPClient *resty.Client
 	GRPCClient *grpc.ClientConn
 	Encoders   []func(data []byte) ([]byte, error)
+	DB         *sqlx.DB
 }
 
 type ClientConfigOpt func(*ClientConfig) error
@@ -32,6 +35,17 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 		}
 	}
 	return c, nil
+}
+
+func WithDB() ClientConfigOpt {
+	return func(c *ClientConfig) error {
+		db, err := db.NewDB()
+		if err != nil {
+			return err
+		}
+		c.DB = db
+		return nil
+	}
 }
 
 func WithClient(serverURL string) ClientConfigOpt {
