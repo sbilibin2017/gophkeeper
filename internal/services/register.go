@@ -2,161 +2,146 @@ package services
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
-	"net/http"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// private options struct for RegisterHTTP
-type registerHTTPOptions struct {
+// --- RegisterHTTP with functional options (without ctx) ---
+
+type RegisterHTTPOpt func(*registerHTTPConfig)
+
+type registerHTTPConfig struct {
+	encoders []func([]byte) ([]byte, error)
 	client   *resty.Client
-	encoders []func(data []byte) ([]byte, error)
 }
 
-type RegisterHTTPOption func(*registerHTTPOptions)
-
-func WithRegisterHTTPClient(client *resty.Client) RegisterHTTPOption {
-	return func(o *registerHTTPOptions) {
-		o.client = client
+func WithRegisterHTTPEncoders(enc []func([]byte) ([]byte, error)) RegisterHTTPOpt {
+	return func(c *registerHTTPConfig) {
+		c.encoders = enc
 	}
 }
 
-// Wrap HMAC encoder (which returns []byte) to match signature ([]byte, error)
-func WithRegisterHMACEncoder(enc func([]byte) []byte) RegisterHTTPOption {
-	return func(o *registerHTTPOptions) {
-		o.encoders = append(o.encoders, func(data []byte) ([]byte, error) {
-			return enc(data), nil
-		})
+func WithRegisterHTTPClient(client *resty.Client) RegisterHTTPOpt {
+	return func(c *registerHTTPConfig) {
+		c.client = client
 	}
 }
 
-func WithRegisterRSAEncoder(enc func([]byte) ([]byte, error)) RegisterHTTPOption {
-	return func(o *registerHTTPOptions) {
-		o.encoders = append(o.encoders, enc)
-	}
-}
-
-// RegisterHTTP registers a user via HTTP API.
-// ctx, username, password are required parameters;
-// optional params are set via functional options.
-func RegisterHTTP(
-	ctx context.Context,
-	username, password string,
-	opts ...RegisterHTTPOption,
-) error {
-	options := &registerHTTPOptions{}
+func RegisterHTTP(ctx context.Context, user *models.User, opts ...RegisterHTTPOpt) error {
+	config := &registerHTTPConfig{}
 	for _, opt := range opts {
-		opt(options)
+		opt(config)
 	}
 
-	// Encode username
-	encodedUsername := []byte(username)
-	var err error
-	for _, enc := range options.encoders {
-		encodedUsername, err = enc(encodedUsername)
-		if err != nil {
-			return fmt.Errorf("failed to encode username: %w", err)
+	encode := func(data string) (string, error) {
+		b := []byte(data)
+		var err error
+		for _, enc := range config.encoders {
+			b, err = enc(b)
+			if err != nil {
+				return "", err
+			}
 		}
+		return base64.StdEncoding.EncodeToString(b), nil
 	}
-	encodedUsernameHex := hex.EncodeToString(encodedUsername)
 
-	// Encode password
-	encodedPassword := []byte(password)
-	for _, enc := range options.encoders {
-		encodedPassword, err = enc(encodedPassword)
-		if err != nil {
-			return fmt.Errorf("failed to encode password: %w", err)
-		}
+	encodedUsername, err := encode(user.Username)
+	if err != nil {
+		return fmt.Errorf("encoding username failed: %w", err)
 	}
-	encodedPasswordHex := hex.EncodeToString(encodedPassword)
 
-	resp, err := options.client.R().
+	encodedPassword, err := encode(user.Password)
+	if err != nil {
+		return fmt.Errorf("encoding password failed: %w", err)
+	}
+
+	data := map[string]string{
+		"username": encodedUsername,
+		"password": encodedPassword,
+	}
+
+	resp, err := config.client.R().
 		SetContext(ctx).
 		SetHeader("Content-Type", "application/json").
-		SetBody(map[string]string{
-			"username": encodedUsernameHex,
-			"password": encodedPasswordHex,
-		}).
+		SetBody(data).
 		Post("/register")
-
 	if err != nil {
-		return err
+		return fmt.Errorf("HTTP request failed: %w", err)
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("registration failed: %s", resp.String())
+
+	if resp.IsError() {
+		return fmt.Errorf("server returned error: %s", resp.String())
 	}
 
 	return nil
 }
 
-// ------------------------------------------------------------
+// --- RegisterGRPC with functional options (without ctx) ---
 
-// private options struct for RegisterGRPC
-type registerGRPCOptions struct {
+type RegisterGRPCOpt func(*registerGRPCConfig)
+
+type registerGRPCConfig struct {
+	encoders []func([]byte) ([]byte, error)
 	client   pb.RegisterServiceClient
-	encoders []func(data []byte) ([]byte, error)
 }
 
-type RegisterGRPCOption func(*registerGRPCOptions)
-
-func WithRegisterGRPCClient(client pb.RegisterServiceClient) RegisterGRPCOption {
-	return func(o *registerGRPCOptions) {
-		o.client = client
+func WithRegisterGRPCEncoders(enc []func([]byte) ([]byte, error)) RegisterGRPCOpt {
+	return func(c *registerGRPCConfig) {
+		c.encoders = enc
 	}
 }
 
-func WithRegisterGRPCHMACEncoder(enc func([]byte) []byte) RegisterGRPCOption {
-	return func(o *registerGRPCOptions) {
-		o.encoders = append(o.encoders, func(data []byte) ([]byte, error) {
-			return enc(data), nil
-		})
+func WithRegisterGRPCClient(client pb.RegisterServiceClient) RegisterGRPCOpt {
+	return func(c *registerGRPCConfig) {
+		c.client = client
 	}
 }
 
-func WithRegisterGRPCRSAEncoder(enc func([]byte) ([]byte, error)) RegisterGRPCOption {
-	return func(o *registerGRPCOptions) {
-		o.encoders = append(o.encoders, enc)
-	}
-}
-
-// RegisterGRPC registers a user via gRPC.
-// ctx, username, password are required parameters;
-// optional params are set via functional options.
-func RegisterGRPC(
-	ctx context.Context,
-	username, password string,
-	opts ...RegisterGRPCOption,
-) error {
-	options := &registerGRPCOptions{}
+func RegisterGRPC(ctx context.Context, user *models.User, opts ...RegisterGRPCOpt) error {
+	config := &registerGRPCConfig{}
 	for _, opt := range opts {
-		opt(options)
+		opt(config)
 	}
 
-	// Encode username
-	encodedUsername := []byte(username)
-	var err error
-	for _, enc := range options.encoders {
-		encodedUsername, err = enc(encodedUsername)
-		if err != nil {
-			return fmt.Errorf("failed to encode username: %w", err)
+	encode := func(data string) (string, error) {
+		b := []byte(data)
+		var err error
+		for _, enc := range config.encoders {
+			b, err = enc(b)
+			if err != nil {
+				return "", err
+			}
 		}
+		return base64.StdEncoding.EncodeToString(b), nil
 	}
 
-	// Encode password
-	encodedPassword := []byte(password)
-	for _, enc := range options.encoders {
-		encodedPassword, err = enc(encodedPassword)
-		if err != nil {
-			return fmt.Errorf("failed to encode password: %w", err)
-		}
+	encodedUsername, err := encode(user.Username)
+	if err != nil {
+		return fmt.Errorf("encoding username failed: %w", err)
 	}
 
-	_, err = options.client.Register(ctx, &pb.RegisterRequest{
-		Username: string(encodedUsername), // encode as base64/hex if needed
-		Password: string(encodedPassword),
-	})
-	return err
+	encodedPassword, err := encode(user.Password)
+	if err != nil {
+		return fmt.Errorf("encoding password failed: %w", err)
+	}
+
+	req := &pb.RegisterRequest{
+		Username: encodedUsername,
+		Password: encodedPassword,
+	}
+
+	resp, err := config.client.Register(ctx, req)
+	if err != nil {
+		return fmt.Errorf("gRPC request failed: %w", err)
+	}
+
+	if resp.Error != "" {
+		return fmt.Errorf("registration failed: %s", resp.Error)
+	}
+
+	return nil
 }
