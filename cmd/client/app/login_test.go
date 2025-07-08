@@ -1,55 +1,65 @@
 package app
 
 import (
+	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestNewLoginCommand_RequiredFlags(t *testing.T) {
+func TestLoginCommand_EmptyUsernameFlag(t *testing.T) {
 	cmd := newLoginCommand()
 
-	// No args should error for missing required flags
-	err := cmd.Execute()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "required flag(s) \"password\", \"server-url\", \"username\" not set")
-}
-
-func TestNewLoginCommand_UnsupportedScheme(t *testing.T) {
-	cmd := newLoginCommand()
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf)
+	cmd.SetErr(errBuf)
 	cmd.SetArgs([]string{
-		"--server-url", "ftp://invalid",
-		"--username", "user",
-		"--password", "pass",
+		"--server-url", "http://localhost:8080",
+		"--username", "",
+		"--password", "pass123",
 	})
 
 	err := cmd.Execute()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unsupported URL scheme")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "username cannot be empty")
+	assert.NotContains(t, errBuf.String(), "Usage:")
 }
 
-func TestNewLoginCommand_ValidHTTPURL_ButFails(t *testing.T) {
+func TestLoginCommand_EmptyPasswordFlag(t *testing.T) {
 	cmd := newLoginCommand()
+
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf)
+	cmd.SetErr(errBuf)
 	cmd.SetArgs([]string{
-		"--server-url", "http://localhost",
-		"--username", "user",
-		"--password", "pass",
+		"--server-url", "http://localhost:8080",
+		"--username", "user1",
+		"--password", "",
 	})
 
 	err := cmd.Execute()
-	// This will likely fail unless you have a real server running on http://localhost
-	require.Error(t, err)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password cannot be empty")
+	assert.NotContains(t, errBuf.String(), "Usage:")
 }
 
-func TestNewLoginCommand_ValidGRPCURL_ButFails(t *testing.T) {
+func TestLoginCommand_MissingServerURLFlag(t *testing.T) {
 	cmd := newLoginCommand()
+
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf) // usage prints here
+	cmd.SetErr(errBuf)
 	cmd.SetArgs([]string{
-		"--server-url", "grpc://localhost:12345",
-		"--username", "user",
-		"--password", "pass",
+		"--username", "user1",
+		"--password", "pass123",
 	})
 
 	err := cmd.Execute()
-	// This will likely fail unless you have a grpc server running on localhost:12345
-	require.Error(t, err)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "required flag(s) \"server-url\" not set")
+	// Usage message is printed to stdout, not stderr
+	assert.Contains(t, outBuf.String(), "Usage:")
 }

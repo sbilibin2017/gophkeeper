@@ -1,36 +1,65 @@
 package app
 
 import (
+	"bytes"
 	"testing"
 
-	"github.com/sbilibin2017/gophkeeper/internal/configs"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestNewClientConfig_HTTP(t *testing.T) {
-	cfg, err := configs.NewClientConfig(
-		configs.WithClient("http://localhost"),
-		configs.WithHMACEncoder("secret"),
-	)
-	require.NoError(t, err)
-	require.NotNil(t, cfg.HTTPClient)
-	require.Nil(t, cfg.GRPCClient)
-	require.NotNil(t, cfg.HMACEncoder)
+func TestRegisterCommand_EmptyUsernameFlag(t *testing.T) {
+	cmd := newRegisterCommand()
+
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf)
+	cmd.SetErr(errBuf)
+	cmd.SetArgs([]string{
+		"--server-url", "http://localhost:8080",
+		"--username", "",
+		"--password", "pass123",
+	})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "username cannot be empty")
+	assert.NotContains(t, errBuf.String(), "Usage:")
 }
 
-func TestNewClientConfig_GRPC(t *testing.T) {
-	cfg, err := configs.NewClientConfig(
-		configs.WithClient("grpc://localhost:50051"),
-	)
-	require.NoError(t, err)
-	require.NotNil(t, cfg.GRPCClient)
-	require.Nil(t, cfg.HTTPClient)
+func TestRegisterCommand_EmptyPasswordFlag(t *testing.T) {
+	cmd := newRegisterCommand()
+
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf)
+	cmd.SetErr(errBuf)
+	cmd.SetArgs([]string{
+		"--server-url", "http://localhost:8080",
+		"--username", "user1",
+		"--password", "",
+	})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "password cannot be empty")
+	assert.NotContains(t, errBuf.String(), "Usage:")
 }
 
-func TestNewClientConfig_UnsupportedScheme(t *testing.T) {
-	_, err := configs.NewClientConfig(
-		configs.WithClient("ftp://invalid"),
-	)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "unsupported URL scheme")
+func TestRegisterCommand_MissingServerURLFlag(t *testing.T) {
+	cmd := newRegisterCommand()
+
+	outBuf := new(bytes.Buffer)
+	errBuf := new(bytes.Buffer)
+	cmd.SetOut(outBuf) // usage prints here
+	cmd.SetErr(errBuf)
+	cmd.SetArgs([]string{
+		"--username", "user1",
+		"--password", "pass123",
+	})
+
+	err := cmd.Execute()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "required flag(s) \"server-url\" not set")
+	// Usage message is printed to stdout, not stderr
+	assert.Contains(t, outBuf.String(), "Usage:")
 }

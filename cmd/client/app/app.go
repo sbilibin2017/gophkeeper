@@ -22,7 +22,6 @@ Available commands:
 Use "gophkeeper [command] --help" for more information about a command.`
 )
 
-// NewAppCommand creates the root "gophkeeper" command and adds all child commands.
 func NewAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   use,
@@ -33,9 +32,12 @@ func NewAppCommand() *cobra.Command {
 	cmd.AddCommand(newBuildInfoCommand())
 	cmd.AddCommand(newRegisterCommand())
 	cmd.AddCommand(newLoginCommand())
-	cmd.AddCommand(newAddCommand())
-	cmd.AddCommand(newGetCommand())
-	cmd.AddCommand(newListCommand())
+	cmd.AddCommand(newAddLoginPasswordCommand())
+	cmd.AddCommand(newAddTextSecretCommand())
+	cmd.AddCommand(newAddBinarySecretCommand())
+	cmd.AddCommand(newAddCardSecretCommand())
+	cmd.AddCommand(newClientGetCommand())
+	cmd.AddCommand(newClientListCommand())
 	cmd.AddCommand(newSyncCommand())
 
 	return cmd
