@@ -22,6 +22,7 @@ func TestNewAppCommand(t *testing.T) {
 
 	expectedCmds := []string{
 		"build-info",
+		"configure",
 		"register",
 		"login",
 		"add-login-password",

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+// Credentials представляет данные для аутентификации пользователя: имя и пароль.
+message Credentials {
+  string username = 1;
+  string password = 2;
+}
+
+// LoginService предоставляет функционал аутентификации пользователя.
+service LoginService {
+  // Login принимает данные пользователя и возвращает результат аутентификации.
+  rpc Login(Credentials) returns (LoginResponse);
+}
+
+// LoginResponse содержит результат попытки входа.
+message LoginResponse {
+  // JWT токен, если вход успешен.
+  string token = 1;
+
+  // Если error пустой, вход успешен; иначе содержит сообщение об ошибке.
+  string error = 2;
+}
+
+// RegisterService предоставляет функционал регистрации пользователя.
+service RegisterService {
+  // Register принимает данные пользователя и возвращает результат регистрации.
+  rpc Register(Credentials) returns (RegisterResponse);
+}
+
+// RegisterResponse содержит результат попытки регистрации.
+message RegisterResponse {
+  // JWT токен, если регистрация успешна.
+  string token = 1;
+
+  // Если error пустой, регистрация успешна; иначе содержит сообщение об ошибке.
+  string error = 2;
+}

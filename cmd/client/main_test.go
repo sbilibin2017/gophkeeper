@@ -28,11 +28,12 @@ func (s *AppSuite) SetupSuite() {
 		s.T().Fatalf("failed to build binary: %v, stderr: %s", err, stderr.String())
 	}
 
-	// Запускаем мок-сервер, который отвечает на POST /register
+	// Мок-сервер с корректным JSON-ответом с полем token
 	s.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/register" && r.Method == http.MethodPost {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status":"ok","message":"user registered"}`))
+			w.Write([]byte(`{"token":"dummy-jwt-token"}`)) // ✅ нужный формат ответа
 			return
 		}
 		http.NotFound(w, r)

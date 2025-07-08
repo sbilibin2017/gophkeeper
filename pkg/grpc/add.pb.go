@@ -21,14 +21,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// LoginPassword represents login and password.
+// Сообщение, представляющее секрет с логином и паролем.
 type LoginPassword struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`
-	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
-	Meta          map[string]string      `protobuf:"bytes,4,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	UpdatedAt     int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // Unix timestamp in seconds
+	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
+	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`                                                                         // Логин
+	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`                                                                   // Пароль
+	Meta          map[string]string      `protobuf:"bytes,4,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
+	UpdatedAt     int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -98,13 +98,13 @@ func (x *LoginPassword) GetUpdatedAt() int64 {
 	return 0
 }
 
-// Text represents a textual secret.
+// Сообщение, представляющее текстовый секрет.
 type Text struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	Meta          map[string]string      `protobuf:"bytes,3,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	UpdatedAt     int64                  `protobuf:"varint,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`                                                                     // Текстовое содержимое секрета
+	Meta          map[string]string      `protobuf:"bytes,3,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
+	UpdatedAt     int64                  `protobuf:"varint,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -167,13 +167,13 @@ func (x *Text) GetUpdatedAt() int64 {
 	return 0
 }
 
-// Binary represents a binary secret.
+// Сообщение, представляющее бинарный секрет.
 type Binary struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	Meta          map[string]string      `protobuf:"bytes,3,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	UpdatedAt     int64                  `protobuf:"varint,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`                                                                           // Бинарные данные секрета
+	Meta          map[string]string      `protobuf:"bytes,3,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
+	UpdatedAt     int64                  `protobuf:"varint,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -236,17 +236,17 @@ func (x *Binary) GetUpdatedAt() int64 {
 	return 0
 }
 
-// Card represents card details.
+// Сообщение, представляющее данные банковской карты.
 type Card struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`
-	Number        string                 `protobuf:"bytes,2,opt,name=number,proto3" json:"number,omitempty"`
-	Holder        string                 `protobuf:"bytes,3,opt,name=holder,proto3" json:"holder,omitempty"`
-	ExpMonth      int32                  `protobuf:"varint,4,opt,name=exp_month,json=expMonth,proto3" json:"exp_month,omitempty"`
-	ExpYear       int32                  `protobuf:"varint,5,opt,name=exp_year,json=expYear,proto3" json:"exp_year,omitempty"`
-	Cvv           string                 `protobuf:"bytes,6,opt,name=cvv,proto3" json:"cvv,omitempty"`
-	Meta          map[string]string      `protobuf:"bytes,7,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	UpdatedAt     int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
+	Number        string                 `protobuf:"bytes,2,opt,name=number,proto3" json:"number,omitempty"`                                                                       // Номер карты
+	Holder        string                 `protobuf:"bytes,3,opt,name=holder,proto3" json:"holder,omitempty"`                                                                       // Владелец карты
+	ExpMonth      int32                  `protobuf:"varint,4,opt,name=exp_month,json=expMonth,proto3" json:"exp_month,omitempty"`                                                  // Месяц истечения срока действия карты
+	ExpYear       int32                  `protobuf:"varint,5,opt,name=exp_year,json=expYear,proto3" json:"exp_year,omitempty"`                                                     // Год истечения срока действия карты
+	Cvv           string                 `protobuf:"bytes,6,opt,name=cvv,proto3" json:"cvv,omitempty"`                                                                             // CVV код
+	Meta          map[string]string      `protobuf:"bytes,7,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
+	UpdatedAt     int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -337,10 +337,10 @@ func (x *Card) GetUpdatedAt() int64 {
 	return 0
 }
 
-// AddResponse contains the result of an add operation.
+// Ответ сервиса на операцию добавления секрета.
 type AddResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"` // empty means success
+	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"` // Ошибка добавления; пустое значение означает успешное выполнение
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -2,430 +2,171 @@ package services
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jmoiron/sqlx"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	_ "modernc.org/sqlite"
+
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
+func setupTestDB(t *testing.T) *sqlx.DB {
+	db, err := sqlx.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+
+	// Создадим необходимые таблицы (по структуре твоих функций)
+	schema := `
+	CREATE TABLE login_passwords (
+		secret_id TEXT PRIMARY KEY,
+		login TEXT,
+		password TEXT,
+		meta TEXT
+	);
+	CREATE TABLE texts (
+		secret_id TEXT PRIMARY KEY,
+		content TEXT,
+		meta TEXT,
+		updated_at DATETIME
+	);
+	CREATE TABLE cards (
+		secret_id TEXT PRIMARY KEY,
+		number TEXT,
+		holder TEXT,
+		exp_month INTEGER,
+		exp_year INTEGER,
+		cvv TEXT,
+		meta TEXT,
+		updated_at DATETIME
+	);
+	CREATE TABLE binaries (
+		secret_id TEXT PRIMARY KEY,
+		data TEXT,
+		meta TEXT,
+		updated_at DATETIME
+	);
+	`
+	_, err = db.Exec(schema)
+	require.NoError(t, err)
+
+	return db
+}
+
 func TestAddLoginPassword(t *testing.T) {
-	ctx := context.Background()
+	db := setupTestDB(t)
+	defer db.Close()
 
-	testEncoder := func(data []byte) ([]byte, error) {
-		return append(data, []byte("-enc")...), nil
-	}
-	errorEncoder := func(data []byte) ([]byte, error) {
-		return nil, errors.New("encode error")
-	}
-
-	tests := []struct {
-		name         string
-		encoders     []func([]byte) ([]byte, error)
-		secret       *models.LoginPassword
-		mockDBErr    error
-		expectErr    bool
-		encoderError bool
-	}{
-		{
-			name:     "success with encoder",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.LoginPassword{
-				SecretID: "id1",
-				Login:    "login1",
-				Password: "pass1",
-				Meta:     map[string]string{"foo": "bar"},
-			},
-			expectErr: false,
-		},
-		{
-			name:     "success without encoder",
-			encoders: nil,
-			secret: &models.LoginPassword{
-				SecretID: "id2",
-				Login:    "login2",
-				Password: "pass2",
-				Meta:     map[string]string{"k": "v"},
-			},
-			expectErr: false,
-		},
-		{
-			name:         "encoder returns error",
-			encoders:     []func([]byte) ([]byte, error){errorEncoder},
-			secret:       &models.LoginPassword{SecretID: "id3", Login: "login3", Password: "pass3"},
-			expectErr:    true,
-			encoderError: true,
-		},
-		{
-			name:     "db exec error",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.LoginPassword{
-				SecretID: "id4",
-				Login:    "login4",
-				Password: "pass4",
-				Meta:     map[string]string{},
-			},
-			mockDBErr: errors.New("db error"),
-			expectErr: true,
-		},
+	secret := &models.LoginPassword{
+		SecretID: "secret1",
+		Login:    "user1",
+		Password: "pass1",
+		Meta:     map[string]string{"key1": "val1"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
-			assert.NoError(t, err)
-			defer db.Close()
-			sqlxDB := sqlx.NewDb(db, "sqlmock")
+	err := AddLoginPassword(context.Background(), db, secret)
+	require.NoError(t, err)
 
-			if !tt.encoderError {
-				if tt.mockDBErr != nil {
-					mock.ExpectExec(`INSERT INTO login_passwords`).
-						WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-						WillReturnError(tt.mockDBErr)
-				} else {
-					mock.ExpectExec(`INSERT INTO login_passwords`).
-						WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-						WillReturnResult(sqlmock.NewResult(1, 1))
-				}
-			}
+	var login, password, meta string
+	err = db.QueryRow("SELECT login, password, meta FROM login_passwords WHERE secret_id = ?", secret.SecretID).
+		Scan(&login, &password, &meta)
+	require.NoError(t, err)
 
-			err = AddLoginPassword(ctx, tt.secret,
-				WithAddLoginPasswordEncoders(tt.encoders),
-				WithAddLoginPasswordDB(sqlxDB),
-			)
-
-			if tt.expectErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.NoError(t, mock.ExpectationsWereMet())
-		})
-	}
+	assert.Equal(t, secret.Login, login)
+	assert.Equal(t, secret.Password, password)
+	assert.Contains(t, meta, `"key1":"val1"`)
 }
 
 func TestAddText(t *testing.T) {
-	ctx := context.Background()
+	db := setupTestDB(t)
+	defer db.Close()
 
-	testEncoder := func(data []byte) ([]byte, error) {
-		return append(data, []byte("-enc")...), nil
-	}
-	errorEncoder := func(data []byte) ([]byte, error) {
-		return nil, errors.New("encode error")
-	}
-
-	tests := []struct {
-		name         string
-		encoders     []func([]byte) ([]byte, error)
-		secret       *models.Text
-		mockDBErr    error
-		expectErr    bool
-		encoderError bool
-	}{
-		{
-			name:     "success with encoder",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.Text{
-				SecretID:  "id1",
-				Content:   "content1",
-				Meta:      map[string]string{"foo": "bar"},
-				UpdatedAt: time.Now(),
-			},
-			expectErr: false,
-		},
-		{
-			name:     "success without encoder",
-			encoders: nil,
-			secret: &models.Text{
-				SecretID:  "id2",
-				Content:   "content2",
-				Meta:      map[string]string{"k": "v"},
-				UpdatedAt: time.Now(),
-			},
-			expectErr: false,
-		},
-		{
-			name:         "encoder error",
-			encoders:     []func([]byte) ([]byte, error){errorEncoder},
-			secret:       &models.Text{SecretID: "id3", Content: "content3"},
-			expectErr:    true,
-			encoderError: true,
-		},
-		{
-			name:     "db exec error",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.Text{
-				SecretID:  "id4",
-				Content:   "content4",
-				Meta:      map[string]string{},
-				UpdatedAt: time.Now(),
-			},
-			mockDBErr: errors.New("db error"),
-			expectErr: true,
-		},
+	now := time.Now().UTC()
+	secret := &models.Text{
+		SecretID:  "text1",
+		Content:   "some text content",
+		Meta:      map[string]string{"metaKey": "metaValue"},
+		UpdatedAt: now,
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
-			assert.NoError(t, err)
-			defer db.Close()
-			sqlxDB := sqlx.NewDb(db, "sqlmock")
+	err := AddText(context.Background(), db, secret)
+	require.NoError(t, err)
 
-			if !tt.encoderError {
-				if tt.mockDBErr != nil {
-					mock.ExpectExec(`INSERT INTO texts`).
-						WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-						WillReturnError(tt.mockDBErr)
-				} else {
-					mock.ExpectExec(`INSERT INTO texts`).
-						WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-						WillReturnResult(sqlmock.NewResult(1, 1))
-				}
-			}
+	var content, meta string
+	var updatedAt time.Time
+	err = db.QueryRow("SELECT content, meta, updated_at FROM texts WHERE secret_id = ?", secret.SecretID).
+		Scan(&content, &meta, &updatedAt)
+	require.NoError(t, err)
 
-			err = AddText(ctx, tt.secret,
-				WithAddTextEncoders(tt.encoders),
-				WithAddTextDB(sqlxDB),
-			)
-
-			if tt.expectErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.NoError(t, mock.ExpectationsWereMet())
-		})
-	}
+	assert.Equal(t, secret.Content, content)
+	assert.Contains(t, meta, `"metaKey":"metaValue"`)
+	assert.WithinDuration(t, now, updatedAt, time.Second)
 }
 
 func TestAddCard(t *testing.T) {
-	ctx := context.Background()
+	db := setupTestDB(t)
+	defer db.Close()
 
-	testEncoder := func(data []byte) ([]byte, error) {
-		return append(data, []byte("-enc")...), nil
-	}
-	errorEncoder := func(data []byte) ([]byte, error) {
-		return nil, errors.New("encode error")
-	}
-
-	tests := []struct {
-		name         string
-		encoders     []func([]byte) ([]byte, error)
-		secret       *models.Card
-		mockDBErr    error
-		expectErr    bool
-		encoderError bool
-	}{
-		{
-			name:     "success with encoder",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.Card{
-				SecretID:  "id1",
-				Number:    "1234",
-				Holder:    "holder1",
-				ExpMonth:  12,
-				ExpYear:   2025,
-				CVV:       "123",
-				Meta:      map[string]string{"foo": "bar"},
-				UpdatedAt: time.Now(),
-			},
-			expectErr: false,
-		},
-		{
-			name:     "success without encoder",
-			encoders: nil,
-			secret: &models.Card{
-				SecretID:  "id2",
-				Number:    "5678",
-				Holder:    "holder2",
-				ExpMonth:  6,
-				ExpYear:   2024,
-				CVV:       "456",
-				Meta:      map[string]string{"k": "v"},
-				UpdatedAt: time.Now(),
-			},
-			expectErr: false,
-		},
-		{
-			name:         "encoder error",
-			encoders:     []func([]byte) ([]byte, error){errorEncoder},
-			secret:       &models.Card{SecretID: "id3"},
-			expectErr:    true,
-			encoderError: true,
-		},
-		{
-			name:     "db exec error",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.Card{
-				SecretID:  "id4",
-				Number:    "0000",
-				Holder:    "holder4",
-				ExpMonth:  1,
-				ExpYear:   2023,
-				CVV:       "000",
-				Meta:      map[string]string{},
-				UpdatedAt: time.Now(),
-			},
-			mockDBErr: errors.New("db error"),
-			expectErr: true,
-		},
+	now := time.Now().UTC()
+	secret := &models.Card{
+		SecretID:  "card1",
+		Number:    "1234123412341234",
+		Holder:    "John Doe",
+		ExpMonth:  12,
+		ExpYear:   2030,
+		CVV:       "123",
+		Meta:      map[string]string{"type": "visa"},
+		UpdatedAt: now,
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			db, mock, err := sqlmock.New()
-			assert.NoError(t, err)
-			defer db.Close()
-			sqlxDB := sqlx.NewDb(db, "sqlmock")
+	err := AddCard(context.Background(), db, secret)
+	require.NoError(t, err)
 
-			if !tt.encoderError {
-				if tt.mockDBErr != nil {
-					mock.ExpectExec(`INSERT INTO cards`).
-						WithArgs(
-							sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
-							sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
-							sqlmock.AnyArg(), sqlmock.AnyArg()).
-						WillReturnError(tt.mockDBErr)
-				} else {
-					mock.ExpectExec(`INSERT INTO cards`).
-						WithArgs(
-							sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
-							sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(),
-							sqlmock.AnyArg(), sqlmock.AnyArg()).
-						WillReturnResult(sqlmock.NewResult(1, 1))
-				}
-			}
+	var number, holder, cvv, meta string
+	var expMonth, expYear int
+	var updatedAt time.Time
 
-			err = AddCard(ctx, tt.secret,
-				WithAddCardEncoders(tt.encoders),
-				WithAddCardDB(sqlxDB),
-			)
+	err = db.QueryRow(`SELECT number, holder, exp_month, exp_year, cvv, meta, updated_at 
+		FROM cards WHERE secret_id = ?`, secret.SecretID).
+		Scan(&number, &holder, &expMonth, &expYear, &cvv, &meta, &updatedAt)
+	require.NoError(t, err)
 
-			if tt.expectErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			assert.NoError(t, mock.ExpectationsWereMet())
-		})
-	}
+	assert.Equal(t, secret.Number, number)
+	assert.Equal(t, secret.Holder, holder)
+	assert.Equal(t, secret.ExpMonth, expMonth)
+	assert.Equal(t, secret.ExpYear, expYear)
+	assert.Equal(t, secret.CVV, cvv)
+	assert.Contains(t, meta, `"type":"visa"`)
+	assert.WithinDuration(t, now, updatedAt, time.Second)
 }
 
 func TestAddBinary(t *testing.T) {
-	ctx := context.Background()
+	db := setupTestDB(t)
+	defer db.Close()
 
-	testEncoder := func(data []byte) ([]byte, error) {
-		return append(data, []byte("-enc")...), nil
-	}
-	errorEncoder := func(data []byte) ([]byte, error) {
-		return nil, errors.New("encode error")
-	}
-
-	now := time.Now()
-
-	tests := []struct {
-		name         string
-		encoders     []func([]byte) ([]byte, error)
-		secret       *models.Binary
-		mockDBErr    error
-		expectErr    bool
-		encoderError bool
-	}{
-		{
-			name:     "success with encoder",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.Binary{
-				SecretID:  "id1",
-				Data:      []byte("some binary data"),
-				Meta:      map[string]string{"foo": "bar"},
-				UpdatedAt: now,
-			},
-			expectErr: false,
-		},
-		{
-			name:     "success without encoder",
-			encoders: nil,
-			secret: &models.Binary{
-				SecretID:  "id2",
-				Data:      []byte("raw data"),
-				Meta:      map[string]string{"k": "v"},
-				UpdatedAt: now,
-			},
-			expectErr: false,
-		},
-		{
-			name:         "encoder returns error",
-			encoders:     []func([]byte) ([]byte, error){errorEncoder},
-			secret:       &models.Binary{SecretID: "id3", Data: []byte("data")},
-			expectErr:    true,
-			encoderError: true,
-		},
-		{
-			name:     "db exec error",
-			encoders: []func([]byte) ([]byte, error){testEncoder},
-			secret: &models.Binary{
-				SecretID:  "id4",
-				Data:      []byte("data4"),
-				Meta:      map[string]string{},
-				UpdatedAt: now,
-			},
-			mockDBErr: errors.New("db error"),
-			expectErr: true,
-		},
-		{
-			name:      "db not configured",
-			secret:    &models.Binary{SecretID: "id5", Data: []byte("data")},
-			expectErr: true,
-		},
+	now := time.Now().UTC()
+	data := []byte{0x01, 0x02, 0x03}
+	secret := &models.Binary{
+		SecretID:  "bin1",
+		Data:      data,
+		Meta:      map[string]string{"format": "bin"},
+		UpdatedAt: now,
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var sqlxDB *sqlx.DB
-			var mock sqlmock.Sqlmock
-			var err error
+	err := AddBinary(context.Background(), db, secret)
+	require.NoError(t, err)
 
-			// Setup mock DB only if DB is required (not "db not configured" test)
-			if tt.name != "db not configured" {
-				var db *sql.DB
-				db, mock, err = sqlmock.New()
-				assert.NoError(t, err)
-				defer db.Close()
-				sqlxDB = sqlx.NewDb(db, "sqlmock")
-			}
+	var base64Data, meta string
+	var updatedAt time.Time
 
-			if tt.mockDBErr != nil {
-				mock.ExpectExec(`INSERT INTO binaries`).
-					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-					WillReturnError(tt.mockDBErr)
-			} else if !tt.encoderError && tt.name != "db not configured" {
-				mock.ExpectExec(`INSERT INTO binaries`).
-					WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
-					WillReturnResult(sqlmock.NewResult(1, 1))
-			}
+	err = db.QueryRow("SELECT data, meta, updated_at FROM binaries WHERE secret_id = ?", secret.SecretID).
+		Scan(&base64Data, &meta, &updatedAt)
+	require.NoError(t, err)
 
-			err = AddBinary(ctx, tt.secret,
-				WithAddBinaryEncoders(tt.encoders),
-				WithAddBinaryDB(sqlxDB),
-			)
-
-			if tt.expectErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-
-			if mock != nil {
-				assert.NoError(t, mock.ExpectationsWereMet())
-			}
-		})
-	}
+	expectedBase64 := "AQID" // base64 of 0x01 0x02 0x03
+	assert.Equal(t, expectedBase64, base64Data)
+	assert.Contains(t, meta, `"format":"bin"`)
+	assert.WithinDuration(t, now, updatedAt, time.Second)
 }

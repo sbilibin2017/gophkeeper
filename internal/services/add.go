@@ -4,88 +4,17 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// --- AddLoginPassword ---
-
-type addLoginPasswordConfig struct {
-	encoders []func([]byte) ([]byte, error)
-	db       *sqlx.DB
-}
-
-type AddLoginPasswordOpt func(*addLoginPasswordConfig)
-
-func WithAddLoginPasswordEncoders(enc []func([]byte) ([]byte, error)) AddLoginPasswordOpt {
-	return func(c *addLoginPasswordConfig) {
-		c.encoders = enc
-	}
-}
-
-func WithAddLoginPasswordDB(db *sqlx.DB) AddLoginPasswordOpt {
-	return func(c *addLoginPasswordConfig) {
-		c.db = db
-	}
-}
-
-func AddLoginPassword(ctx context.Context, secret *models.LoginPassword, opts ...AddLoginPasswordOpt) error {
-	config := &addLoginPasswordConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
-
-	if config.db == nil {
-		return fmt.Errorf("database client is not configured")
-	}
-
-	encode := func(data string) (string, error) {
-		if len(config.encoders) == 0 {
-			// No encoders: return raw data as is
-			return data, nil
-		}
-		b := []byte(data)
-		var err error
-		for _, enc := range config.encoders {
-			b, err = enc(b)
-			if err != nil {
-				return "", err
-			}
-		}
-		return base64.StdEncoding.EncodeToString(b), nil
-	}
-
-	encodedSecretID, err := encode(secret.SecretID)
+// AddLoginPassword saves or updates a LoginPassword secret in the database.
+// On conflict by secret_id, updates login, password, and metadata.
+func AddLoginPassword(ctx context.Context, db *sqlx.DB, secret *models.LoginPassword) error {
+	metaJSON, err := json.Marshal(secret.Meta)
 	if err != nil {
-		return fmt.Errorf("encoding secret ID failed: %w", err)
-	}
-	encodedLogin, err := encode(secret.Login)
-	if err != nil {
-		return fmt.Errorf("encoding login failed: %w", err)
-	}
-	encodedPassword, err := encode(secret.Password)
-	if err != nil {
-		return fmt.Errorf("encoding password failed: %w", err)
-	}
-
-	encodedMeta := make(map[string]string, len(secret.Meta))
-	for k, v := range secret.Meta {
-		ek, err := encode(k)
-		if err != nil {
-			return fmt.Errorf("encoding meta key failed: %w", err)
-		}
-		ev, err := encode(v)
-		if err != nil {
-			return fmt.Errorf("encoding meta value failed: %w", err)
-		}
-		encodedMeta[ek] = ev
-	}
-
-	metaJSON, err := json.Marshal(encodedMeta)
-	if err != nil {
-		return fmt.Errorf("marshalling meta JSON failed: %w", err)
+		return err
 	}
 
 	query := `
@@ -97,85 +26,16 @@ func AddLoginPassword(ctx context.Context, secret *models.LoginPassword, opts ..
 			meta = EXCLUDED.meta
 	`
 
-	_, err = config.db.ExecContext(ctx, query, encodedSecretID, encodedLogin, encodedPassword, string(metaJSON))
-	if err != nil {
-		return fmt.Errorf("db insert/update failed: %w", err)
-	}
-
-	return nil
+	_, err = db.ExecContext(ctx, query, secret.SecretID, secret.Login, secret.Password, string(metaJSON))
+	return err
 }
 
-// --- AddText ---
-
-type addTextConfig struct {
-	encoders []func([]byte) ([]byte, error)
-	db       *sqlx.DB
-}
-
-type AddTextOpt func(*addTextConfig)
-
-func WithAddTextEncoders(enc []func([]byte) ([]byte, error)) AddTextOpt {
-	return func(c *addTextConfig) {
-		c.encoders = enc
-	}
-}
-
-func WithAddTextDB(db *sqlx.DB) AddTextOpt {
-	return func(c *addTextConfig) {
-		c.db = db
-	}
-}
-
-func AddText(ctx context.Context, secret *models.Text, opts ...AddTextOpt) error {
-	config := &addTextConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
-
-	if config.db == nil {
-		return fmt.Errorf("database client is not configured")
-	}
-
-	encode := func(data string) (string, error) {
-		if len(config.encoders) == 0 {
-			return data, nil
-		}
-		b := []byte(data)
-		var err error
-		for _, enc := range config.encoders {
-			b, err = enc(b)
-			if err != nil {
-				return "", err
-			}
-		}
-		return base64.StdEncoding.EncodeToString(b), nil
-	}
-
-	encodedSecretID, err := encode(secret.SecretID)
+// AddText saves or updates a text secret in the database.
+// On conflict by secret_id, updates content, metadata, and updated_at.
+func AddText(ctx context.Context, db *sqlx.DB, secret *models.Text) error {
+	metaJSON, err := json.Marshal(secret.Meta)
 	if err != nil {
-		return fmt.Errorf("encoding secret ID failed: %w", err)
-	}
-	encodedContent, err := encode(secret.Content)
-	if err != nil {
-		return fmt.Errorf("encoding content failed: %w", err)
-	}
-
-	encodedMeta := make(map[string]string, len(secret.Meta))
-	for k, v := range secret.Meta {
-		ek, err := encode(k)
-		if err != nil {
-			return fmt.Errorf("encoding meta key failed: %w", err)
-		}
-		ev, err := encode(v)
-		if err != nil {
-			return fmt.Errorf("encoding meta value failed: %w", err)
-		}
-		encodedMeta[ek] = ev
-	}
-
-	metaJSON, err := json.Marshal(encodedMeta)
-	if err != nil {
-		return fmt.Errorf("marshalling meta JSON failed: %w", err)
+		return err
 	}
 
 	query := `
@@ -187,93 +47,16 @@ func AddText(ctx context.Context, secret *models.Text, opts ...AddTextOpt) error
 			updated_at = EXCLUDED.updated_at
 	`
 
-	_, err = config.db.ExecContext(ctx, query, encodedSecretID, encodedContent, string(metaJSON), secret.UpdatedAt)
-	if err != nil {
-		return fmt.Errorf("db insert/update failed: %w", err)
-	}
-
-	return nil
+	_, err = db.ExecContext(ctx, query, secret.SecretID, secret.Content, string(metaJSON), secret.UpdatedAt)
+	return err
 }
 
-// --- AddCard ---
-
-type addCardConfig struct {
-	encoders []func([]byte) ([]byte, error)
-	db       *sqlx.DB
-}
-
-type AddCardOpt func(*addCardConfig)
-
-func WithAddCardEncoders(enc []func([]byte) ([]byte, error)) AddCardOpt {
-	return func(c *addCardConfig) {
-		c.encoders = enc
-	}
-}
-
-func WithAddCardDB(db *sqlx.DB) AddCardOpt {
-	return func(c *addCardConfig) {
-		c.db = db
-	}
-}
-
-func AddCard(ctx context.Context, secret *models.Card, opts ...AddCardOpt) error {
-	config := &addCardConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
-
-	if config.db == nil {
-		return fmt.Errorf("database client is not configured")
-	}
-
-	encode := func(data string) (string, error) {
-		if len(config.encoders) == 0 {
-			return data, nil
-		}
-		b := []byte(data)
-		var err error
-		for _, enc := range config.encoders {
-			b, err = enc(b)
-			if err != nil {
-				return "", err
-			}
-		}
-		return base64.StdEncoding.EncodeToString(b), nil
-	}
-
-	encodedSecretID, err := encode(secret.SecretID)
+// AddCard saves or updates a card secret in the database.
+// On conflict by secret_id, updates card details, metadata, and updated_at.
+func AddCard(ctx context.Context, db *sqlx.DB, secret *models.Card) error {
+	metaJSON, err := json.Marshal(secret.Meta)
 	if err != nil {
-		return fmt.Errorf("encoding secret ID failed: %w", err)
-	}
-	encodedNumber, err := encode(secret.Number)
-	if err != nil {
-		return fmt.Errorf("encoding number failed: %w", err)
-	}
-	encodedHolder, err := encode(secret.Holder)
-	if err != nil {
-		return fmt.Errorf("encoding holder failed: %w", err)
-	}
-	encodedCVV, err := encode(secret.CVV)
-	if err != nil {
-		return fmt.Errorf("encoding CVV failed: %w", err)
-	}
-
-	encodedMeta := make(map[string]string, len(secret.Meta))
-	for k, v := range secret.Meta {
-		ek, err := encode(k)
-		if err != nil {
-			return fmt.Errorf("encoding meta key failed: %w", err)
-		}
-		ev, err := encode(v)
-		if err != nil {
-			return fmt.Errorf("encoding meta value failed: %w", err)
-		}
-		encodedMeta[ek] = ev
-	}
-
-	metaJSON, err := json.Marshal(encodedMeta)
-	if err != nil {
-		return fmt.Errorf("marshalling meta JSON failed: %w", err)
+		return err
 	}
 
 	query := `
@@ -289,97 +72,29 @@ func AddCard(ctx context.Context, secret *models.Card, opts ...AddCardOpt) error
 			updated_at = EXCLUDED.updated_at
 	`
 
-	_, err = config.db.ExecContext(ctx, query,
-		encodedSecretID,
-		encodedNumber,
-		encodedHolder,
+	_, err = db.ExecContext(ctx, query,
+		secret.SecretID,
+		secret.Number,
+		secret.Holder,
 		secret.ExpMonth,
 		secret.ExpYear,
-		encodedCVV,
+		secret.CVV,
 		string(metaJSON),
 		secret.UpdatedAt,
 	)
-	if err != nil {
-		return fmt.Errorf("db insert/update failed: %w", err)
-	}
-
-	return nil
+	return err
 }
 
-// --- AddBinary ---
-
-type addBinaryConfig struct {
-	encoders []func([]byte) ([]byte, error)
-	db       *sqlx.DB
-}
-
-type AddBinaryOpt func(*addBinaryConfig)
-
-func WithAddBinaryEncoders(enc []func([]byte) ([]byte, error)) AddBinaryOpt {
-	return func(c *addBinaryConfig) {
-		c.encoders = enc
-	}
-}
-
-func WithAddBinaryDB(db *sqlx.DB) AddBinaryOpt {
-	return func(c *addBinaryConfig) {
-		c.db = db
-	}
-}
-
-func AddBinary(ctx context.Context, secret *models.Binary, opts ...AddBinaryOpt) error {
-	config := &addBinaryConfig{}
-	for _, opt := range opts {
-		opt(config)
-	}
-
-	if config.db == nil {
-		return fmt.Errorf("database client is not configured")
-	}
-
-	encode := func(data []byte) (string, error) {
-		if len(config.encoders) == 0 {
-			// No encoders: return base64 encoded raw data
-			return base64.StdEncoding.EncodeToString(data), nil
-		}
-		b := data
-		var err error
-		for _, enc := range config.encoders {
-			b, err = enc(b)
-			if err != nil {
-				return "", err
-			}
-		}
-		return base64.StdEncoding.EncodeToString(b), nil
-	}
-
-	encodedSecretID, err := encode([]byte(secret.SecretID))
+// AddBinary saves or updates a binary secret in the database.
+// The data is base64-encoded before saving.
+// On conflict by secret_id, updates data, metadata, and updated_at.
+func AddBinary(ctx context.Context, db *sqlx.DB, secret *models.Binary) error {
+	metaJSON, err := json.Marshal(secret.Meta)
 	if err != nil {
-		return fmt.Errorf("encoding secret ID failed: %w", err)
+		return err
 	}
 
-	encodedData, err := encode(secret.Data)
-	if err != nil {
-		return fmt.Errorf("encoding binary data failed: %w", err)
-	}
-
-	encodedMeta := make(map[string]string, len(secret.Meta))
-	for k, v := range secret.Meta {
-		ek, err := encode([]byte(k))
-		if err != nil {
-			return fmt.Errorf("encoding meta key failed: %w", err)
-		}
-		ev, err := encode([]byte(v))
-		if err != nil {
-			return fmt.Errorf("encoding meta value failed: %w", err)
-		}
-		encodedMeta[ek] = ev
-	}
-
-	metaJSON, err := json.Marshal(encodedMeta)
-	if err != nil {
-		return fmt.Errorf("marshalling meta JSON failed: %w", err)
-	}
+	base64Data := base64.StdEncoding.EncodeToString(secret.Data)
 
 	query := `
 		INSERT INTO binaries (secret_id, data, meta, updated_at)
@@ -390,15 +105,11 @@ func AddBinary(ctx context.Context, secret *models.Binary, opts ...AddBinaryOpt)
 			updated_at = EXCLUDED.updated_at
 	`
 
-	_, err = config.db.ExecContext(ctx, query,
-		encodedSecretID,
-		encodedData,
+	_, err = db.ExecContext(ctx, query,
+		secret.SecretID,
+		base64Data,
 		string(metaJSON),
 		secret.UpdatedAt,
 	)
-	if err != nil {
-		return fmt.Errorf("db insert/update failed: %w", err)
-	}
-
-	return nil
+	return err
 }
