@@ -49,7 +49,7 @@ func WithClient(serverURL string) ClientConfigOpt {
 			return nil
 
 		case "grpc":
-			grpcClient, err := grpc.Dial(
+			grpcClient, err := grpc.NewClient(
 				parsed.Host,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 			)
