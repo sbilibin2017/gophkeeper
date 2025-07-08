@@ -429,12 +429,14 @@ const file_api_protos_add_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"#\n" +
 	"\vAddResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error2\xa2\x02\n" +
-	"\n" +
-	"AddService\x12P\n" +
-	"\x10AddLoginPassword\x12\x1e.gophkeeper.grpc.LoginPassword\x1a\x1c.gophkeeper.grpc.AddResponse\x12>\n" +
-	"\aAddText\x12\x15.gophkeeper.grpc.Text\x1a\x1c.gophkeeper.grpc.AddResponse\x12B\n" +
-	"\tAddBinary\x12\x17.gophkeeper.grpc.Binary\x1a\x1c.gophkeeper.grpc.AddResponse\x12>\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error2k\n" +
+	"\x17AddLoginPasswordService\x12P\n" +
+	"\x10AddLoginPassword\x12\x1e.gophkeeper.grpc.LoginPassword\x1a\x1c.gophkeeper.grpc.AddResponse2P\n" +
+	"\x0eAddTextService\x12>\n" +
+	"\aAddText\x12\x15.gophkeeper.grpc.Text\x1a\x1c.gophkeeper.grpc.AddResponse2V\n" +
+	"\x10AddBinaryService\x12B\n" +
+	"\tAddBinary\x12\x17.gophkeeper.grpc.Binary\x1a\x1c.gophkeeper.grpc.AddResponse2P\n" +
+	"\x0eAddCardService\x12>\n" +
 	"\aAddCard\x12\x15.gophkeeper.grpc.Card\x1a\x1c.gophkeeper.grpc.AddResponseB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
@@ -466,14 +468,14 @@ var file_api_protos_add_proto_depIdxs = []int32{
 	6, // 1: gophkeeper.grpc.Text.meta:type_name -> gophkeeper.grpc.Text.MetaEntry
 	7, // 2: gophkeeper.grpc.Binary.meta:type_name -> gophkeeper.grpc.Binary.MetaEntry
 	8, // 3: gophkeeper.grpc.Card.meta:type_name -> gophkeeper.grpc.Card.MetaEntry
-	0, // 4: gophkeeper.grpc.AddService.AddLoginPassword:input_type -> gophkeeper.grpc.LoginPassword
-	1, // 5: gophkeeper.grpc.AddService.AddText:input_type -> gophkeeper.grpc.Text
-	2, // 6: gophkeeper.grpc.AddService.AddBinary:input_type -> gophkeeper.grpc.Binary
-	3, // 7: gophkeeper.grpc.AddService.AddCard:input_type -> gophkeeper.grpc.Card
-	4, // 8: gophkeeper.grpc.AddService.AddLoginPassword:output_type -> gophkeeper.grpc.AddResponse
-	4, // 9: gophkeeper.grpc.AddService.AddText:output_type -> gophkeeper.grpc.AddResponse
-	4, // 10: gophkeeper.grpc.AddService.AddBinary:output_type -> gophkeeper.grpc.AddResponse
-	4, // 11: gophkeeper.grpc.AddService.AddCard:output_type -> gophkeeper.grpc.AddResponse
+	0, // 4: gophkeeper.grpc.AddLoginPasswordService.AddLoginPassword:input_type -> gophkeeper.grpc.LoginPassword
+	1, // 5: gophkeeper.grpc.AddTextService.AddText:input_type -> gophkeeper.grpc.Text
+	2, // 6: gophkeeper.grpc.AddBinaryService.AddBinary:input_type -> gophkeeper.grpc.Binary
+	3, // 7: gophkeeper.grpc.AddCardService.AddCard:input_type -> gophkeeper.grpc.Card
+	4, // 8: gophkeeper.grpc.AddLoginPasswordService.AddLoginPassword:output_type -> gophkeeper.grpc.AddResponse
+	4, // 9: gophkeeper.grpc.AddTextService.AddText:output_type -> gophkeeper.grpc.AddResponse
+	4, // 10: gophkeeper.grpc.AddBinaryService.AddBinary:output_type -> gophkeeper.grpc.AddResponse
+	4, // 11: gophkeeper.grpc.AddCardService.AddCard:output_type -> gophkeeper.grpc.AddResponse
 	8, // [8:12] is the sub-list for method output_type
 	4, // [4:8] is the sub-list for method input_type
 	4, // [4:4] is the sub-list for extension type_name
@@ -494,7 +496,7 @@ func file_api_protos_add_proto_init() {
 			NumEnums:      0,
 			NumMessages:   9,
 			NumExtensions: 0,
-			NumServices:   1,
+			NumServices:   4,
 		},
 		GoTypes:           file_api_protos_add_proto_goTypes,
 		DependencyIndexes: file_api_protos_add_proto_depIdxs,

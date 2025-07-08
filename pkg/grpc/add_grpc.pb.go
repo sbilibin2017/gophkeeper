@@ -19,227 +19,424 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AddService_AddLoginPassword_FullMethodName = "/gophkeeper.grpc.AddService/AddLoginPassword"
-	AddService_AddText_FullMethodName          = "/gophkeeper.grpc.AddService/AddText"
-	AddService_AddBinary_FullMethodName        = "/gophkeeper.grpc.AddService/AddBinary"
-	AddService_AddCard_FullMethodName          = "/gophkeeper.grpc.AddService/AddCard"
+	AddLoginPasswordService_AddLoginPassword_FullMethodName = "/gophkeeper.grpc.AddLoginPasswordService/AddLoginPassword"
 )
 
-// AddServiceClient is the client API for AddService service.
+// AddLoginPasswordServiceClient is the client API for AddLoginPasswordService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// AddService provides secret storing functionality.
-type AddServiceClient interface {
-	// AddLoginPassword adds a login/password secret.
+// Service to add login/password secrets
+type AddLoginPasswordServiceClient interface {
 	AddLoginPassword(ctx context.Context, in *LoginPassword, opts ...grpc.CallOption) (*AddResponse, error)
-	// AddText adds a textual secret.
-	AddText(ctx context.Context, in *Text, opts ...grpc.CallOption) (*AddResponse, error)
-	// AddBinary adds a binary secret.
-	AddBinary(ctx context.Context, in *Binary, opts ...grpc.CallOption) (*AddResponse, error)
-	// AddCard adds a card secret.
-	AddCard(ctx context.Context, in *Card, opts ...grpc.CallOption) (*AddResponse, error)
 }
 
-type addServiceClient struct {
+type addLoginPasswordServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewAddServiceClient(cc grpc.ClientConnInterface) AddServiceClient {
-	return &addServiceClient{cc}
+func NewAddLoginPasswordServiceClient(cc grpc.ClientConnInterface) AddLoginPasswordServiceClient {
+	return &addLoginPasswordServiceClient{cc}
 }
 
-func (c *addServiceClient) AddLoginPassword(ctx context.Context, in *LoginPassword, opts ...grpc.CallOption) (*AddResponse, error) {
+func (c *addLoginPasswordServiceClient) AddLoginPassword(ctx context.Context, in *LoginPassword, opts ...grpc.CallOption) (*AddResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AddResponse)
-	err := c.cc.Invoke(ctx, AddService_AddLoginPassword_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, AddLoginPasswordService_AddLoginPassword_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *addServiceClient) AddText(ctx context.Context, in *Text, opts ...grpc.CallOption) (*AddResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddResponse)
-	err := c.cc.Invoke(ctx, AddService_AddText_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *addServiceClient) AddBinary(ctx context.Context, in *Binary, opts ...grpc.CallOption) (*AddResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddResponse)
-	err := c.cc.Invoke(ctx, AddService_AddBinary_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *addServiceClient) AddCard(ctx context.Context, in *Card, opts ...grpc.CallOption) (*AddResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddResponse)
-	err := c.cc.Invoke(ctx, AddService_AddCard_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-// AddServiceServer is the server API for AddService service.
-// All implementations must embed UnimplementedAddServiceServer
+// AddLoginPasswordServiceServer is the server API for AddLoginPasswordService service.
+// All implementations must embed UnimplementedAddLoginPasswordServiceServer
 // for forward compatibility.
 //
-// AddService provides secret storing functionality.
-type AddServiceServer interface {
-	// AddLoginPassword adds a login/password secret.
+// Service to add login/password secrets
+type AddLoginPasswordServiceServer interface {
 	AddLoginPassword(context.Context, *LoginPassword) (*AddResponse, error)
-	// AddText adds a textual secret.
-	AddText(context.Context, *Text) (*AddResponse, error)
-	// AddBinary adds a binary secret.
-	AddBinary(context.Context, *Binary) (*AddResponse, error)
-	// AddCard adds a card secret.
-	AddCard(context.Context, *Card) (*AddResponse, error)
-	mustEmbedUnimplementedAddServiceServer()
+	mustEmbedUnimplementedAddLoginPasswordServiceServer()
 }
 
-// UnimplementedAddServiceServer must be embedded to have
+// UnimplementedAddLoginPasswordServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedAddServiceServer struct{}
+type UnimplementedAddLoginPasswordServiceServer struct{}
 
-func (UnimplementedAddServiceServer) AddLoginPassword(context.Context, *LoginPassword) (*AddResponse, error) {
+func (UnimplementedAddLoginPasswordServiceServer) AddLoginPassword(context.Context, *LoginPassword) (*AddResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddLoginPassword not implemented")
 }
-func (UnimplementedAddServiceServer) AddText(context.Context, *Text) (*AddResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddText not implemented")
+func (UnimplementedAddLoginPasswordServiceServer) mustEmbedUnimplementedAddLoginPasswordServiceServer() {
 }
-func (UnimplementedAddServiceServer) AddBinary(context.Context, *Binary) (*AddResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddBinary not implemented")
-}
-func (UnimplementedAddServiceServer) AddCard(context.Context, *Card) (*AddResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddCard not implemented")
-}
-func (UnimplementedAddServiceServer) mustEmbedUnimplementedAddServiceServer() {}
-func (UnimplementedAddServiceServer) testEmbeddedByValue()                    {}
+func (UnimplementedAddLoginPasswordServiceServer) testEmbeddedByValue() {}
 
-// UnsafeAddServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to AddServiceServer will
+// UnsafeAddLoginPasswordServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AddLoginPasswordServiceServer will
 // result in compilation errors.
-type UnsafeAddServiceServer interface {
-	mustEmbedUnimplementedAddServiceServer()
+type UnsafeAddLoginPasswordServiceServer interface {
+	mustEmbedUnimplementedAddLoginPasswordServiceServer()
 }
 
-func RegisterAddServiceServer(s grpc.ServiceRegistrar, srv AddServiceServer) {
-	// If the following call pancis, it indicates UnimplementedAddServiceServer was
+func RegisterAddLoginPasswordServiceServer(s grpc.ServiceRegistrar, srv AddLoginPasswordServiceServer) {
+	// If the following call pancis, it indicates UnimplementedAddLoginPasswordServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&AddService_ServiceDesc, srv)
+	s.RegisterService(&AddLoginPasswordService_ServiceDesc, srv)
 }
 
-func _AddService_AddLoginPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _AddLoginPasswordService_AddLoginPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(LoginPassword)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AddServiceServer).AddLoginPassword(ctx, in)
+		return srv.(AddLoginPasswordServiceServer).AddLoginPassword(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AddService_AddLoginPassword_FullMethodName,
+		FullMethod: AddLoginPasswordService_AddLoginPassword_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AddServiceServer).AddLoginPassword(ctx, req.(*LoginPassword))
+		return srv.(AddLoginPasswordServiceServer).AddLoginPassword(ctx, req.(*LoginPassword))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AddService_AddText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+// AddLoginPasswordService_ServiceDesc is the grpc.ServiceDesc for AddLoginPasswordService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var AddLoginPasswordService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "gophkeeper.grpc.AddLoginPasswordService",
+	HandlerType: (*AddLoginPasswordServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "AddLoginPassword",
+			Handler:    _AddLoginPasswordService_AddLoginPassword_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "api/protos/add.proto",
+}
+
+const (
+	AddTextService_AddText_FullMethodName = "/gophkeeper.grpc.AddTextService/AddText"
+)
+
+// AddTextServiceClient is the client API for AddTextService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Service to add textual secrets
+type AddTextServiceClient interface {
+	AddText(ctx context.Context, in *Text, opts ...grpc.CallOption) (*AddResponse, error)
+}
+
+type addTextServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewAddTextServiceClient(cc grpc.ClientConnInterface) AddTextServiceClient {
+	return &addTextServiceClient{cc}
+}
+
+func (c *addTextServiceClient) AddText(ctx context.Context, in *Text, opts ...grpc.CallOption) (*AddResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddResponse)
+	err := c.cc.Invoke(ctx, AddTextService_AddText_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddTextServiceServer is the server API for AddTextService service.
+// All implementations must embed UnimplementedAddTextServiceServer
+// for forward compatibility.
+//
+// Service to add textual secrets
+type AddTextServiceServer interface {
+	AddText(context.Context, *Text) (*AddResponse, error)
+	mustEmbedUnimplementedAddTextServiceServer()
+}
+
+// UnimplementedAddTextServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedAddTextServiceServer struct{}
+
+func (UnimplementedAddTextServiceServer) AddText(context.Context, *Text) (*AddResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddText not implemented")
+}
+func (UnimplementedAddTextServiceServer) mustEmbedUnimplementedAddTextServiceServer() {}
+func (UnimplementedAddTextServiceServer) testEmbeddedByValue()                        {}
+
+// UnsafeAddTextServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AddTextServiceServer will
+// result in compilation errors.
+type UnsafeAddTextServiceServer interface {
+	mustEmbedUnimplementedAddTextServiceServer()
+}
+
+func RegisterAddTextServiceServer(s grpc.ServiceRegistrar, srv AddTextServiceServer) {
+	// If the following call pancis, it indicates UnimplementedAddTextServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&AddTextService_ServiceDesc, srv)
+}
+
+func _AddTextService_AddText_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Text)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AddServiceServer).AddText(ctx, in)
+		return srv.(AddTextServiceServer).AddText(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AddService_AddText_FullMethodName,
+		FullMethod: AddTextService_AddText_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AddServiceServer).AddText(ctx, req.(*Text))
+		return srv.(AddTextServiceServer).AddText(ctx, req.(*Text))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AddService_AddBinary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+// AddTextService_ServiceDesc is the grpc.ServiceDesc for AddTextService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var AddTextService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "gophkeeper.grpc.AddTextService",
+	HandlerType: (*AddTextServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "AddText",
+			Handler:    _AddTextService_AddText_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "api/protos/add.proto",
+}
+
+const (
+	AddBinaryService_AddBinary_FullMethodName = "/gophkeeper.grpc.AddBinaryService/AddBinary"
+)
+
+// AddBinaryServiceClient is the client API for AddBinaryService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Service to add binary secrets
+type AddBinaryServiceClient interface {
+	AddBinary(ctx context.Context, in *Binary, opts ...grpc.CallOption) (*AddResponse, error)
+}
+
+type addBinaryServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewAddBinaryServiceClient(cc grpc.ClientConnInterface) AddBinaryServiceClient {
+	return &addBinaryServiceClient{cc}
+}
+
+func (c *addBinaryServiceClient) AddBinary(ctx context.Context, in *Binary, opts ...grpc.CallOption) (*AddResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddResponse)
+	err := c.cc.Invoke(ctx, AddBinaryService_AddBinary_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddBinaryServiceServer is the server API for AddBinaryService service.
+// All implementations must embed UnimplementedAddBinaryServiceServer
+// for forward compatibility.
+//
+// Service to add binary secrets
+type AddBinaryServiceServer interface {
+	AddBinary(context.Context, *Binary) (*AddResponse, error)
+	mustEmbedUnimplementedAddBinaryServiceServer()
+}
+
+// UnimplementedAddBinaryServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedAddBinaryServiceServer struct{}
+
+func (UnimplementedAddBinaryServiceServer) AddBinary(context.Context, *Binary) (*AddResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddBinary not implemented")
+}
+func (UnimplementedAddBinaryServiceServer) mustEmbedUnimplementedAddBinaryServiceServer() {}
+func (UnimplementedAddBinaryServiceServer) testEmbeddedByValue()                          {}
+
+// UnsafeAddBinaryServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AddBinaryServiceServer will
+// result in compilation errors.
+type UnsafeAddBinaryServiceServer interface {
+	mustEmbedUnimplementedAddBinaryServiceServer()
+}
+
+func RegisterAddBinaryServiceServer(s grpc.ServiceRegistrar, srv AddBinaryServiceServer) {
+	// If the following call pancis, it indicates UnimplementedAddBinaryServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&AddBinaryService_ServiceDesc, srv)
+}
+
+func _AddBinaryService_AddBinary_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Binary)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AddServiceServer).AddBinary(ctx, in)
+		return srv.(AddBinaryServiceServer).AddBinary(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AddService_AddBinary_FullMethodName,
+		FullMethod: AddBinaryService_AddBinary_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AddServiceServer).AddBinary(ctx, req.(*Binary))
+		return srv.(AddBinaryServiceServer).AddBinary(ctx, req.(*Binary))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AddService_AddCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+// AddBinaryService_ServiceDesc is the grpc.ServiceDesc for AddBinaryService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var AddBinaryService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "gophkeeper.grpc.AddBinaryService",
+	HandlerType: (*AddBinaryServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "AddBinary",
+			Handler:    _AddBinaryService_AddBinary_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "api/protos/add.proto",
+}
+
+const (
+	AddCardService_AddCard_FullMethodName = "/gophkeeper.grpc.AddCardService/AddCard"
+)
+
+// AddCardServiceClient is the client API for AddCardService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// Service to add card secrets
+type AddCardServiceClient interface {
+	AddCard(ctx context.Context, in *Card, opts ...grpc.CallOption) (*AddResponse, error)
+}
+
+type addCardServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewAddCardServiceClient(cc grpc.ClientConnInterface) AddCardServiceClient {
+	return &addCardServiceClient{cc}
+}
+
+func (c *addCardServiceClient) AddCard(ctx context.Context, in *Card, opts ...grpc.CallOption) (*AddResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddResponse)
+	err := c.cc.Invoke(ctx, AddCardService_AddCard_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddCardServiceServer is the server API for AddCardService service.
+// All implementations must embed UnimplementedAddCardServiceServer
+// for forward compatibility.
+//
+// Service to add card secrets
+type AddCardServiceServer interface {
+	AddCard(context.Context, *Card) (*AddResponse, error)
+	mustEmbedUnimplementedAddCardServiceServer()
+}
+
+// UnimplementedAddCardServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedAddCardServiceServer struct{}
+
+func (UnimplementedAddCardServiceServer) AddCard(context.Context, *Card) (*AddResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddCard not implemented")
+}
+func (UnimplementedAddCardServiceServer) mustEmbedUnimplementedAddCardServiceServer() {}
+func (UnimplementedAddCardServiceServer) testEmbeddedByValue()                        {}
+
+// UnsafeAddCardServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to AddCardServiceServer will
+// result in compilation errors.
+type UnsafeAddCardServiceServer interface {
+	mustEmbedUnimplementedAddCardServiceServer()
+}
+
+func RegisterAddCardServiceServer(s grpc.ServiceRegistrar, srv AddCardServiceServer) {
+	// If the following call pancis, it indicates UnimplementedAddCardServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&AddCardService_ServiceDesc, srv)
+}
+
+func _AddCardService_AddCard_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Card)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AddServiceServer).AddCard(ctx, in)
+		return srv.(AddCardServiceServer).AddCard(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AddService_AddCard_FullMethodName,
+		FullMethod: AddCardService_AddCard_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AddServiceServer).AddCard(ctx, req.(*Card))
+		return srv.(AddCardServiceServer).AddCard(ctx, req.(*Card))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// AddService_ServiceDesc is the grpc.ServiceDesc for AddService service.
+// AddCardService_ServiceDesc is the grpc.ServiceDesc for AddCardService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var AddService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "gophkeeper.grpc.AddService",
-	HandlerType: (*AddServiceServer)(nil),
+var AddCardService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "gophkeeper.grpc.AddCardService",
+	HandlerType: (*AddCardServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "AddLoginPassword",
-			Handler:    _AddService_AddLoginPassword_Handler,
-		},
-		{
-			MethodName: "AddText",
-			Handler:    _AddService_AddText_Handler,
-		},
-		{
-			MethodName: "AddBinary",
-			Handler:    _AddService_AddBinary_Handler,
-		},
-		{
 			MethodName: "AddCard",
-			Handler:    _AddService_AddCard_Handler,
+			Handler:    _AddCardService_AddCard_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
