@@ -37,7 +37,10 @@ func NewAppCommand() *cobra.Command {
 	cmd.AddCommand(newAddTextSecretCommand())
 	cmd.AddCommand(newAddBinarySecretCommand())
 	cmd.AddCommand(newAddCardSecretCommand())
-	cmd.AddCommand(newClientGetCommand())
+	cmd.AddCommand(newGetLoginPasswordCommand())
+	cmd.AddCommand(newGetTextCommand())
+	cmd.AddCommand(newGetBinaryCommand())
+	cmd.AddCommand(newGetCardCommand())
 	cmd.AddCommand(newClientListCommand())
 	cmd.AddCommand(newSyncCommand())
 

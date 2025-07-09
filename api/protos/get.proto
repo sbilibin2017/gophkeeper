@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+import "api/protos/secret.proto"; // не обязательно, если типы в том же пакете
+
+service GetLoginPasswordService {
+  rpc Get(GetRequest) returns (GetLoginPasswordResponse);
+}
+
+message GetRequest {
+  string token = 1;
+  string secret_id = 2;
+}
+
+message GetLoginPasswordResponse {
+  LoginPassword login_password = 1;
+  string error = 2;
+}
+
+service GetTextService {
+  rpc Get(GetRequest) returns (GetTextResponse);
+}
+
+message GetTextResponse {
+  Text text = 1;
+  string error = 2;
+}
+
+service GetBinaryService {
+  rpc Get(GetRequest) returns (GetBinaryResponse);
+}
+
+message GetBinaryResponse {
+  Binary binary = 1;
+  string error = 2;
+}
+
+service GetCardService {
+  rpc Get(GetRequest) returns (GetCardResponse);
+}
+
+message GetCardResponse {
+  Card card = 1;
+  string error = 2;
+}

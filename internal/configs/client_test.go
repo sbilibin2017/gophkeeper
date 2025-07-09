@@ -74,3 +74,20 @@ func TestWithGRPCClient(t *testing.T) {
 		assert.Nil(t, cfg.GRPCClient)
 	})
 }
+
+func TestWithToken(t *testing.T) {
+	t.Run("empty token", func(t *testing.T) {
+		cfg := &ClientConfig{}
+		err := WithToken("")(cfg)
+		assert.NoError(t, err)
+		assert.Empty(t, cfg.Token)
+	})
+
+	t.Run("non-empty token", func(t *testing.T) {
+		cfg := &ClientConfig{}
+		token := "some_jwt_token"
+		err := WithToken(token)(cfg)
+		assert.NoError(t, err)
+		assert.Equal(t, token, cfg.Token)
+	})
+}

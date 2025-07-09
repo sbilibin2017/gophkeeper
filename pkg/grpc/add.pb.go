@@ -21,333 +21,16 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Сообщение, представляющее секрет с логином и паролем.
-type LoginPassword struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
-	Login         string                 `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`                                                                         // Логин
-	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`                                                                   // Пароль
-	Meta          map[string]string      `protobuf:"bytes,4,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
-	UpdatedAt     int64                  `protobuf:"varint,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *LoginPassword) Reset() {
-	*x = LoginPassword{}
-	mi := &file_api_protos_add_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *LoginPassword) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*LoginPassword) ProtoMessage() {}
-
-func (x *LoginPassword) ProtoReflect() protoreflect.Message {
-	mi := &file_api_protos_add_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use LoginPassword.ProtoReflect.Descriptor instead.
-func (*LoginPassword) Descriptor() ([]byte, []int) {
-	return file_api_protos_add_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *LoginPassword) GetSecretId() string {
-	if x != nil {
-		return x.SecretId
-	}
-	return ""
-}
-
-func (x *LoginPassword) GetLogin() string {
-	if x != nil {
-		return x.Login
-	}
-	return ""
-}
-
-func (x *LoginPassword) GetPassword() string {
-	if x != nil {
-		return x.Password
-	}
-	return ""
-}
-
-func (x *LoginPassword) GetMeta() map[string]string {
-	if x != nil {
-		return x.Meta
-	}
-	return nil
-}
-
-func (x *LoginPassword) GetUpdatedAt() int64 {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return 0
-}
-
-// Сообщение, представляющее текстовый секрет.
-type Text struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`                                                                     // Текстовое содержимое секрета
-	Meta          map[string]string      `protobuf:"bytes,3,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
-	UpdatedAt     int64                  `protobuf:"varint,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Text) Reset() {
-	*x = Text{}
-	mi := &file_api_protos_add_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Text) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Text) ProtoMessage() {}
-
-func (x *Text) ProtoReflect() protoreflect.Message {
-	mi := &file_api_protos_add_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Text.ProtoReflect.Descriptor instead.
-func (*Text) Descriptor() ([]byte, []int) {
-	return file_api_protos_add_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *Text) GetSecretId() string {
-	if x != nil {
-		return x.SecretId
-	}
-	return ""
-}
-
-func (x *Text) GetContent() string {
-	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *Text) GetMeta() map[string]string {
-	if x != nil {
-		return x.Meta
-	}
-	return nil
-}
-
-func (x *Text) GetUpdatedAt() int64 {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return 0
-}
-
-// Сообщение, представляющее бинарный секрет.
-type Binary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`                                                                           // Бинарные данные секрета
-	Meta          map[string]string      `protobuf:"bytes,3,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
-	UpdatedAt     int64                  `protobuf:"varint,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Binary) Reset() {
-	*x = Binary{}
-	mi := &file_api_protos_add_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Binary) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Binary) ProtoMessage() {}
-
-func (x *Binary) ProtoReflect() protoreflect.Message {
-	mi := &file_api_protos_add_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Binary.ProtoReflect.Descriptor instead.
-func (*Binary) Descriptor() ([]byte, []int) {
-	return file_api_protos_add_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *Binary) GetSecretId() string {
-	if x != nil {
-		return x.SecretId
-	}
-	return ""
-}
-
-func (x *Binary) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-func (x *Binary) GetMeta() map[string]string {
-	if x != nil {
-		return x.Meta
-	}
-	return nil
-}
-
-func (x *Binary) GetUpdatedAt() int64 {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return 0
-}
-
-// Сообщение, представляющее данные банковской карты.
-type Card struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretId      string                 `protobuf:"bytes,1,opt,name=secret_id,json=secretId,proto3" json:"secret_id,omitempty"`                                                   // Уникальный идентификатор секрета
-	Number        string                 `protobuf:"bytes,2,opt,name=number,proto3" json:"number,omitempty"`                                                                       // Номер карты
-	Holder        string                 `protobuf:"bytes,3,opt,name=holder,proto3" json:"holder,omitempty"`                                                                       // Владелец карты
-	ExpMonth      int32                  `protobuf:"varint,4,opt,name=exp_month,json=expMonth,proto3" json:"exp_month,omitempty"`                                                  // Месяц истечения срока действия карты
-	ExpYear       int32                  `protobuf:"varint,5,opt,name=exp_year,json=expYear,proto3" json:"exp_year,omitempty"`                                                     // Год истечения срока действия карты
-	Cvv           string                 `protobuf:"bytes,6,opt,name=cvv,proto3" json:"cvv,omitempty"`                                                                             // CVV код
-	Meta          map[string]string      `protobuf:"bytes,7,rep,name=meta,proto3" json:"meta,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Дополнительные метаданные в виде ключ-значение
-	UpdatedAt     int64                  `protobuf:"varint,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`                                               // Время последнего обновления секрета (Unix timestamp в секундах)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Card) Reset() {
-	*x = Card{}
-	mi := &file_api_protos_add_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Card) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Card) ProtoMessage() {}
-
-func (x *Card) ProtoReflect() protoreflect.Message {
-	mi := &file_api_protos_add_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Card.ProtoReflect.Descriptor instead.
-func (*Card) Descriptor() ([]byte, []int) {
-	return file_api_protos_add_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *Card) GetSecretId() string {
-	if x != nil {
-		return x.SecretId
-	}
-	return ""
-}
-
-func (x *Card) GetNumber() string {
-	if x != nil {
-		return x.Number
-	}
-	return ""
-}
-
-func (x *Card) GetHolder() string {
-	if x != nil {
-		return x.Holder
-	}
-	return ""
-}
-
-func (x *Card) GetExpMonth() int32 {
-	if x != nil {
-		return x.ExpMonth
-	}
-	return 0
-}
-
-func (x *Card) GetExpYear() int32 {
-	if x != nil {
-		return x.ExpYear
-	}
-	return 0
-}
-
-func (x *Card) GetCvv() string {
-	if x != nil {
-		return x.Cvv
-	}
-	return ""
-}
-
-func (x *Card) GetMeta() map[string]string {
-	if x != nil {
-		return x.Meta
-	}
-	return nil
-}
-
-func (x *Card) GetUpdatedAt() int64 {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return 0
-}
-
-// Ответ сервиса на операцию добавления секрета.
 type AddResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"` // Ошибка добавления; пустое значение означает успешное выполнение
+	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AddResponse) Reset() {
 	*x = AddResponse{}
-	mi := &file_api_protos_add_proto_msgTypes[4]
+	mi := &file_api_protos_add_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -359,7 +42,7 @@ func (x *AddResponse) String() string {
 func (*AddResponse) ProtoMessage() {}
 
 func (x *AddResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_protos_add_proto_msgTypes[4]
+	mi := &file_api_protos_add_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -372,7 +55,7 @@ func (x *AddResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddResponse.ProtoReflect.Descriptor instead.
 func (*AddResponse) Descriptor() ([]byte, []int) {
-	return file_api_protos_add_proto_rawDescGZIP(), []int{4}
+	return file_api_protos_add_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *AddResponse) GetError() string {
@@ -386,48 +69,7 @@ var File_api_protos_add_proto protoreflect.FileDescriptor
 
 const file_api_protos_add_proto_rawDesc = "" +
 	"\n" +
-	"\x14api/protos/add.proto\x12\x0fgophkeeper.grpc\"\xf4\x01\n" +
-	"\rLoginPassword\x12\x1b\n" +
-	"\tsecret_id\x18\x01 \x01(\tR\bsecretId\x12\x14\n" +
-	"\x05login\x18\x02 \x01(\tR\x05login\x12\x1a\n" +
-	"\bpassword\x18\x03 \x01(\tR\bpassword\x12<\n" +
-	"\x04meta\x18\x04 \x03(\v2(.gophkeeper.grpc.LoginPassword.MetaEntryR\x04meta\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\x05 \x01(\x03R\tupdatedAt\x1a7\n" +
-	"\tMetaEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xca\x01\n" +
-	"\x04Text\x12\x1b\n" +
-	"\tsecret_id\x18\x01 \x01(\tR\bsecretId\x12\x18\n" +
-	"\acontent\x18\x02 \x01(\tR\acontent\x123\n" +
-	"\x04meta\x18\x03 \x03(\v2\x1f.gophkeeper.grpc.Text.MetaEntryR\x04meta\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\x04 \x01(\x03R\tupdatedAt\x1a7\n" +
-	"\tMetaEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc8\x01\n" +
-	"\x06Binary\x12\x1b\n" +
-	"\tsecret_id\x18\x01 \x01(\tR\bsecretId\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\x125\n" +
-	"\x04meta\x18\x03 \x03(\v2!.gophkeeper.grpc.Binary.MetaEntryR\x04meta\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\x04 \x01(\x03R\tupdatedAt\x1a7\n" +
-	"\tMetaEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xaa\x02\n" +
-	"\x04Card\x12\x1b\n" +
-	"\tsecret_id\x18\x01 \x01(\tR\bsecretId\x12\x16\n" +
-	"\x06number\x18\x02 \x01(\tR\x06number\x12\x16\n" +
-	"\x06holder\x18\x03 \x01(\tR\x06holder\x12\x1b\n" +
-	"\texp_month\x18\x04 \x01(\x05R\bexpMonth\x12\x19\n" +
-	"\bexp_year\x18\x05 \x01(\x05R\aexpYear\x12\x10\n" +
-	"\x03cvv\x18\x06 \x01(\tR\x03cvv\x123\n" +
-	"\x04meta\x18\a \x03(\v2\x1f.gophkeeper.grpc.Card.MetaEntryR\x04meta\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\b \x01(\x03R\tupdatedAt\x1a7\n" +
-	"\tMetaEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"#\n" +
+	"\x14api/protos/add.proto\x12\x0fgophkeeper.grpc\x1a\x17api/protos/secret.proto\"#\n" +
 	"\vAddResponse\x12\x14\n" +
 	"\x05error\x18\x01 \x01(\tR\x05error2k\n" +
 	"\x17AddLoginPasswordService\x12P\n" +
@@ -451,36 +93,28 @@ func file_api_protos_add_proto_rawDescGZIP() []byte {
 	return file_api_protos_add_proto_rawDescData
 }
 
-var file_api_protos_add_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_api_protos_add_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_api_protos_add_proto_goTypes = []any{
-	(*LoginPassword)(nil), // 0: gophkeeper.grpc.LoginPassword
-	(*Text)(nil),          // 1: gophkeeper.grpc.Text
-	(*Binary)(nil),        // 2: gophkeeper.grpc.Binary
-	(*Card)(nil),          // 3: gophkeeper.grpc.Card
-	(*AddResponse)(nil),   // 4: gophkeeper.grpc.AddResponse
-	nil,                   // 5: gophkeeper.grpc.LoginPassword.MetaEntry
-	nil,                   // 6: gophkeeper.grpc.Text.MetaEntry
-	nil,                   // 7: gophkeeper.grpc.Binary.MetaEntry
-	nil,                   // 8: gophkeeper.grpc.Card.MetaEntry
+	(*AddResponse)(nil),   // 0: gophkeeper.grpc.AddResponse
+	(*LoginPassword)(nil), // 1: gophkeeper.grpc.LoginPassword
+	(*Text)(nil),          // 2: gophkeeper.grpc.Text
+	(*Binary)(nil),        // 3: gophkeeper.grpc.Binary
+	(*Card)(nil),          // 4: gophkeeper.grpc.Card
 }
 var file_api_protos_add_proto_depIdxs = []int32{
-	5, // 0: gophkeeper.grpc.LoginPassword.meta:type_name -> gophkeeper.grpc.LoginPassword.MetaEntry
-	6, // 1: gophkeeper.grpc.Text.meta:type_name -> gophkeeper.grpc.Text.MetaEntry
-	7, // 2: gophkeeper.grpc.Binary.meta:type_name -> gophkeeper.grpc.Binary.MetaEntry
-	8, // 3: gophkeeper.grpc.Card.meta:type_name -> gophkeeper.grpc.Card.MetaEntry
-	0, // 4: gophkeeper.grpc.AddLoginPasswordService.AddLoginPassword:input_type -> gophkeeper.grpc.LoginPassword
-	1, // 5: gophkeeper.grpc.AddTextService.AddText:input_type -> gophkeeper.grpc.Text
-	2, // 6: gophkeeper.grpc.AddBinaryService.AddBinary:input_type -> gophkeeper.grpc.Binary
-	3, // 7: gophkeeper.grpc.AddCardService.AddCard:input_type -> gophkeeper.grpc.Card
-	4, // 8: gophkeeper.grpc.AddLoginPasswordService.AddLoginPassword:output_type -> gophkeeper.grpc.AddResponse
-	4, // 9: gophkeeper.grpc.AddTextService.AddText:output_type -> gophkeeper.grpc.AddResponse
-	4, // 10: gophkeeper.grpc.AddBinaryService.AddBinary:output_type -> gophkeeper.grpc.AddResponse
-	4, // 11: gophkeeper.grpc.AddCardService.AddCard:output_type -> gophkeeper.grpc.AddResponse
-	8, // [8:12] is the sub-list for method output_type
-	4, // [4:8] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1, // 0: gophkeeper.grpc.AddLoginPasswordService.AddLoginPassword:input_type -> gophkeeper.grpc.LoginPassword
+	2, // 1: gophkeeper.grpc.AddTextService.AddText:input_type -> gophkeeper.grpc.Text
+	3, // 2: gophkeeper.grpc.AddBinaryService.AddBinary:input_type -> gophkeeper.grpc.Binary
+	4, // 3: gophkeeper.grpc.AddCardService.AddCard:input_type -> gophkeeper.grpc.Card
+	0, // 4: gophkeeper.grpc.AddLoginPasswordService.AddLoginPassword:output_type -> gophkeeper.grpc.AddResponse
+	0, // 5: gophkeeper.grpc.AddTextService.AddText:output_type -> gophkeeper.grpc.AddResponse
+	0, // 6: gophkeeper.grpc.AddBinaryService.AddBinary:output_type -> gophkeeper.grpc.AddResponse
+	0, // 7: gophkeeper.grpc.AddCardService.AddCard:output_type -> gophkeeper.grpc.AddResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_api_protos_add_proto_init() }
@@ -488,13 +122,14 @@ func file_api_protos_add_proto_init() {
 	if File_api_protos_add_proto != nil {
 		return
 	}
+	file_api_protos_secret_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_protos_add_proto_rawDesc), len(file_api_protos_add_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   4,
 		},

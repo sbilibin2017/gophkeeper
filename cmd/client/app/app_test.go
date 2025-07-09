@@ -29,7 +29,10 @@ func TestNewAppCommand(t *testing.T) {
 		"add-text",
 		"add-binary",
 		"add-card",
-		"get",
+		"get-login-password",
+		"get-text",
+		"get-binary",
+		"get-card",
 		"list",
 		"sync",
 	}

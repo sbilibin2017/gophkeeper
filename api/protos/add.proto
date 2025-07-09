@@ -4,72 +4,24 @@ package gophkeeper.grpc;
 
 option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
 
-// Сервис для добавления логинов и паролей.
+import "api/protos/secret.proto";
+
 service AddLoginPasswordService {
-  // Добавляет секрет с логином и паролем.
-  // Принимает сообщение LoginPassword и возвращает AddResponse с результатом операции.
   rpc AddLoginPassword(LoginPassword) returns (AddResponse);
 }
 
-// Сервис для добавления текстовых секретов.
 service AddTextService {
-  // Добавляет текстовый секрет.
-  // Принимает сообщение Text и возвращает AddResponse с результатом операции.
   rpc AddText(Text) returns (AddResponse);
 }
 
-// Сервис для добавления бинарных секретов.
 service AddBinaryService {
-  // Добавляет бинарный секрет.
-  // Принимает сообщение Binary и возвращает AddResponse с результатом операции.
   rpc AddBinary(Binary) returns (AddResponse);
 }
 
-// Сервис для добавления данных банковских карт.
 service AddCardService {
-  // Добавляет данные карты.
-  // Принимает сообщение Card и возвращает AddResponse с результатом операции.
   rpc AddCard(Card) returns (AddResponse);
 }
 
-// Сообщение, представляющее секрет с логином и паролем.
-message LoginPassword {
-  string secret_id = 1; // Уникальный идентификатор секрета
-  string login = 2;     // Логин
-  string password = 3;  // Пароль
-  map<string, string> meta = 4; // Дополнительные метаданные в виде ключ-значение
-  int64 updated_at = 5; // Время последнего обновления секрета (Unix timestamp в секундах)
-}
-
-// Сообщение, представляющее текстовый секрет.
-message Text {
-  string secret_id = 1; // Уникальный идентификатор секрета
-  string content = 2;   // Текстовое содержимое секрета
-  map<string, string> meta = 3; // Дополнительные метаданные в виде ключ-значение
-  int64 updated_at = 4; // Время последнего обновления секрета (Unix timestamp в секундах)
-}
-
-// Сообщение, представляющее бинарный секрет.
-message Binary {
-  string secret_id = 1; // Уникальный идентификатор секрета
-  bytes data = 2;       // Бинарные данные секрета
-  map<string, string> meta = 3; // Дополнительные метаданные в виде ключ-значение
-  int64 updated_at = 4; // Время последнего обновления секрета (Unix timestamp в секундах)
-}
-
-// Сообщение, представляющее данные банковской карты.
-message Card {
-  string secret_id = 1; // Уникальный идентификатор секрета
-  string number = 2;    // Номер карты
-  string holder = 3;    // Владелец карты
-  int32 exp_month = 4;  // Месяц истечения срока действия карты
-  int32 exp_year = 5;   // Год истечения срока действия карты
-  string cvv = 6;       // CVV код
-  map<string, string> meta = 7; // Дополнительные метаданные в виде ключ-значение
-  int64 updated_at = 8; // Время последнего обновления секрета (Unix timestamp в секундах)
-}
-
-// Ответ сервиса на операцию добавления секрета.
 message AddResponse {
-  string error = 1; // Ошибка добавления; пустое значение означает успешное выполнение
+  string error = 1;
 }

@@ -21,6 +21,7 @@ type ClientConfig struct {
 	HTTPClient *resty.Client
 	GRPCClient *grpc.ClientConn
 	DB         *sqlx.DB
+	Token      string
 }
 
 // ClientConfigOpt defines a function type for configuring ClientConfig.
@@ -80,6 +81,17 @@ func WithGRPCClient(serverURL string) ClientConfigOpt {
 			return err
 		}
 		c.GRPCClient = grpcClient
+		return nil
+	}
+}
+
+// WithToken configures ClientConfig to use jwt
+func WithToken(token string) ClientConfigOpt {
+	return func(c *ClientConfig) error {
+		if token == "" {
+			return nil
+		}
+		c.Token = token
 		return nil
 	}
 }

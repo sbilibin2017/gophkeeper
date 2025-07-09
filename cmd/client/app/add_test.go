@@ -226,7 +226,6 @@ func TestParseAddCardFlags_Flags(t *testing.T) {
 }
 
 func TestParseAddCardFlags_MissingRequired(t *testing.T) {
-	// helper для установки флагов
 	setFlags := func(cmd *cobra.Command, flags map[string]string) error {
 		for k, v := range flags {
 			if err := cmd.Flags().Set(k, v); err != nil {
@@ -236,7 +235,7 @@ func TestParseAddCardFlags_MissingRequired(t *testing.T) {
 		return nil
 	}
 
-	// Проверка отсутствия secret_id
+	// Нет secret_id
 	{
 		cmd := newAddCardSecretCommand()
 		err := setFlags(cmd, map[string]string{
@@ -253,7 +252,7 @@ func TestParseAddCardFlags_MissingRequired(t *testing.T) {
 		assert.Contains(t, err.Error(), "secret_id required")
 	}
 
-	// Проверка отсутствия number
+	// Нет number
 	{
 		cmd := newAddCardSecretCommand()
 		err := setFlags(cmd, map[string]string{
@@ -270,7 +269,7 @@ func TestParseAddCardFlags_MissingRequired(t *testing.T) {
 		assert.Contains(t, err.Error(), "card number required")
 	}
 
-	// Проверка отсутствия holder
+	// Нет holder
 	{
 		cmd := newAddCardSecretCommand()
 		err := setFlags(cmd, map[string]string{
@@ -284,10 +283,10 @@ func TestParseAddCardFlags_MissingRequired(t *testing.T) {
 
 		_, _, err = parseAddCardFlags(cmd)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "cardholder required")
+		assert.Contains(t, err.Error(), "cardholder name required") // Исправлено
 	}
 
-	// Проверка отсутствия exp_month
+	// Нет exp_month
 	{
 		cmd := newAddCardSecretCommand()
 		err := setFlags(cmd, map[string]string{
@@ -301,10 +300,10 @@ func TestParseAddCardFlags_MissingRequired(t *testing.T) {
 
 		_, _, err = parseAddCardFlags(cmd)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid exp_month")
+		assert.Contains(t, err.Error(), "expiration month must be 1-12") // Исправлено
 	}
 
-	// Проверка отсутствия exp_year
+	// Нет exp_year
 	{
 		cmd := newAddCardSecretCommand()
 		err := setFlags(cmd, map[string]string{
@@ -318,10 +317,10 @@ func TestParseAddCardFlags_MissingRequired(t *testing.T) {
 
 		_, _, err = parseAddCardFlags(cmd)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid exp_year")
+		assert.Contains(t, err.Error(), "expiration year invalid") // Исправлено
 	}
 
-	// Проверка отсутствия cvv
+	// Нет cvv
 	{
 		cmd := newAddCardSecretCommand()
 		err := setFlags(cmd, map[string]string{
@@ -345,14 +344,14 @@ func TestParseAddCardFlags_InvalidExpMonth(t *testing.T) {
 		"secret_id": "id",
 		"number":    "123",
 		"holder":    "holder",
-		"exp_month": "13", // invalid month
+		"exp_month": "13", // неверный месяц
 		"exp_year":  "2025",
 		"cvv":       "123",
 	})
 	require.NoError(t, err)
 	_, _, err = parseAddCardFlags(cmd)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid exp_month")
+	assert.Contains(t, err.Error(), "expiration month must be 1-12") // Исправлено
 }
 
 func TestParseAddMetaString(t *testing.T) {

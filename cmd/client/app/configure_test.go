@@ -2,49 +2,39 @@ package app
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestConfigureCommand_Success(t *testing.T) {
-	// Создаем временный каталог
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, ".gophkeeper")
-	t.Setenv("HOME", tmpDir)
+func TestConfigureCommand_TokenProvided(t *testing.T) {
+	cmd := appCommand()
 
-	token := "test-jwt-token"
-	cmd := newConfigureCommand()
-	cmd.SetArgs([]string{"--token", token})
+	// Set the token flag
+	cmd.SetArgs([]string{"configure", "--token", "my_test_token"})
 
 	err := cmd.Execute()
-	require.NoError(t, err)
+	assert.NoError(t, err, "command should execute without error")
 
-	// Проверяем, что файл записан
-	data, err := os.ReadFile(configPath)
-	require.NoError(t, err)
-	assert.Equal(t, token, string(data))
+	token := os.Getenv("GOPHKEEPER_TOKEN")
+	assert.Equal(t, "my_test_token", token, "GOPHKEEPER_TOKEN should match provided token")
 }
 
-func TestConfigureCommand_MissingToken(t *testing.T) {
-	cmd := newConfigureCommand()
-	cmd.SetArgs([]string{}) // без флага token
+func TestConfigureCommand_TokenMissing(t *testing.T) {
+	cmd := appCommand()
+
+	// No token flag provided
+	cmd.SetArgs([]string{"configure"})
 
 	err := cmd.Execute()
-	require.Error(t, err)
+	assert.Error(t, err, "command should return error if token is not provided")
 	assert.Contains(t, err.Error(), "token is required")
 }
 
-func TestConfigureCommand_FileWriteError(t *testing.T) {
-	// Устанавливаем $HOME в несуществующий путь (или без прав доступа)
-	t.Setenv("HOME", "/root/should-fail") // для Linux-систем
-
-	cmd := newConfigureCommand()
-	cmd.SetArgs([]string{"--token", "test-token"})
-
-	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to save token")
+// appCommand creates a root command with `configure` subcommand
+func appCommand() *cobra.Command {
+	root := &cobra.Command{Use: "client"}
+	root.AddCommand(newConfigureCommand())
+	return root
 }

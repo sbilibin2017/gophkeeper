@@ -25,11 +25,7 @@ const (
 // AddLoginPasswordServiceClient is the client API for AddLoginPasswordService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// Сервис для добавления логинов и паролей.
 type AddLoginPasswordServiceClient interface {
-	// Добавляет секрет с логином и паролем.
-	// Принимает сообщение LoginPassword и возвращает AddResponse с результатом операции.
 	AddLoginPassword(ctx context.Context, in *LoginPassword, opts ...grpc.CallOption) (*AddResponse, error)
 }
 
@@ -54,11 +50,7 @@ func (c *addLoginPasswordServiceClient) AddLoginPassword(ctx context.Context, in
 // AddLoginPasswordServiceServer is the server API for AddLoginPasswordService service.
 // All implementations must embed UnimplementedAddLoginPasswordServiceServer
 // for forward compatibility.
-//
-// Сервис для добавления логинов и паролей.
 type AddLoginPasswordServiceServer interface {
-	// Добавляет секрет с логином и паролем.
-	// Принимает сообщение LoginPassword и возвращает AddResponse с результатом операции.
 	AddLoginPassword(context.Context, *LoginPassword) (*AddResponse, error)
 	mustEmbedUnimplementedAddLoginPasswordServiceServer()
 }
@@ -136,11 +128,7 @@ const (
 // AddTextServiceClient is the client API for AddTextService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// Сервис для добавления текстовых секретов.
 type AddTextServiceClient interface {
-	// Добавляет текстовый секрет.
-	// Принимает сообщение Text и возвращает AddResponse с результатом операции.
 	AddText(ctx context.Context, in *Text, opts ...grpc.CallOption) (*AddResponse, error)
 }
 
@@ -165,11 +153,7 @@ func (c *addTextServiceClient) AddText(ctx context.Context, in *Text, opts ...gr
 // AddTextServiceServer is the server API for AddTextService service.
 // All implementations must embed UnimplementedAddTextServiceServer
 // for forward compatibility.
-//
-// Сервис для добавления текстовых секретов.
 type AddTextServiceServer interface {
-	// Добавляет текстовый секрет.
-	// Принимает сообщение Text и возвращает AddResponse с результатом операции.
 	AddText(context.Context, *Text) (*AddResponse, error)
 	mustEmbedUnimplementedAddTextServiceServer()
 }
@@ -246,11 +230,7 @@ const (
 // AddBinaryServiceClient is the client API for AddBinaryService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// Сервис для добавления бинарных секретов.
 type AddBinaryServiceClient interface {
-	// Добавляет бинарный секрет.
-	// Принимает сообщение Binary и возвращает AddResponse с результатом операции.
 	AddBinary(ctx context.Context, in *Binary, opts ...grpc.CallOption) (*AddResponse, error)
 }
 
@@ -275,11 +255,7 @@ func (c *addBinaryServiceClient) AddBinary(ctx context.Context, in *Binary, opts
 // AddBinaryServiceServer is the server API for AddBinaryService service.
 // All implementations must embed UnimplementedAddBinaryServiceServer
 // for forward compatibility.
-//
-// Сервис для добавления бинарных секретов.
 type AddBinaryServiceServer interface {
-	// Добавляет бинарный секрет.
-	// Принимает сообщение Binary и возвращает AddResponse с результатом операции.
 	AddBinary(context.Context, *Binary) (*AddResponse, error)
 	mustEmbedUnimplementedAddBinaryServiceServer()
 }
@@ -356,11 +332,7 @@ const (
 // AddCardServiceClient is the client API for AddCardService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-//
-// Сервис для добавления данных банковских карт.
 type AddCardServiceClient interface {
-	// Добавляет данные карты.
-	// Принимает сообщение Card и возвращает AddResponse с результатом операции.
 	AddCard(ctx context.Context, in *Card, opts ...grpc.CallOption) (*AddResponse, error)
 }
 
@@ -385,11 +357,7 @@ func (c *addCardServiceClient) AddCard(ctx context.Context, in *Card, opts ...gr
 // AddCardServiceServer is the server API for AddCardService service.
 // All implementations must embed UnimplementedAddCardServiceServer
 // for forward compatibility.
-//
-// Сервис для добавления данных банковских карт.
 type AddCardServiceServer interface {
-	// Добавляет данные карты.
-	// Принимает сообщение Card и возвращает AddResponse с результатом операции.
 	AddCard(context.Context, *Card) (*AddResponse, error)
 	mustEmbedUnimplementedAddCardServiceServer()
 }

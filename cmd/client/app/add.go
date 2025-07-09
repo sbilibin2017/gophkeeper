@@ -43,6 +43,7 @@ func newAddLoginPasswordCommand() *cobra.Command {
 	cmd.Flags().String("login", "", "Login username to store")
 	cmd.Flags().String("password", "", "Password to store")
 	cmd.Flags().StringToString("meta", nil, "Optional metadata key=value pairs")
+	cmd.Flags().String("token", "", "Authentication token")
 	cmd.Flags().Bool("interactive", false, "Enable interactive input")
 
 	_ = cmd.MarkFlagRequired("secret_id")
@@ -59,6 +60,7 @@ func parseAddLoginPasswordFlags(cmd *cobra.Command) (*configs.ClientConfig, *mod
 	login, _ := cmd.Flags().GetString("login")
 	password, _ := cmd.Flags().GetString("password")
 	metaFlag, _ := cmd.Flags().GetStringToString("meta")
+	token, _ := cmd.Flags().GetString("token")
 
 	if interactive {
 		reader := bufio.NewReader(os.Stdin)
@@ -90,6 +92,13 @@ func parseAddLoginPasswordFlags(cmd *cobra.Command) (*configs.ClientConfig, *mod
 			return nil, nil, fmt.Errorf("input error")
 		}
 		metaFlag = parseAddMetaString(strings.TrimSpace(input))
+
+		fmt.Print("Enter token (optional): ")
+		input, err = reader.ReadString('\n')
+		if err != nil {
+			return nil, nil, fmt.Errorf("input error")
+		}
+		token = strings.TrimSpace(input)
 	}
 
 	if secretID == "" {
@@ -102,7 +111,7 @@ func parseAddLoginPasswordFlags(cmd *cobra.Command) (*configs.ClientConfig, *mod
 		return nil, nil, fmt.Errorf("password required")
 	}
 
-	config, err := configs.NewClientConfig(configs.WithDB())
+	config, err := configs.NewClientConfig(configs.WithDB(), configs.WithToken(token))
 	if err != nil {
 		return nil, nil, fmt.Errorf("db connection error")
 	}
@@ -126,7 +135,7 @@ func newAddTextSecretCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config, textSecret, err := parseAddTextFlags(cmd)
 			if err != nil {
-				return fmt.Errorf("input error")
+				return err
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -141,6 +150,7 @@ func newAddTextSecretCommand() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().String("token", "", "Authentication token")
 	cmd.Flags().String("secret_id", "", "ID of the text secret")
 	cmd.Flags().String("content", "", "Text content of the secret")
 	cmd.Flags().StringToString("meta", nil, "Optional metadata key=value pairs")
@@ -158,6 +168,7 @@ func parseAddTextFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Text,
 	secretID, _ := cmd.Flags().GetString("secret_id")
 	content, _ := cmd.Flags().GetString("content")
 	metaFlag, _ := cmd.Flags().GetStringToString("meta")
+	token, _ := cmd.Flags().GetString("token")
 
 	if interactive {
 		reader := bufio.NewReader(os.Stdin)
@@ -182,6 +193,13 @@ func parseAddTextFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Text,
 			return nil, nil, fmt.Errorf("input error")
 		}
 		metaFlag = parseAddMetaString(strings.TrimSpace(input))
+
+		fmt.Print("Enter token (optional): ")
+		input, err = reader.ReadString('\n')
+		if err != nil {
+			return nil, nil, fmt.Errorf("input error")
+		}
+		token = strings.TrimSpace(input)
 	}
 
 	if secretID == "" {
@@ -191,7 +209,7 @@ func parseAddTextFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Text,
 		return nil, nil, fmt.Errorf("content required")
 	}
 
-	config, err := configs.NewClientConfig(configs.WithDB())
+	config, err := configs.NewClientConfig(configs.WithDB(), configs.WithToken(token))
 	if err != nil {
 		return nil, nil, fmt.Errorf("db connection error")
 	}
@@ -214,7 +232,7 @@ func newAddBinarySecretCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			config, binarySecret, err := parseAddBinaryFlags(cmd)
 			if err != nil {
-				return fmt.Errorf("input error")
+				return err
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -232,6 +250,7 @@ func newAddBinarySecretCommand() *cobra.Command {
 	cmd.Flags().String("secret_id", "", "ID of the binary secret")
 	cmd.Flags().String("file", "", "Path to the binary file")
 	cmd.Flags().StringToString("meta", nil, "Optional metadata key=value pairs")
+	cmd.Flags().String("token", "", "Authentication token")
 	cmd.Flags().Bool("interactive", false, "Enable interactive input")
 
 	_ = cmd.MarkFlagRequired("secret_id")
@@ -246,6 +265,7 @@ func parseAddBinaryFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Bin
 	secretID, _ := cmd.Flags().GetString("secret_id")
 	filePath, _ := cmd.Flags().GetString("file")
 	metaFlag, _ := cmd.Flags().GetStringToString("meta")
+	token, _ := cmd.Flags().GetString("token")
 
 	if interactive {
 		reader := bufio.NewReader(os.Stdin)
@@ -270,6 +290,13 @@ func parseAddBinaryFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Bin
 			return nil, nil, fmt.Errorf("input error")
 		}
 		metaFlag = parseAddMetaString(strings.TrimSpace(input))
+
+		fmt.Print("Enter token (optional): ")
+		input, err = reader.ReadString('\n')
+		if err != nil {
+			return nil, nil, fmt.Errorf("input error")
+		}
+		token = strings.TrimSpace(input)
 	}
 
 	if secretID == "" {
@@ -284,7 +311,7 @@ func parseAddBinaryFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Bin
 		return nil, nil, fmt.Errorf("file read error")
 	}
 
-	config, err := configs.NewClientConfig(configs.WithDB())
+	config, err := configs.NewClientConfig(configs.WithDB(), configs.WithToken(token))
 	if err != nil {
 		return nil, nil, fmt.Errorf("db connection error")
 	}
@@ -330,6 +357,7 @@ func newAddCardSecretCommand() *cobra.Command {
 	cmd.Flags().Int("exp_year", 0, "Expiration year (e.g. 2025)")
 	cmd.Flags().String("cvv", "", "CVV code")
 	cmd.Flags().StringToString("meta", nil, "Optional metadata")
+	cmd.Flags().String("token", "", "Authentication token")
 	cmd.Flags().Bool("interactive", false, "Enable interactive input")
 
 	_ = cmd.MarkFlagRequired("secret_id")
@@ -352,6 +380,7 @@ func parseAddCardFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Card,
 	expYear, _ := cmd.Flags().GetInt("exp_year")
 	cvv, _ := cmd.Flags().GetString("cvv")
 	metaFlag, _ := cmd.Flags().GetStringToString("meta")
+	token, _ := cmd.Flags().GetString("token")
 
 	if interactive {
 		reader := bufio.NewReader(os.Stdin)
@@ -412,6 +441,13 @@ func parseAddCardFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Card,
 			return nil, nil, fmt.Errorf("input error")
 		}
 		metaFlag = parseAddMetaString(strings.TrimSpace(input))
+
+		fmt.Print("Enter token (optional): ")
+		input, err = reader.ReadString('\n')
+		if err != nil {
+			return nil, nil, fmt.Errorf("input error")
+		}
+		token = strings.TrimSpace(input)
 	}
 
 	if secretID == "" {
@@ -421,19 +457,19 @@ func parseAddCardFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Card,
 		return nil, nil, fmt.Errorf("card number required")
 	}
 	if holder == "" {
-		return nil, nil, fmt.Errorf("cardholder required")
+		return nil, nil, fmt.Errorf("cardholder name required")
 	}
 	if expMonth < 1 || expMonth > 12 {
-		return nil, nil, fmt.Errorf("invalid exp_month")
+		return nil, nil, fmt.Errorf("expiration month must be 1-12")
 	}
-	if expYear < 2000 || expYear > 2100 {
-		return nil, nil, fmt.Errorf("invalid exp_year")
+	if expYear < 2000 {
+		return nil, nil, fmt.Errorf("expiration year invalid")
 	}
 	if cvv == "" {
 		return nil, nil, fmt.Errorf("cvv required")
 	}
 
-	config, err := configs.NewClientConfig(configs.WithDB())
+	config, err := configs.NewClientConfig(configs.WithDB(), configs.WithToken(token))
 	if err != nil {
 		return nil, nil, fmt.Errorf("db connection error")
 	}
@@ -452,19 +488,27 @@ func parseAddCardFlags(cmd *cobra.Command) (*configs.ClientConfig, *models.Card,
 	return config, req, nil
 }
 
-func parseAddMetaString(s string) map[string]string {
-	m := make(map[string]string)
-	if s == "" {
-		return m
+// parseAddMetaString parses a comma-separated string of key=value pairs into a map.
+func parseAddMetaString(input string) map[string]string {
+	result := make(map[string]string)
+	if input == "" {
+		return result
 	}
-	parts := strings.Split(s, ",")
-	for _, part := range parts {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) == 2 {
-			key := strings.TrimSpace(kv[0])
-			value := strings.TrimSpace(kv[1])
-			m[key] = value
+	pairs := strings.Split(input, ",")
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+		parts := strings.SplitN(pair, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if key != "" {
+			result[key] = value
 		}
 	}
-	return m
+	return result
 }
