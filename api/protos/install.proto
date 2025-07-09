@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+// Запрос с указанием платформы (os и arch)
+message InstallRequest {
+  string os = 1;     // например "windows", "linux", "darwin"
+  string arch = 2;   // например "amd64", "arm64"
+}
+
+// Ответ с бинарными данными клиента
+message InstallResponse {
+  bytes binary_data = 1; // бинарный файл клиента
+  string file_name = 2;  // имя файла с расширением
+  string error = 3; // пусто, если ошибок нет
+}
+
+// Сервис для скачивания клиента
+service ClientInstallService {
+  // Получить клиент по платформе
+  rpc DownloadClient (InstallRequest) returns (InstallResponse);
+}
