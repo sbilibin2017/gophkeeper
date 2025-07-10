@@ -2,11 +2,14 @@ package app
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/sbilibin2017/gophkeeper/cmd/client/app/options"
+	"github.com/sbilibin2017/gophkeeper/internal/services"
+	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/spf13/cobra"
 )
 
@@ -15,8 +18,6 @@ var (
 	loginPassword string // Пароль пользователя
 )
 
-// newLoginCommand создаёт команду для аутентификации пользователя в системе Gophkeeper.
-// Поддерживает передачу имени пользователя, пароля и URL сервера через флаги или интерактивный ввод.
 func newLoginCommand() *cobra.Command {
 	var (
 		serverURL   string
@@ -28,8 +29,9 @@ func newLoginCommand() *cobra.Command {
 		Short: "Аутентификация пользователя",
 		Long: `Команда для аутентификации пользователя в системе Gophkeeper.
 
-Поддерживает передачу имени пользователя, пароля и URL сервера как через флаги,
-так и через интерактивный ввод.`,
+Поддерживается передача имени пользователя, пароля и URL сервера как через флаги,
+так и через интерактивный ввод. Если URL сервера не указан, используется
+значение из переменной окружения GOPHKEEPER_SERVER_URL.`,
 		Example: `  gophkeeper login --username alice --password secret123 --server-url https://example.com
   gophkeeper login --interactive`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -43,15 +45,39 @@ func newLoginCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("не удалось создать конфигурацию клиента: %w", err)
 			}
-			if opts.ClientConfig.GRPCClient != nil {
-				defer opts.ClientConfig.GRPCClient.Close()
+
+			if opts.ClientConfig.HTTPClient != nil {
+				token, err := services.LoginHTTP(
+					context.Background(),
+					opts.ClientConfig.HTTPClient,
+					loginUsername,
+					loginPassword,
+				)
+				if err != nil {
+					return err
+				}
+				fmt.Print(token)
+				return nil
 			}
 
-			// TODO: реализовать вызов аутентификации пользователя через клиент
-			fmt.Printf("Аутентификация пользователя: %s с паролем: %s на сервере: %s\n",
-				loginUsername, strings.Repeat("*", len(loginPassword)), serverURL)
+			if opts.ClientConfig.GRPCClient != nil {
+				defer opts.ClientConfig.GRPCClient.Close()
 
-			return nil
+				client := pb.NewLoginServiceClient(opts.ClientConfig.GRPCClient)
+				token, err := services.LoginGRPC(
+					context.Background(),
+					client,
+					loginUsername,
+					loginPassword,
+				)
+				if err != nil {
+					return err
+				}
+				fmt.Print(token)
+				return nil
+			}
+
+			return fmt.Errorf("нет доступного клиента (HTTP или gRPC) для подключения")
 		},
 	}
 
@@ -64,7 +90,6 @@ func newLoginCommand() *cobra.Command {
 	return cmd
 }
 
-// parseLoginFlags обрабатывает флаги и интерактивный ввод для команды login.
 func parseLoginFlags(serverURL *string, interactive *bool) error {
 	if *interactive {
 		reader := bufio.NewReader(os.Stdin)
@@ -78,13 +103,16 @@ func parseLoginFlags(serverURL *string, interactive *bool) error {
 	}
 
 	if *serverURL == "" {
+		*serverURL = os.Getenv("GOPHKEEPER_SERVER_URL")
+	}
+
+	if *serverURL == "" {
 		return fmt.Errorf("URL сервера не может быть пустым")
 	}
 
 	return nil
 }
 
-// parseLoginFlagsInteractive запрашивает у пользователя имя, пароль и URL сервера.
 func parseLoginFlagsInteractive(r *bufio.Reader, serverURL *string) error {
 	fmt.Print("Введите имя пользователя: ")
 	userInput, err := r.ReadString('\n')
@@ -100,7 +128,7 @@ func parseLoginFlagsInteractive(r *bufio.Reader, serverURL *string) error {
 	}
 	loginPassword = strings.TrimSpace(passInput)
 
-	fmt.Print("Введите URL сервера: ")
+	fmt.Print("Введите URL сервера (оставьте пустым для использования GOPHKEEPER_SERVER_URL из окружения): ")
 	urlInput, err := r.ReadString('\n')
 	if err != nil {
 		return err

@@ -9,6 +9,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewRegisterCommand_Flags(t *testing.T) {
+	cmd := newRegisterCommand()
+
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+	if cmd.Use != "register" {
+		t.Errorf("expected Use='register', got '%s'", cmd.Use)
+	}
+
+	flags := cmd.Flags()
+
+	if flags.Lookup("username") == nil {
+		t.Error("username flag is not registered")
+	}
+	if flags.Lookup("password") == nil {
+		t.Error("password flag is not registered")
+	}
+	if flags.Lookup("server-url") == nil {
+		t.Error("server-url flag is not registered")
+	}
+	if flags.Lookup("interactive") == nil {
+		t.Error("interactive flag is not registered")
+	}
+}
+
 func TestParseRegisterFlagsInteractive(t *testing.T) {
 	input := strings.Join([]string{
 		"newuser",            // username
