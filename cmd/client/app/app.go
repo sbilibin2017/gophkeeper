@@ -4,26 +4,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewAppCommand creates the root command for the GophKeeper CLI application.
-// It includes all available subcommands for managing private data.
+// NewAppCommand создаёт корневую команду CLI-приложения GophKeeper.
+// Включает все доступные подкоманды для управления приватными данными.
 func NewAppCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gophkeeper",
-		Short: "GophKeeper — CLI manager for private data",
-		Long:  "GophKeeper is a CLI tool for securely managing your private data such as logins, texts, files, cards, and more.",
+		Short: "GophKeeper — CLI менеджер для приватных данных",
+		Long:  "GophKeeper — CLI инструмент для безопасного управления вашими приватными данными: логинами, текстами, файлами, картами и другими.",
 	}
 
-	// Add subcommands for various functionalities
-	cmd.AddCommand(newVersionCommand())          // Shows version and build info
-	cmd.AddCommand(newConfigCommand())           // Configure client parameters (token, server URL)
-	cmd.AddCommand(newRegisterCommand())         // Register a new user account
-	cmd.AddCommand(newLoginCommand())            // Login existing user
-	cmd.AddCommand(newAddLoginPasswordCommand()) // Add a login and password secret
-	cmd.AddCommand(newAddTextCommand())          // Add arbitrary text secret
-	cmd.AddCommand(newAddBinaryCommand())        // Add binary data secret from a file
-	cmd.AddCommand(newAddCardCommand())          // Add bank card secret
-	cmd.AddCommand(newListCommand())             // List saved secrets
-	cmd.AddCommand(newSyncCommand())             // Synchronize local data with server
+	// Добавление подкоманд
+	cmd.AddCommand(newVersionCommand())          // Вывод версии и информации о сборке
+	cmd.AddCommand(newConfigCommand())           // Настройка параметров клиента (токен, URL сервера)
+	cmd.AddCommand(newRegisterCommand())         // Регистрация нового пользователя
+	cmd.AddCommand(newLoginCommand())            // Вход существующего пользователя
+	cmd.AddCommand(newAddLoginPasswordCommand()) // Добавление пары логин/пароль
+	cmd.AddCommand(newAddTextCommand())          // Добавление произвольного текста
+	cmd.AddCommand(newAddBinaryCommand())        // Добавление бинарных данных из файла
+	cmd.AddCommand(newAddCardCommand())          // Добавление данных банковской карты
+	cmd.AddCommand(newListCommand())             // Вывод списка сохранённых секретов
+	cmd.AddCommand(newSyncCommand())             // Синхронизация локальных данных с сервером
 
 	return cmd
 }

@@ -6,93 +6,139 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/options"
 	"github.com/spf13/cobra"
 )
 
+var (
+	resolver string // Стратегия разрешения конфликтов при синхронизации (server, client, interactive)
+)
+
+// newSyncCommand создаёт и возвращает команду "sync" для CLI.
 func newSyncCommand() *cobra.Command {
-	var token, serverURL, resolver string
-	var interactive bool
+	var (
+		token       string
+		serverURL   string
+		interactive bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Synchronize data with the server",
+		Short: "Синхронизировать данные с сервером",
+		Long: `Команда позволяет синхронизировать данные с сервером.
+
+Обязательными параметрами являются токен авторизации и URL сервера.
+Поддерживается интерактивный режим, при котором параметры вводятся пошагово.
+
+Параметр resolver отвечает за стратегию разрешения конфликтов (server, client, interactive).
+
+Примеры использования:
+
+  gophkeeper sync --token mytoken --server-url https://example.com --resolver server
+  gophkeeper sync --interactive
+  gophkeeper sync --resolver interactive --token mytoken --server-url https://example.com
+`,
 		Example: `  gophkeeper sync --token mytoken --server-url https://example.com --resolver server
   gophkeeper sync --interactive
   gophkeeper sync --resolver interactive --token mytoken --server-url https://example.com`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if interactive {
-				reader := bufio.NewReader(os.Stdin)
-
-				fmt.Print("Enter authorization token (leave empty to use GOPHKEEPER_TOKEN environment variable): ")
-				inputToken, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				inputToken = strings.TrimSpace(inputToken)
-				if inputToken != "" {
-					token = inputToken
-				}
-
-				fmt.Print("Enter server URL (leave empty to use GOPHKEEPER_SERVER_URL environment variable): ")
-				inputServerURL, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				inputServerURL = strings.TrimSpace(inputServerURL)
-				if inputServerURL != "" {
-					serverURL = inputServerURL
-				}
-
-				fmt.Print("Enter conflict resolution strategy (server/client/interactive): ")
-				inputResolver, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				inputResolver = strings.TrimSpace(inputResolver)
-				if inputResolver != "" {
-					resolver = inputResolver
-				}
+			if err := parseSyncFlags(&token, &serverURL, &resolver, &interactive); err != nil {
+				return err
 			}
 
-			if token == "" {
-				token = os.Getenv("GOPHKEEPER_TOKEN")
-			}
-			if serverURL == "" {
-				serverURL = os.Getenv("GOPHKEEPER_SERVER_URL")
-			}
-
-			if token == "" || serverURL == "" {
-				return fmt.Errorf("you must provide both a token and a server URL via flags, interactive mode, or environment variables")
+			opts, err := options.NewOptions(
+				options.WithToken(token),
+				options.WithServerURL(serverURL),
+			)
+			if err != nil {
+				return fmt.Errorf("не удалось создать конфигурацию клиента: %w", err)
 			}
 
-			validResolvers := map[string]bool{
-				"server":      true,
-				"client":      true,
-				"interactive": true,
-				"":            true, // allow empty (default behavior)
-			}
-			if !validResolvers[resolver] {
-				return fmt.Errorf("invalid --resolver value: %s. Allowed values: server, client, interactive", resolver)
+			if opts.ClientConfig.GRPCClient != nil {
+				defer opts.ClientConfig.GRPCClient.Close()
 			}
 
-			fmt.Printf("Synchronizing with server %s using token %s\n", serverURL, token)
-			fmt.Printf("Conflict resolution strategy: %s\n", resolver)
+			fmt.Printf("Синхронизация с сервером:\nТокен: %s\nURL сервера: %s\nСтратегия разрешения конфликтов: %s\n",
+				token, serverURL, resolver,
+			)
 
-			// TODO: Implement your synchronization and conflict resolution logic here
+			// TODO: Реализовать синхронизацию и разрешение конфликтов
 
 			if resolver == "interactive" {
-				fmt.Println("Interactive conflict resolution activated")
-				// Implement interactive conflict handling here
+				fmt.Println("Активирован интерактивный режим разрешения конфликтов")
+				// TODO: Реализовать интерактивное разрешение конфликтов
 			}
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&token, "token", "", "Authorization token (can be provided via GOPHKEEPER_TOKEN environment variable)")
-	cmd.Flags().StringVar(&serverURL, "server-url", "", "Server URL (can be provided via GOPHKEEPER_SERVER_URL environment variable)")
-	cmd.Flags().BoolVar(&interactive, "interactive", false, "Enable interactive input mode")
-	cmd.Flags().StringVar(&resolver, "resolver", "", "Conflict resolution strategy (server, client, interactive)")
+	cmd = options.RegisterTokenFlag(cmd, &token)
+	cmd = options.RegisterServerURLFlag(cmd, &serverURL)
+	cmd = options.RegisterInteractiveFlag(cmd, &interactive)
+
+	cmd.Flags().StringVar(&resolver, "resolver", "", "Стратегия разрешения конфликтов (server, client, interactive)")
 
 	return cmd
+}
+
+// parseSyncFlags обрабатывает флаги команды sync.
+// В интерактивном режиме запрашивает ввод значений у пользователя.
+// Проверяет обязательные параметры и возвращает ошибку при их отсутствии.
+func parseSyncFlags(token, serverURL, resolver *string, interactive *bool) error {
+	if *interactive {
+		reader := bufio.NewReader(os.Stdin)
+		if err := parseSyncFlagsInteractive(reader, token, serverURL, resolver); err != nil {
+			return err
+		}
+	}
+
+	if *token == "" {
+		*token = os.Getenv("GOPHKEEPER_TOKEN")
+	}
+	if *serverURL == "" {
+		*serverURL = os.Getenv("GOPHKEEPER_SERVER_URL")
+	}
+
+	if *token == "" || *serverURL == "" {
+		return fmt.Errorf("токен и URL сервера должны быть указаны")
+	}
+
+	validResolvers := map[string]bool{
+		"server":      true,
+		"client":      true,
+		"interactive": true,
+		"":            true, // разрешаем пустое значение
+	}
+	if !validResolvers[*resolver] {
+		return fmt.Errorf("недопустимое значение resolver: %s. Допустимые значения: server, client, interactive", *resolver)
+	}
+
+	return nil
+}
+
+// parseSyncFlagsInteractive выполняет интерактивный ввод параметров команды sync.
+func parseSyncFlagsInteractive(r *bufio.Reader, token, serverURL, resolver *string) error {
+	fmt.Print("Введите токен авторизации (оставьте пустым для использования GOPHKEEPER_TOKEN): ")
+	inputToken, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	*token = strings.TrimSpace(inputToken)
+
+	fmt.Print("Введите URL сервера (оставьте пустым для использования GOPHKEEPER_SERVER_URL): ")
+	inputServerURL, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	*serverURL = strings.TrimSpace(inputServerURL)
+
+	fmt.Print("Введите стратегию разрешения конфликтов (server/client/interactive): ")
+	inputResolver, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	*resolver = strings.TrimSpace(inputResolver)
+
+	return nil
 }

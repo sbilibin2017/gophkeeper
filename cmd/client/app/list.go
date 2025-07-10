@@ -6,66 +6,99 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/options"
 	"github.com/spf13/cobra"
 )
 
+var (
+	secretType string
+	outputType string
+)
+
+// newListCommand создаёт команду для отображения сохранённых данных.
+// Поддерживает фильтрацию по типу секрета и выбор типа вывода (консоль, интерактивный, файл).
 func newListCommand() *cobra.Command {
-	var secretType, token, serverURL string
-	var interactive bool
+	var (
+		token       string
+		serverURL   string
+		interactive bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "list",
-		Short: "Display saved data",
+		Short: "Отобразить сохранённые данные",
+		Long: `Команда для отображения всех или отфильтрованных данных, сохранённых в системе Gophkeeper.
+
+Поддерживает флаги и интерактивный режим для ввода токена, URL сервера и типа секрета.`,
 		Example: `  gophkeeper list
   gophkeeper list --type login
   gophkeeper list --token mytoken --server-url https://example.com
-  gophkeeper list --interactive`,
+  gophkeeper list --interactive
+  gophkeeper list --output-type file
+  gophkeeper list --output-type interactive`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if interactive {
-				reader := bufio.NewReader(os.Stdin)
-
-				fmt.Print("Enter authorization token (leave empty to use GOPHKEEPER_TOKEN environment variable): ")
-				inputToken, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				token = strings.TrimSpace(inputToken)
-
-				fmt.Print("Enter server URL (leave empty to use GOPHKEEPER_SERVER_URL environment variable): ")
-				inputServerURL, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				serverURL = strings.TrimSpace(inputServerURL)
+			if err := parseListFlags(&token, &serverURL, &interactive); err != nil {
+				return err
 			}
 
-			if token == "" {
-				token = os.Getenv("GOPHKEEPER_TOKEN")
+			opts, err := options.NewOptions(
+				options.WithToken(token),
+				options.WithServerURL(serverURL),
+			)
+			if err != nil {
+				return fmt.Errorf("не удалось создать конфигурацию клиента: %w", err)
 			}
-			if serverURL == "" {
-				serverURL = os.Getenv("GOPHKEEPER_SERVER_URL")
+			if opts.ClientConfig.GRPCClient != nil {
+				defer opts.ClientConfig.GRPCClient.Close()
 			}
 
-			if token == "" || serverURL == "" {
-				return fmt.Errorf("you must provide both token and server URL via flags, interactively, or environment variables")
-			}
-
-			if secretType != "" {
-				fmt.Printf("Displaying only data of type: %s\n", secretType)
-				// TODO: filter and display data of the given type using token and serverURL
-			} else {
-				fmt.Println("Displaying all saved data")
-				// TODO: display all data using token and serverURL
-			}
+			// TODO: реализовать логику вывода списка секретов с учётом secretType и outputType
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&secretType, "type", "", "Filter by secret type (login, text, binary, card)")
-	cmd.Flags().StringVar(&token, "token", "", "Authorization token (can also be provided via GOPHKEEPER_TOKEN environment variable)")
-	cmd.Flags().StringVar(&serverURL, "server-url", "", "Server URL (can also be provided via GOPHKEEPER_SERVER_URL environment variable)")
-	cmd.Flags().BoolVar(&interactive, "interactive", false, "Enable interactive input mode")
+	cmd.Flags().StringVar(&secretType, "type", "", "Фильтр по типу секрета (login, text, binary, card)")
+	cmd.Flags().StringVar(&outputType, "output-type", "console", "Тип вывода результата (interactive, file, console)")
+
+	cmd = options.RegisterTokenFlag(cmd, &token)
+	cmd = options.RegisterServerURLFlag(cmd, &serverURL)
+	cmd = options.RegisterInteractiveFlag(cmd, &interactive)
 
 	return cmd
+}
+
+// parseListFlags обрабатывает флаги и интерактивный ввод для команды list.
+func parseListFlags(token, serverURL *string, interactive *bool) error {
+	if *interactive {
+		reader := bufio.NewReader(os.Stdin)
+		if err := parseListFlagsInteractive(reader, token, serverURL); err != nil {
+			return err
+		}
+	}
+
+	if *token == "" || *serverURL == "" {
+		return fmt.Errorf("необходимо указать токен и URL сервера (через флаги, интерактивно или переменные окружения)")
+	}
+
+	return nil
+}
+
+// parseListFlagsInteractive запрашивает у пользователя токен и URL сервера для команды list.
+func parseListFlagsInteractive(r *bufio.Reader, token, serverURL *string) error {
+	fmt.Print("Введите токен авторизации (оставьте пустым для использования GOPHKEEPER_TOKEN): ")
+	inputToken, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	*token = strings.TrimSpace(inputToken)
+
+	fmt.Print("Введите URL сервера (оставьте пустым для использования GOPHKEEPER_SERVER_URL): ")
+	inputServerURL, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	*serverURL = strings.TrimSpace(inputServerURL)
+
+	return nil
 }

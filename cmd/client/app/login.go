@@ -6,42 +6,50 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/options"
 	"github.com/spf13/cobra"
 )
 
 var (
-	loginUsername    string // хранит имя пользователя для входа.
-	loginPassword    string // хранит пароль пользователя для входа.
-	loginServerURL   string // содержит URL сервера для входа.
-	loginInteractive bool   // указывает, использовать ли интерактивный режим ввода при входе.
+	loginUsername string // Имя пользователя для аутентификации
+	loginPassword string // Пароль пользователя
 )
 
-// newLoginCommand создаёт команду аутентификации пользователя.
+// newLoginCommand создаёт команду для аутентификации пользователя в системе Gophkeeper.
+// Поддерживает передачу имени пользователя, пароля и URL сервера через флаги или интерактивный ввод.
 func newLoginCommand() *cobra.Command {
+	var (
+		serverURL   string
+		interactive bool
+	)
+
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Аутентификация пользователя",
 		Long: `Команда для аутентификации пользователя в системе Gophkeeper.
 
 Поддерживает передачу имени пользователя, пароля и URL сервера как через флаги,
-так и через интерактивный ввод. Если URL сервера не передан через флаг, 
-необходимо явно указать его в интерактивном режиме.
-
-Использование:
-
-  gophkeeper login --username alice --password secret123 --server-url https://example.com
-  gophkeeper login --interactive
-`,
+так и через интерактивный ввод.`,
 		Example: `  gophkeeper login --username alice --password secret123 --server-url https://example.com
   gophkeeper login --interactive`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := parseLoginFlags(); err != nil {
+			if err := parseLoginFlags(&serverURL, &interactive); err != nil {
 				return err
 			}
 
-			// TODO: Реализовать логику аутентификации через клиент
-			fmt.Printf("Authenticating user: %s with password: %s on server: %s\n",
-				loginUsername, strings.Repeat("*", len(loginPassword)), loginServerURL)
+			opts, err := options.NewOptions(
+				options.WithServerURL(serverURL),
+			)
+			if err != nil {
+				return fmt.Errorf("не удалось создать конфигурацию клиента: %w", err)
+			}
+			if opts.ClientConfig.GRPCClient != nil {
+				defer opts.ClientConfig.GRPCClient.Close()
+			}
+
+			// TODO: реализовать вызов аутентификации пользователя через клиент
+			fmt.Printf("Аутентификация пользователя: %s с паролем: %s на сервере: %s\n",
+				loginUsername, strings.Repeat("*", len(loginPassword)), serverURL)
 
 			return nil
 		},
@@ -49,49 +57,55 @@ func newLoginCommand() *cobra.Command {
 
 	cmd.Flags().StringVar(&loginUsername, "username", "", "Имя пользователя для аутентификации")
 	cmd.Flags().StringVar(&loginPassword, "password", "", "Пароль пользователя")
-	cmd.Flags().StringVar(&loginServerURL, "server-url", "", "URL сервера для аутентификации")
-	cmd.Flags().BoolVar(&loginInteractive, "interactive", false, "Включить интерактивный режим ввода")
+
+	cmd = options.RegisterServerURLFlag(cmd, &serverURL)
+	cmd = options.RegisterInteractiveFlag(cmd, &interactive)
 
 	return cmd
 }
 
-// parseLoginFlags обрабатывает флаги и интерактивный ввод для команды аутентификации.
-//
-// Проверяет, что обязательные поля username и password не пусты,
-// а также что указан URL сервера.
-func parseLoginFlags() error {
-	if loginInteractive {
+// parseLoginFlags обрабатывает флаги и интерактивный ввод для команды login.
+func parseLoginFlags(serverURL *string, interactive *bool) error {
+	if *interactive {
 		reader := bufio.NewReader(os.Stdin)
-
-		fmt.Print("Введите имя пользователя: ")
-		userInput, err := reader.ReadString('\n')
-		if err != nil {
+		if err := parseLoginFlagsInteractive(reader, serverURL); err != nil {
 			return err
 		}
-		loginUsername = strings.TrimSpace(userInput)
-
-		fmt.Print("Введите пароль: ")
-		passInput, err := reader.ReadString('\n')
-		if err != nil {
-			return err
-		}
-		loginPassword = strings.TrimSpace(passInput)
-
-		fmt.Print("Введите URL сервера: ")
-		urlInput, err := reader.ReadString('\n')
-		if err != nil {
-			return err
-		}
-		loginServerURL = strings.TrimSpace(urlInput)
 	}
 
 	if loginUsername == "" || loginPassword == "" {
 		return fmt.Errorf("имя пользователя и пароль не могут быть пустыми")
 	}
 
-	if loginServerURL == "" {
-		return fmt.Errorf("URL сервера должен быть указан")
+	if *serverURL == "" {
+		return fmt.Errorf("URL сервера не может быть пустым")
 	}
+
+	return nil
+}
+
+// parseLoginFlagsInteractive запрашивает у пользователя имя, пароль и URL сервера.
+func parseLoginFlagsInteractive(r *bufio.Reader, serverURL *string) error {
+	fmt.Print("Введите имя пользователя: ")
+	userInput, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	loginUsername = strings.TrimSpace(userInput)
+
+	fmt.Print("Введите пароль: ")
+	passInput, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	loginPassword = strings.TrimSpace(passInput)
+
+	fmt.Print("Введите URL сервера: ")
+	urlInput, err := r.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	*serverURL = strings.TrimSpace(urlInput)
 
 	return nil
 }

@@ -3,14 +3,18 @@ package app
 import (
 	"fmt"
 
-	"github.com/sbilibin2017/gophkeeper/cmd/client/app/config"
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/options"
 	"github.com/spf13/cobra"
 )
 
-// newConfigCommand создаёт команду для настройки параметров клиента.
+// newConfigCommand создаёт команду для настройки параметров клиента Gophkeeper.
+// Позволяет сохранить токен аутентификации и/или URL сервера в переменных окружения или конфигурационных файлах.
+// Для работы достаточно указать хотя бы один из параметров --token или --server-url.
 func newConfigCommand() *cobra.Command {
-	var token string
-	var serverURL string
+	var (
+		token     string
+		serverURL string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "config",
@@ -35,15 +39,15 @@ func newConfigCommand() *cobra.Command {
 			}
 
 			if token != "" {
-				if err := config.SetToken(token); err != nil {
-					return err
+				if err := options.SetToken(token); err != nil {
+					return fmt.Errorf("не удалось сохранить токен: %w", err)
 				}
 				fmt.Println("Токен сохранён в GOPHKEEPER_TOKEN")
 			}
 
 			if serverURL != "" {
-				if err := config.SetServerURL(serverURL); err != nil {
-					return err
+				if err := options.SetServerURL(serverURL); err != nil {
+					return fmt.Errorf("не удалось сохранить URL сервера: %w", err)
 				}
 				fmt.Println("URL сервера сохранён в GOPHKEEPER_SERVER_URL")
 			}
@@ -52,8 +56,8 @@ func newConfigCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&token, "token", "", "Токен аутентификации")
-	cmd.Flags().StringVar(&serverURL, "server-url", "", "URL сервера")
+	cmd = options.RegisterTokenFlag(cmd, &token)
+	cmd = options.RegisterServerURLFlag(cmd, &serverURL)
 
 	return cmd
 }

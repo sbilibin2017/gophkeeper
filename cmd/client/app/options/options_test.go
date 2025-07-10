@@ -4,9 +4,19 @@ import (
 	"os"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestNewOptions_NewClientConfigReturnsError(t *testing.T) {
+	_, err := NewOptions(
+		WithToken("token"),
+		WithServerURL("://bad-url"),
+	)
+
+	require.Error(t, err)
+}
 
 func TestNewOptions_WithValidHTTP(t *testing.T) {
 	cfg, err := NewOptions(
@@ -33,7 +43,7 @@ func TestNewOptions_WithValidGRPC(t *testing.T) {
 	assert.Equal(t, "grpc://localhost:50051", cfg.ServerURL)
 	assert.NotNil(t, cfg.ClientConfig)
 	assert.Nil(t, cfg.ClientConfig.HTTPClient)
-	// GRPCClient может быть nil, если не удаётся подключиться
+
 }
 
 func TestNewOptions_UsesEnvVars(t *testing.T) {
@@ -86,4 +96,49 @@ func TestSetServerURL(t *testing.T) {
 
 	err = SetServerURL("")
 	require.Error(t, err)
+}
+
+func TestRegisterTokenFlag(t *testing.T) {
+	var token string
+	cmd := &cobra.Command{}
+	cmd = RegisterTokenFlag(cmd, &token)
+
+	flag := cmd.Flags().Lookup("token")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "", flag.DefValue)
+	assert.Equal(t, "Токен авторизации (можно задать через GOPHKEEPER_TOKEN)", flag.Usage)
+
+	err := cmd.Flags().Set("token", "mytoken")
+	assert.NoError(t, err)
+	assert.Equal(t, "mytoken", token)
+}
+
+func TestRegisterServerURLFlag(t *testing.T) {
+	var serverURL string
+	cmd := &cobra.Command{}
+	cmd = RegisterServerURLFlag(cmd, &serverURL)
+
+	flag := cmd.Flags().Lookup("server-url")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "", flag.DefValue)
+	assert.Equal(t, "URL сервера (можно задать через GOPHKEEPER_SERVER_URL)", flag.Usage)
+
+	err := cmd.Flags().Set("server-url", "https://example.com")
+	assert.NoError(t, err)
+	assert.Equal(t, "https://example.com", serverURL)
+}
+
+func TestRegisterInteractiveFlag(t *testing.T) {
+	var interactive bool
+	cmd := &cobra.Command{}
+	cmd = RegisterInteractiveFlag(cmd, &interactive)
+
+	flag := cmd.Flags().Lookup("interactive")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "false", flag.DefValue)
+	assert.Equal(t, "Включить интерактивный режим ввода", flag.Usage)
+
+	err := cmd.Flags().Set("interactive", "true")
+	assert.NoError(t, err)
+	assert.True(t, interactive)
 }

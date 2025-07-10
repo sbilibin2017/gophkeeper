@@ -57,7 +57,7 @@ func NewOptions(o ...Opt) (*Options, error) {
 
 	clientConfig, err := configs.NewClientConfig(clientOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build client config: %w", err)
+		return nil, err
 	}
 
 	opts.ClientConfig = clientConfig
