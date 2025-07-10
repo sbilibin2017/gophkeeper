@@ -11,19 +11,20 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// ClientConfig holds configuration for HTTP client, gRPC client, and database connection.
+// ClientConfig содержит конфигурацию для HTTP клиента, gRPC клиента и подключения к базе данных.
 type ClientConfig struct {
-	HTTPClient *resty.Client
-	GRPCClient *grpc.ClientConn
-	DB         *sqlx.DB
-	Token      string
+	Token      string           // JWT токен для аутентификации
+	ServerURL  string           // URL сервера
+	HTTPClient *resty.Client    // HTTP клиент
+	GRPCClient *grpc.ClientConn // gRPC клиент
+	DB         *sqlx.DB         // Подключение к базе данных
 }
 
-// ClientConfigOpt defines a function type for configuring ClientConfig.
+// ClientConfigOpt определяет функцию для настройки ClientConfig.
 type ClientConfigOpt func(*ClientConfig) error
 
-// NewClientConfig creates a new ClientConfig by applying given options.
-// Returns an error if any option fails.
+// NewClientConfig создаёт новую конфигурацию ClientConfig, применяя переданные опции.
+// Возвращает ошибку, если какая-либо опция завершилась неудачей.
 func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	c := &ClientConfig{}
 	for _, opt := range opts {
@@ -34,17 +35,42 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	return c, nil
 }
 
-// WithDB configures ClientConfig to use an SQLite database
-// located at the specified path.
+// WithToken задаёт JWT токен для ClientConfig.
+// Если токен пустой, опция игнорируется.
+func WithToken(token string) ClientConfigOpt {
+	return func(c *ClientConfig) error {
+		if token == "" {
+			return nil
+		}
+		c.Token = token
+		return nil
+	}
+}
+
+// WithServerURL задаёт URL сервера для ClientConfig.
+// Если URL пустой, опция игнорируется.
+func WithServerURL(serverURL string) ClientConfigOpt {
+	return func(c *ClientConfig) error {
+		if serverURL == "" {
+			return nil
+		}
+		c.ServerURL = serverURL
+		return nil
+	}
+}
+
+// WithDB настраивает ClientConfig для использования SQLite базы данных,
+// расположенной по указанному пути.
+// Возвращает ошибку при невозможности открыть или подключиться к базе.
 func WithDB(pathToDB string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		db, err := sqlx.Open("sqlite", pathToDB)
 		if err != nil {
-			return fmt.Errorf("failed to open database: %w", err)
+			return fmt.Errorf("не удалось открыть базу данных: %w", err)
 		}
 
 		if err := db.Ping(); err != nil {
-			return fmt.Errorf("failed to connect to database: %w", err)
+			return fmt.Errorf("не удалось подключиться к базе данных: %w", err)
 		}
 
 		c.DB = db
@@ -52,13 +78,14 @@ func WithDB(pathToDB string) ClientConfigOpt {
 	}
 }
 
-// WithHTTPClient configures ClientConfig to use an HTTP client
-// with the base URL specified by serverURL.
+// WithHTTPClient настраивает ClientConfig для использования HTTP клиента,
+// базовый URL которого задан параметром serverURL.
+// Проверяет корректность URL и возвращает ошибку при неверном формате.
 func WithHTTPClient(serverURL string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		parsedURL, err := url.Parse(serverURL)
 		if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-			return fmt.Errorf("invalid serverURL for HTTP client: %s", serverURL)
+			return fmt.Errorf("некорректный serverURL для HTTP клиента: %s", serverURL)
 		}
 
 		c.HTTPClient = resty.New().SetBaseURL(parsedURL.String())
@@ -66,31 +93,21 @@ func WithHTTPClient(serverURL string) ClientConfigOpt {
 	}
 }
 
-// WithGRPCClient configures ClientConfig to use a gRPC client.
+// WithGRPCClient настраивает ClientConfig для использования gRPC клиента.
+// Проверяет корректность serverURL и возвращает ошибку при неправильном формате или сбое подключения.
 func WithGRPCClient(serverURL string) ClientConfigOpt {
 	return func(c *ClientConfig) error {
 		parsedURL, err := url.Parse(serverURL)
 		if err != nil || parsedURL.Host == "" {
-			return fmt.Errorf("invalid serverURL for gRPC client: %s", serverURL)
+			return fmt.Errorf("некорректный serverURL для gRPC клиента: %s", serverURL)
 		}
 
 		conn, err := grpc.NewClient(parsedURL.Host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			return fmt.Errorf("failed to connect to gRPC server: %w", err)
+			return fmt.Errorf("не удалось подключиться к gRPC серверу: %w", err)
 		}
 
 		c.GRPCClient = conn
-		return nil
-	}
-}
-
-// WithToken configures ClientConfig to use a JWT token.
-func WithToken(token string) ClientConfigOpt {
-	return func(c *ClientConfig) error {
-		if token == "" {
-			return nil
-		}
-		c.Token = token
 		return nil
 	}
 }
