@@ -6,105 +6,154 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/config"
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/flags"
+
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/spf13/cobra"
 )
 
-func newAddLoginPasswordCommand() *cobra.Command {
-	var login, password, token, serverURL string
-	var interactive bool
-	var metas []string
+var (
+	loginPasswordUsername    string         // содержит имя пользователя для входа с паролем.
+	loginPasswordPassword    string         // содержит пароль пользователя.
+	loginPasswordToken       string         // хранит токен авторизации для запроса к серверу.
+	loginPasswordServerURL   string         // содержит URL сервера для отправки данных.
+	loginPasswordInteractive bool           // указывает, использовать ли интерактивный режим ввода.
+	loginPasswordMeta        flags.MetaFlag // содержит метаданные в формате ключ=значение.
+)
 
+// newAddLoginPasswordCommand создаёт команду для добавления пары логин/пароль с метаданными.
+func newAddLoginPasswordCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-login-password",
-		Short: "Add login and password with optional metadata",
-		Example: `  gophkeeper add-login-password --login user123 --password secret --meta site=example.com --token mytoken --server-url https://example.com
+		Short: "Добавить логин и пароль с опциональными метаданными",
+		Long: `Команда позволяет добавить в систему пару логин/пароль с возможностью
+указать дополнительные метаданные в формате key=value.
+
+Параметры username и password обязательны для заполнения. Также необходимы
+токен авторизации и URL сервера, которые можно передать через флаги или
+задать через переменные окружения GOPHKEEPER_TOKEN и GOPHKEEPER_SERVER_URL.
+
+Поддерживается интерактивный режим, позволяющий вводить данные пошагово.
+
+Пример использования:
+
+  gophkeeper add-login-password --username user123 --password secret --meta site=example.com --meta type=personal --token mytoken --server-url https://example.com
   gophkeeper add-login-password --interactive
-  gophkeeper add-login-password --login backupuser --password pass123 --meta category=work --server-url https://example.com --token mytoken`,
+`,
+		Example: `  gophkeeper add-login-password --username user123 --password secret --meta site=example.com --meta type=personal --token mytoken --server-url https://example.com
+  gophkeeper add-login-password --interactive`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if interactive {
-				reader := bufio.NewReader(os.Stdin)
-
-				fmt.Print("Enter login: ")
-				inputLogin, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				login = strings.TrimSpace(inputLogin)
-
-				fmt.Print("Enter password: ")
-				inputPassword, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				password = strings.TrimSpace(inputPassword)
-
-				fmt.Println("Enter metadata key=value pairs one by one. Leave empty to finish:")
-				for {
-					fmt.Print("> ")
-					line, err := reader.ReadString('\n')
-					if err != nil {
-						return err
-					}
-					line = strings.TrimSpace(line)
-					if line == "" {
-						break
-					}
-					metas = append(metas, line)
-				}
-
-				fmt.Print("Enter authorization token (leave empty to use GOPHKEEPER_TOKEN environment variable): ")
-				inputToken, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				token = strings.TrimSpace(inputToken)
-
-				fmt.Print("Enter server URL (leave empty to use GOPHKEEPER_SERVER_URL environment variable): ")
-				inputServerURL, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				serverURL = strings.TrimSpace(inputServerURL)
+			if err := parseLoginPasswordFlags(); err != nil {
+				return err
 			}
 
-			if token == "" {
-				token = os.Getenv("GOPHKEEPER_TOKEN")
+			cfg, err := config.NewConfig(
+				config.WithToken(loginPasswordToken),
+				config.WithServerURL(loginPasswordServerURL),
+			)
+			if err != nil {
+				return fmt.Errorf("не удалось создать конфигурацию клиента: %w", err)
 			}
-			if serverURL == "" {
-				serverURL = os.Getenv("GOPHKEEPER_SERVER_URL")
-			}
-
-			if login == "" || password == "" {
-				return fmt.Errorf("parameters login and password are required")
-			}
-			if token == "" || serverURL == "" {
-				return fmt.Errorf("token and server URL must be provided via flags, interactive input, or environment variables")
+			if cfg.ClientConfig.GRPCClient != nil {
+				defer cfg.ClientConfig.GRPCClient.Close()
 			}
 
-			metadata := map[string]string{}
-			for _, m := range metas {
-				parts := strings.SplitN(m, "=", 2)
-				if len(parts) != 2 {
-					return fmt.Errorf("invalid metadata format, expected key=value but got: %s", m)
-				}
-				key := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				metadata[key] = value
+			model := models.LoginPassword{
+				Username: loginPasswordUsername,
+				Password: loginPasswordPassword,
+				Meta:     loginPasswordMeta,
 			}
 
-			fmt.Printf("Login added: %s, password: %s, token: %s, server: %s\nMetadata: %+v\n",
-				login, strings.Repeat("*", len(password)), token, serverURL, metadata)
+			fmt.Printf("Добавлены данные логина и пароля:\nЛогин: %s\nПароль: %s\nМетаданные: %+v\n",
+				model.Username,
+				model.Password,
+				model.Meta,
+			)
+
+			// TODO: Реализовать сохранение логина/пароля на сервер
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&login, "login", "", "Username")
-	cmd.Flags().StringVar(&password, "password", "", "Password")
-	cmd.Flags().StringSliceVar(&metas, "meta", []string{}, "Metadata key=value pairs (can be specified multiple times)")
-	cmd.Flags().StringVar(&token, "token", "", "Authorization token (can be set via GOPHKEEPER_TOKEN env variable)")
-	cmd.Flags().StringVar(&serverURL, "server-url", "", "Server URL (can be set via GOPHKEEPER_SERVER_URL env variable)")
-	cmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive input mode")
+	cmd.Flags().BoolVar(&loginPasswordInteractive, "interactive", false, "Включить интерактивный режим ввода")
+
+	cmd.Flags().StringVar(&loginPasswordToken, "token", "", "Токен авторизации")
+	cmd.Flags().StringVar(&loginPasswordServerURL, "server-url", "", "URL сервера")
+
+	cmd.Flags().StringVar(&loginPasswordUsername, "username", "", "Логин пользователя")
+	cmd.Flags().StringVar(&loginPasswordPassword, "password", "", "Пароль пользователя")
+	cmd.Flags().Var(&loginPasswordMeta, "meta", "Метаданные в формате key=value (можно указывать несколько раз)")
 
 	return cmd
+}
+
+// parseLoginPasswordFlags обрабатывает флаги и интерактивный ввод для команды add-login-password.
+//
+// Проверяет, что username и password указаны, а также token и server-url переданы
+// либо через флаги, либо через переменные окружения.
+func parseLoginPasswordFlags() error {
+	if loginPasswordInteractive {
+		reader := bufio.NewReader(os.Stdin)
+
+		fmt.Print("Введите логин: ")
+		inputLogin, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		loginPasswordUsername = strings.TrimSpace(inputLogin)
+
+		fmt.Print("Введите пароль: ")
+		inputPassword, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		loginPasswordPassword = strings.TrimSpace(inputPassword)
+
+		fmt.Println("Введите метаданные в формате key=value по одному. Пустая строка — завершить:")
+		for {
+			fmt.Print("> ")
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return err
+			}
+			line = strings.TrimSpace(line)
+			if line == "" {
+				break
+			}
+			if err := loginPasswordMeta.Set(line); err != nil {
+				return fmt.Errorf("некорректный ввод метаданных: %w", err)
+			}
+		}
+
+		fmt.Print("Введите токен авторизации (оставьте пустым для использования GOPHKEEPER_TOKEN): ")
+		inputToken, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		loginPasswordToken = strings.TrimSpace(inputToken)
+		if loginPasswordToken == "" {
+			loginPasswordToken = os.Getenv("GOPHKEEPER_TOKEN")
+		}
+
+		fmt.Print("Введите URL сервера (оставьте пустым для использования GOPHKEEPER_SERVER_URL): ")
+		inputServerURL, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		loginPasswordServerURL = strings.TrimSpace(inputServerURL)
+		if loginPasswordServerURL == "" {
+			loginPasswordServerURL = os.Getenv("GOPHKEEPER_SERVER_URL")
+		}
+	}
+
+	if loginPasswordUsername == "" || loginPasswordPassword == "" {
+		return fmt.Errorf("параметры username и password обязательны для заполнения")
+	}
+	if loginPasswordToken == "" || loginPasswordServerURL == "" {
+		return fmt.Errorf("необходимо указать токен и URL сервера (через флаги или переменные окружения)")
+	}
+
+	return nil
 }

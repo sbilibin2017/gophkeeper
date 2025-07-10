@@ -6,115 +6,140 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/config"
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/flags"
 	"github.com/spf13/cobra"
 )
 
-func newAddCardCommand() *cobra.Command {
-	var number, expiry, cvv, token, serverURL string
-	var interactive bool
-	var metas []string
+var (
+	cardNumber      string         // номер банковской карты.
+	cardExp         string         // срок действия карты (expiry date).
+	cardCVV         string         // CVV код карты.
+	cardToken       string         // токен авторизации для запроса к серверу.
+	cardServerURL   string         // URL сервера для отправки данных.
+	cardInteractive bool           // флаг интерактивного режима ввода.
+	cardMeta        flags.MetaFlag // метаданные в формате ключ=значение.
+)
 
+// newAddCardCommand создает команду для добавления данных банковской карты с метаданными.
+func newAddCardCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-card",
-		Short: "Add bank card details with optional metadata",
-		Example: `  gophkeeper add-card --number 4111111111111111 --expiry 12/25 --cvv 123 --meta owner=John --token mytoken --server-url https://example.com
+		Short: "Добавить данные банковской карты с опциональными метаданными",
+		Long: `Команда позволяет добавить номер карты, срок действия и CVV,
+а также задать метаданные в формате key=value.
+
+Требуется указать номер карты, срок действия и CVV.
+Также необходимы токен авторизации и URL сервера.
+
+Поддерживается интерактивный режим для удобного ввода данных.
+
+Пример использования:
+
+  gophkeeper add-card --number 4111111111111111 --expiry 12/25 --cvv 123 --meta owner=John --token mytoken --server-url https://example.com
   gophkeeper add-card --interactive
-  gophkeeper add-card --number 5555444433332222 --expiry 01/26 --cvv 999 --meta category=business --server-url https://example.com --token mytoken`,
+`,
+		Example: `  gophkeeper add-card --number 4111111111111111 --expiry 12/25 --cvv 123 --meta owner=John --token mytoken --server-url https://example.com
+  gophkeeper add-card --interactive`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if interactive {
-				reader := bufio.NewReader(os.Stdin)
-
-				fmt.Print("Enter card number: ")
-				inputNumber, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				number = strings.TrimSpace(inputNumber)
-
-				fmt.Print("Enter expiration date: ")
-				inputExpiry, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				expiry = strings.TrimSpace(inputExpiry)
-
-				fmt.Print("Enter CVV code: ")
-				inputCVV, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				cvv = strings.TrimSpace(inputCVV)
-
-				fmt.Println("Enter metadata key=value pairs one by one. Leave empty to finish:")
-				for {
-					fmt.Print("> ")
-					line, err := reader.ReadString('\n')
-					if err != nil {
-						return err
-					}
-					line = strings.TrimSpace(line)
-					if line == "" {
-						break
-					}
-					metas = append(metas, line)
-				}
-
-				fmt.Print("Enter authorization token (leave empty to use GOPHKEEPER_TOKEN environment variable): ")
-				inputToken, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				token = strings.TrimSpace(inputToken)
-
-				fmt.Print("Enter server URL (leave empty to use GOPHKEEPER_SERVER_URL environment variable): ")
-				inputServerURL, err := reader.ReadString('\n')
-				if err != nil {
-					return err
-				}
-				serverURL = strings.TrimSpace(inputServerURL)
+			if err := parseCardFlags(); err != nil {
+				return err
 			}
 
-			if token == "" {
-				token = os.Getenv("GOPHKEEPER_TOKEN")
+			cfg, err := config.NewConfig(
+				config.WithToken(cardToken),
+				config.WithServerURL(cardServerURL),
+			)
+			if err != nil {
+				return fmt.Errorf("не удалось создать конфигурацию клиента: %w", err)
 			}
-			if serverURL == "" {
-				serverURL = os.Getenv("GOPHKEEPER_SERVER_URL")
-			}
-
-			if number == "" || expiry == "" || cvv == "" {
-				return fmt.Errorf("parameters number, expiry, and cvv are required")
-			}
-			if token == "" || serverURL == "" {
-				return fmt.Errorf("token and server URL must be provided via flags, interactive input, or environment variables")
+			if cfg.ClientConfig.GRPCClient != nil {
+				defer cfg.ClientConfig.GRPCClient.Close()
 			}
 
-			metadata := map[string]string{}
-			for _, m := range metas {
-				parts := strings.SplitN(m, "=", 2)
-				if len(parts) != 2 {
-					return fmt.Errorf("invalid metadata format, expected key=value but got: %s", m)
-				}
-				key := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				metadata[key] = value
-			}
+			fmt.Printf("Добавлена карта:\nНомер: %s\nСрок действия: %s\nCVV: %s\nМетаданные: %+v\n",
+				cardNumber, cardExp, cardCVV, cardMeta)
 
-			fmt.Printf("Card added: %s (CVV: %s, expiry: %s), token: %s, server: %s\nMetadata: %+v\n",
-				number, cvv, expiry, token, serverURL, metadata)
-
-			// TODO: implement card storage including metadata
+			// TODO: реализовать сохранение карты с метаданными
 
 			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&number, "number", "", "Card number")
-	cmd.Flags().StringVar(&expiry, "expiry", "", "Expiration date")
-	cmd.Flags().StringVar(&cvv, "cvv", "", "CVV code")
-	cmd.Flags().StringSliceVar(&metas, "meta", []string{}, "Metadata key=value pairs (can be specified multiple times)")
-	cmd.Flags().StringVar(&token, "token", "", "Authorization token (can be set via GOPHKEEPER_TOKEN env variable)")
-	cmd.Flags().StringVar(&serverURL, "server-url", "", "Server URL (can be set via GOPHKEEPER_SERVER_URL env variable)")
-	cmd.Flags().BoolVar(&interactive, "interactive", false, "Interactive input mode")
+	cmd.Flags().StringVar(&cardNumber, "number", "", "Номер карты")
+	cmd.Flags().StringVar(&cardExp, "expiry", "", "Срок действия карты (MM/YY)")
+	cmd.Flags().StringVar(&cardCVV, "cvv", "", "CVV код")
+	cmd.Flags().Var(&cardMeta, "meta", "Метаданные в формате key=value (можно указывать несколько раз)")
+	cmd.Flags().StringVar(&cardToken, "token", "", "Токен авторизации")
+	cmd.Flags().StringVar(&cardServerURL, "server-url", "", "URL сервера")
+	cmd.Flags().BoolVar(&cardInteractive, "interactive", false, "Интерактивный режим ввода")
 
 	return cmd
+}
+
+// parseCardFlags обрабатывает флаги и интерактивный ввод для команды add-card.
+func parseCardFlags() error {
+	if cardInteractive {
+		reader := bufio.NewReader(os.Stdin)
+
+		fmt.Print("Введите номер карты: ")
+		inputNumber, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		cardNumber = strings.TrimSpace(inputNumber)
+
+		fmt.Print("Введите срок действия (MM/YY): ")
+		inputExpiry, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		cardExp = strings.TrimSpace(inputExpiry)
+
+		fmt.Print("Введите CVV код: ")
+		inputCVV, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		cardCVV = strings.TrimSpace(inputCVV)
+
+		fmt.Println("Введите метаданные в формате key=value по одному. Пустая строка — завершить:")
+		for {
+			fmt.Print("> ")
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return err
+			}
+			line = strings.TrimSpace(line)
+			if line == "" {
+				break
+			}
+			if err := cardMeta.Set(line); err != nil {
+				return fmt.Errorf("некорректный ввод метаданных: %w", err)
+			}
+		}
+
+		fmt.Print("Введите токен авторизации: ")
+		inputToken, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		cardToken = strings.TrimSpace(inputToken)
+
+		fmt.Print("Введите URL сервера: ")
+		inputServerURL, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		cardServerURL = strings.TrimSpace(inputServerURL)
+	}
+
+	if cardNumber == "" || cardExp == "" || cardCVV == "" {
+		return fmt.Errorf("параметры number, expiry и cvv обязательны для заполнения")
+	}
+	if cardToken == "" || cardServerURL == "" {
+		return fmt.Errorf("необходимо указать токен и URL сервера")
+	}
+
+	return nil
 }
