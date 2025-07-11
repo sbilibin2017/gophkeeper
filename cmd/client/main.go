@@ -1,26 +1,55 @@
 package main
 
 import (
+	"bufio"
+	"context"
+	"flag"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/sbilibin2017/gophkeeper/cmd/client/commands"
-	"github.com/spf13/cobra"
 )
 
+func init() {
+	flag.String("server-url", "http://localhost:8080", "URL сервера GophKeeper")
+	flag.Bool("interactive", false, "Запросить ввод логина и пароля в интерактивном режиме")
+}
+
 func main() {
-	err := run()
-	if err != nil {
+	if err := run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func run() error {
-	var cmd = &cobra.Command{
-		Use:   "gophkeeper",
-		Short: "GophKeeper CLI — безопасное хранилище паролей и данных",
+	if len(os.Args) < 2 {
+		return fmt.Errorf("не указана команда")
 	}
 
-	cmd.AddCommand(commands.NewRegisterCommand())
+	flag.Parse()
 
-	return cmd.Execute()
+	ctx := context.Background()
+	cmd := os.Args[1]
+	args := os.Args[2:]
+	flags := parseFlags(flag.CommandLine)
+	envs := os.Environ()
+	reader := bufio.NewReader(os.Stdin)
+
+	switch cmd {
+	case "register":
+		return commands.RegisterCommand(
+			ctx, args, flags, envs, reader,
+		)
+	default:
+		return fmt.Errorf("неизвестная команда: %s", cmd)
+	}
+}
+
+func parseFlags(fs *flag.FlagSet) map[string]string {
+	flags := make(map[string]string)
+	fs.Visit(func(f *flag.Flag) {
+		flags[f.Name] = f.Value.String()
+	})
+	return flags
 }

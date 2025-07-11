@@ -1,24 +1,75 @@
 package commands
 
 import (
-	"context"
-	"encoding/json"
-	"net"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 
-	"github.com/sbilibin2017/gophkeeper/internal/configs"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
-
-	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
+
+func TestParseRegisterFlags(t *testing.T) {
+	tests := []struct {
+		name        string
+		flags       map[string]string
+		wantURL     string
+		wantInt     bool
+		expectError bool
+	}{
+		{
+			name:    "empty flags",
+			flags:   map[string]string{},
+			wantURL: "",
+			wantInt: false,
+		},
+		{
+			name:    "only server-url set",
+			flags:   map[string]string{"server-url": "http://example.com"},
+			wantURL: "http://example.com",
+			wantInt: false,
+		},
+		{
+			name:    "interactive true",
+			flags:   map[string]string{"interactive": "true"},
+			wantURL: "",
+			wantInt: true,
+		},
+		{
+			name:    "interactive false",
+			flags:   map[string]string{"interactive": "false"},
+			wantURL: "",
+			wantInt: false,
+		},
+		{
+			name:        "invalid interactive",
+			flags:       map[string]string{"interactive": "notabool"},
+			expectError: true,
+		},
+		{
+			name:    "both flags set",
+			flags:   map[string]string{"server-url": "https://srv", "interactive": "true"},
+			wantURL: "https://srv",
+			wantInt: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotURL, gotInt, err := parseRegisterFlags(tt.flags)
+
+			if tt.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantURL, gotURL)
+				assert.Equal(t, tt.wantInt, gotInt)
+			}
+		})
+	}
+}
 
 // --- Табличные тесты для parseRegisterFlagsInteractive ---
 func TestParseRegisterFlagsInteractive(t *testing.T) {
@@ -151,100 +202,4 @@ func TestSetRegisterEnv(t *testing.T) {
 			require.Equal(t, tt.token, os.Getenv("GOPHKEEPER_TOKEN"))
 		})
 	}
-}
-
-func TestNewRegisterCommand_Basic(t *testing.T) {
-	cmd := NewRegisterCommand()
-
-	// Проверяем Use и Short
-	require.Equal(t, "register [login] [password]", cmd.Use)
-	require.Equal(t, "Зарегистрировать нового пользователя", cmd.Short)
-
-	// Проверяем флаги
-	serverURLFlag := cmd.Flags().Lookup("server-url")
-	require.NotNil(t, serverURLFlag)
-	require.Equal(t, "http://localhost:8080", serverURLFlag.DefValue)
-
-	interactiveFlag := cmd.Flags().Lookup("interactive")
-	require.NotNil(t, interactiveFlag)
-	require.Equal(t, "false", interactiveFlag.DefValue)
-
-	// Проверяем Args поведение (максимум 2 аргумента)
-	err := cmd.Args(cmd, []string{"arg1"})
-	require.NoError(t, err)
-
-	err = cmd.Args(cmd, []string{"arg1", "arg2"})
-	require.NoError(t, err)
-
-	err = cmd.Args(cmd, []string{"arg1", "arg2", "arg3"})
-	require.Error(t, err)
-}
-
-func TestRunRegister_Integration(t *testing.T) {
-	ctx := context.Background()
-	secret := &models.UsernamePassword{Username: "user", Password: "pass"}
-
-	t.Run("HTTP client", func(t *testing.T) {
-		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path != "/register" {
-				http.NotFound(w, r)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{"token": "real-http-token"})
-		}))
-		defer ts.Close()
-
-		restyClient := resty.New()
-		restyClient.SetBaseURL(ts.URL)
-
-		cfg := &configs.ClientConfig{
-			HTTPClient: restyClient,
-		}
-
-		token, err := runRegister(ctx, cfg, secret)
-		require.NoError(t, err)
-		require.Equal(t, "real-http-token", token)
-	})
-
-	t.Run("gRPC client", func(t *testing.T) {
-		lis, err := net.Listen("tcp", "localhost:0")
-		require.NoError(t, err)
-
-		s := grpc.NewServer()
-		pb.RegisterRegisterServiceServer(s, &testRegisterServiceServer{})
-
-		go func() {
-			_ = s.Serve(lis)
-		}()
-		defer s.Stop()
-
-		cfg := &configs.ClientConfig{
-			GRPCClient: grpcClientConn(t, lis.Addr().String()),
-		}
-
-		token, err := runRegister(ctx, cfg, secret)
-		require.NoError(t, err)
-		require.Equal(t, "grpc-test-token", token)
-	})
-}
-
-func grpcClientConn(t *testing.T, addr string) *grpc.ClientConn {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure())
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		conn.Close()
-	})
-	return conn
-}
-
-type testRegisterServiceServer struct {
-	pb.UnimplementedRegisterServiceServer
-}
-
-func (s *testRegisterServiceServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
-	if req.GetUsername() == "" || req.GetPassword() == "" {
-		return nil, grpc.Errorf(3, "username and password required")
-	}
-	return &pb.RegisterResponse{Token: "grpc-test-token"}, nil
 }

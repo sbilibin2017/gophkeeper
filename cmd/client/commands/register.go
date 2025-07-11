@@ -7,78 +7,88 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/services"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
-	"github.com/spf13/cobra"
 )
 
-// NewRegisterCommand создаёт команду `register`
-func NewRegisterCommand() *cobra.Command {
+// RegisterCommand выполняет регистрацию пользователя.
+// Принимает контекст ctx, аргументы args, флаги flags, переменные окружения envs и reader для интерактивного ввода.
+// Возвращает ошибку в случае неудачи.
+func RegisterCommand(
+	ctx context.Context,
+	args []string,
+	flags map[string]string,
+	envs []string,
+	reader *bufio.Reader,
+) error {
 	var (
-		serverURL   string
-		interactive bool
+		secret *models.UsernamePassword
+		err    error
 	)
 
-	cmd := &cobra.Command{
-		Use:   "register [login] [password]",
-		Short: "Зарегистрировать нового пользователя",
-		Example: `
-  gophkeeper register user@example.com mypassword
-  gophkeeper register user@example.com mypassword --server-url http://example.com
-  gophkeeper register --interactive
-`,
-		Args: cobra.MaximumNArgs(2),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			var secret *models.UsernamePassword
-			var err error
-
-			if interactive {
-				reader := bufio.NewReader(os.Stdin)
-				secret, err = parseRegisterFlagsInteractive(reader)
-			} else {
-				secret, err = parseRegisterArgs(args)
-			}
-			if err != nil {
-				return err
-			}
-
-			err = validateRegisterRequest(secret)
-			if err != nil {
-				return err
-			}
-
-			config, err := newRegisterConfig(serverURL)
-			if err != nil {
-				return err
-			}
-
-			token, err := runRegister(context.Background(), config, secret)
-			if err != nil {
-				return err
-			}
-
-			err = setRegisterEnv(serverURL, token)
-			if err != nil {
-				return err
-			}
-
-			fmt.Println("Регистрация прошла успешно.")
-			return nil
-		},
+	serverURL, interactive, err := parseRegisterFlags(flags)
+	if err != nil {
+		return err
 	}
 
-	// Флаги
-	cmd.Flags().StringVar(&serverURL, "server-url", "http://localhost:8080", "URL сервера GophKeeper")
-	cmd.Flags().BoolVar(&interactive, "interactive", false, "Запросить ввод логина и пароля в интерактивном режиме")
+	if interactive {
+		secret, err = parseRegisterFlagsInteractive(reader)
+	} else {
+		secret, err = parseRegisterArgs(args)
+	}
+	if err != nil {
+		return err
+	}
 
-	return cmd
+	if err = validateRegisterRequest(secret); err != nil {
+		return err
+	}
+
+	config, err := newRegisterConfig(serverURL)
+	if err != nil {
+		return err
+	}
+
+	token, err := runRegister(ctx, config, secret)
+	if err != nil {
+		return err
+	}
+
+	if err = setRegisterEnv(serverURL, token); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-// parseRegisterFlagsInteractive запрашивает у пользователя логин и пароль из stdin или другого io.Reader
+// parseRegisterFlags извлекает значения serverURL и interactive из переданных флагов.
+// Возвращает serverURL (строка), interactive (bool) и ошибку, если значение interactive некорректно.
+func parseRegisterFlags(flags map[string]string) (string, bool, error) {
+	var err error
+
+	serverURL := ""
+	if v, ok := flags["server-url"]; ok && v != "" {
+		serverURL = v
+	}
+
+	interactive := false
+	if v, ok := flags["interactive"]; ok && v != "" {
+		interactive, err = strconv.ParseBool(v)
+		if err != nil {
+			return "", false, errors.New("некорректное значение флага --interactive")
+		}
+	}
+
+	return serverURL, interactive, nil
+}
+
+// parseRegisterFlagsInteractive запрашивает у пользователя логин и пароль из stdin или другого io.Reader.
+// Возвращает структуру UsernamePassword и ошибку, если ввод не удался.
 func parseRegisterFlagsInteractive(r io.Reader) (*models.UsernamePassword, error) {
 	reader := bufio.NewReader(r)
 
@@ -102,7 +112,8 @@ func parseRegisterFlagsInteractive(r io.Reader) (*models.UsernamePassword, error
 	}, nil
 }
 
-// parseRegisterArgs проверяет аргументы командной строки и возвращает UsernamePassword или ошибку
+// parseRegisterArgs проверяет аргументы командной строки и возвращает структуру UsernamePassword.
+// Если передано неверное количество аргументов, возвращает ошибку.
 func parseRegisterArgs(args []string) (*models.UsernamePassword, error) {
 	if len(args) != 2 {
 		return nil, errors.New("нужно указать логин и пароль или использовать --interactive")
@@ -114,7 +125,8 @@ func parseRegisterArgs(args []string) (*models.UsernamePassword, error) {
 	}, nil
 }
 
-// validateRegisterRequest проверяет, что логин и пароль не пустые,
+// validateRegisterRequest проверяет, что логин и пароль не пустые.
+// Возвращает ошибку, если какие-либо данные отсутствуют.
 func validateRegisterRequest(secret *models.UsernamePassword) error {
 	if secret == nil {
 		return errors.New("данные для регистрации не заданы")
@@ -129,6 +141,8 @@ func validateRegisterRequest(secret *models.UsernamePassword) error {
 }
 
 // newRegisterConfig создает конфигурацию клиента для регистрации на основе serverURL.
+// Поддерживает HTTP и gRPC протоколы.
+// Возвращает указатель на ClientConfig или ошибку при неверном формате URL или проблемах с созданием.
 func newRegisterConfig(serverURL string) (*configs.ClientConfig, error) {
 	var opts []configs.ClientConfigOpt
 
@@ -151,7 +165,11 @@ func newRegisterConfig(serverURL string) (*configs.ClientConfig, error) {
 
 // runRegister выполняет регистрацию пользователя через HTTP или gRPC в зависимости от конфигурации клиента.
 // Возвращает полученный токен или ошибку.
-func runRegister(ctx context.Context, config *configs.ClientConfig, secret *models.UsernamePassword) (string, error) {
+func runRegister(
+	ctx context.Context,
+	config *configs.ClientConfig,
+	secret *models.UsernamePassword,
+) (string, error) {
 	var (
 		token string
 		err   error
@@ -177,6 +195,7 @@ func runRegister(ctx context.Context, config *configs.ClientConfig, secret *mode
 }
 
 // setRegisterEnv устанавливает переменные окружения для адреса сервера и токена регистрации.
+// Возвращает ошибку, если не удалось установить переменные окружения.
 func setRegisterEnv(serverURL, token string) error {
 	if err := os.Setenv("GOPHKEEPER_SERVER_URL", serverURL); err != nil {
 		return errors.New("не удалось установить переменную окружения для адреса сервера")
