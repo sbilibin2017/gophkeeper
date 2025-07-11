@@ -1,0 +1,28 @@
+# Исключаем все исполняемые файлы Windows
+*.exe
+*.exe~
+
+# Исключаем динамические библиотеки
+*.dll    # Windows DLL
+*.so     # Linux/Unix shared objects
+*.dylib  # macOS dynamic libraries
+
+# Исключаем файлы тестов, сгенерированные Go (go test)
+*.test
+
+# Исключаем стандартный выходной файл (например, go build)
+*.out
+
+# Исключаем скомпилированные бинарники команд клиента и сервера
+cmd/client/client
+cmd/server/server
+
+# Исключаем папку с зависимостями, управляемую go mod vendor
+vendor/
+
+# Исключаем конфигурационные файлы IDE
+.idea
+.vscode
+
+# Исключаем HTTP-клиентские файлы и настройки 
+.http
