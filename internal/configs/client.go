@@ -3,11 +3,9 @@ package configs
 import (
 	"errors"
 	"net/url"
-	"os"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/jwt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "modernc.org/sqlite"
@@ -16,10 +14,9 @@ import (
 // ClientConfig содержит конфигурации HTTP клиента, gRPC клиента,
 // подключения к базе данных и генератора JWT токенов.
 type ClientConfig struct {
-	HTTPClient   *resty.Client                         // HTTP клиент
-	GRPCClient   *grpc.ClientConn                      // gRPC клиент
-	DB           *sqlx.DB                              // подключение к базе данных
-	JWTGenerator func(username string) (string, error) // функция генерации JWT токена по имени пользователя
+	HTTPClient *resty.Client    // HTTP клиент
+	GRPCClient *grpc.ClientConn // gRPC клиент
+	DB         *sqlx.DB         // подключение к базе данных
 }
 
 // ClientConfigOpt определяет функцию настройки ClientConfig.
@@ -117,51 +114,4 @@ func WithGRPCClient(serverURL ...string) ClientConfigOpt {
 		c.GRPCClient = conn
 		return nil
 	}
-}
-
-// WithJWTGenerator задаёт функцию генерации JWT токена.
-// Использует первый непустой секретный ключ из переданных аргументов.
-// Возвращает ошибку, если секретный ключ не указан.
-func WithJWTGenerator(secretKey ...string) ClientConfigOpt {
-	return func(c *ClientConfig) error {
-		var secret string
-		for _, s := range secretKey {
-			if s != "" {
-				secret = s
-				break
-			}
-		}
-		if secret == "" {
-			return errors.New("JWT secret key not provided")
-		}
-
-		c.JWTGenerator = func(username string) (string, error) {
-			return jwt.GenerateToken(username, secret)
-		}
-		return nil
-	}
-}
-
-// SetServerURLToEnv устанавливает переменную окружения GOPHKEEPER_SERVER_URL с переданным URL сервера.
-// Возвращает ошибку, если установка переменной окружения не удалась.
-func SetServerURLToEnv(serverURL string) error {
-	return os.Setenv("GOPHKEEPER_SERVER_URL", serverURL)
-}
-
-// GetServerURLFromEnv возвращает значение переменной окружения GOPHKEEPER_SERVER_URL.
-// Если переменная не установлена, возвращает пустую строку.
-func GetServerURLFromEnv() string {
-	return os.Getenv("GOPHKEEPER_SERVER_URL")
-}
-
-// SetTokenToEnv устанавливает переменную окружения GOPHKEEPER_TOKEN с переданным токеном.
-// Возвращает ошибку, если установка переменной окружения не удалась.
-func SetTokenToEnv(token string) error {
-	return os.Setenv("GOPHKEEPER_TOKEN", token)
-}
-
-// GetTokenFromEnv возвращает значение переменной окружения GOPHKEEPER_TOKEN.
-// Если переменная не установлена, возвращает пустую строку.
-func GetTokenFromEnv() string {
-	return os.Getenv("GOPHKEEPER_TOKEN")
 }

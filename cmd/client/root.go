@@ -7,6 +7,11 @@ var rootCmd = &cobra.Command{
 	Short: "GophKeeper CLI — безопасное хранилище паролей и данных",
 }
 
+const (
+	serverURLEnvKey = "GOPHKEEPER_SERVER_URL"
+	tokenEnvKey     = "GOPHKEEPER_TOKEN"
+)
+
 func executeCommand() error {
 	rootCmd.AddCommand(registerCmd)
 	return rootCmd.Execute()

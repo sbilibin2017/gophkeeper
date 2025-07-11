@@ -3,7 +3,6 @@ package configs
 import (
 	"errors"
 	"net"
-	"os"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -95,60 +94,6 @@ func TestWithGRPCClient(t *testing.T) {
 	// Закрываем соединение
 	err = cfg.GRPCClient.Close()
 	require.NoError(t, err)
-}
-
-// Тест WithJWTGenerator
-func TestWithJWTGenerator(t *testing.T) {
-	// Ошибка если пустой секрет
-	opt := WithJWTGenerator()
-	cfg := &ClientConfig{}
-	err := opt(cfg)
-	require.Error(t, err)
-
-	// Успешное создание генератора
-	opt = WithJWTGenerator("secretkey")
-	cfg = &ClientConfig{}
-	err = opt(cfg)
-	require.NoError(t, err)
-	require.NotNil(t, cfg.JWTGenerator)
-
-	token, err := cfg.JWTGenerator("username")
-	require.NoError(t, err)
-	require.NotEmpty(t, token)
-}
-
-// Тест SetServerURLToEnv и GetServerURLFromEnv
-func TestSetAndGetServerURLFromEnv(t *testing.T) {
-	orig := os.Getenv("GOPHKEEPER_SERVER_URL")
-	defer os.Setenv("GOPHKEEPER_SERVER_URL", orig)
-
-	url := "http://example.com/api"
-	err := SetServerURLToEnv(url)
-	require.NoError(t, err)
-
-	got := GetServerURLFromEnv()
-	assert.Equal(t, url, got)
-
-	err = os.Unsetenv("GOPHKEEPER_SERVER_URL")
-	require.NoError(t, err)
-	assert.Empty(t, GetServerURLFromEnv())
-}
-
-// Тест SetTokenToEnv и GetTokenFromEnv
-func TestSetAndGetTokenFromEnv(t *testing.T) {
-	orig := os.Getenv("GOPHKEEPER_TOKEN")
-	defer os.Setenv("GOPHKEEPER_TOKEN", orig)
-
-	token := "mysecrettoken"
-	err := SetTokenToEnv(token)
-	require.NoError(t, err)
-
-	got := GetTokenFromEnv()
-	assert.Equal(t, token, got)
-
-	err = os.Unsetenv("GOPHKEEPER_TOKEN")
-	require.NoError(t, err)
-	assert.Empty(t, GetTokenFromEnv())
 }
 
 func TestNewClientConfig(t *testing.T) {

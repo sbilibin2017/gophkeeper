@@ -23,7 +23,10 @@ func NewRegisterHTTPFacade(client *resty.Client) (*RegisterHTTPFacade, error) {
 }
 
 // Register отправляет запрос на регистрацию и возвращает токен или ошибку
-func (r *RegisterHTTPFacade) Register(ctx context.Context, secret *models.UsernamePassword) (string, error) {
+func (r *RegisterHTTPFacade) Register(
+	ctx context.Context,
+	secret *models.UsernamePassword,
+) (string, error) {
 	var result struct {
 		Token string `json:"token"`
 	}
@@ -62,7 +65,10 @@ func NewRegisterGRPCFacade(conn *grpc.ClientConn) (*RegisterGRPCFacade, error) {
 }
 
 // Register отправляет gRPC-запрос на регистрацию и возвращает токен или ошибку
-func (r *RegisterGRPCFacade) Register(ctx context.Context, secret *models.UsernamePassword) (string, error) {
+func (r *RegisterGRPCFacade) Register(
+	ctx context.Context,
+	secret *models.UsernamePassword,
+) (string, error) {
 	req := &pb.RegisterRequest{
 		Username: secret.Username,
 		Password: secret.Password,

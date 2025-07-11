@@ -17,8 +17,7 @@ func TestRegisterService_Register_Table(t *testing.T) {
 
 	mockFacade := NewMockRegisterer(ctrl)
 
-	service, err := NewRegisterService(mockFacade)
-	require.NoError(t, err)
+	service := NewRegisterService(mockFacade)
 
 	testSecret := &models.UsernamePassword{
 		Username: "testuser",

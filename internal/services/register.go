@@ -17,8 +17,8 @@ type RegisterService struct {
 }
 
 // NewRegisterService создает новый экземпляр RegisterService с заданным фасадом.
-func NewRegisterService(facade Registerer) (*RegisterService, error) {
-	return &RegisterService{facade: facade}, nil
+func NewRegisterService(facade Registerer) *RegisterService {
+	return &RegisterService{facade: facade}
 }
 
 // Register вызывает метод фасада регистрации и возвращает токен или ошибку.

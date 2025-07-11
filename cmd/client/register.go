@@ -18,14 +18,12 @@ import (
 var (
 	registerServerURL   string // хранит URL сервера GophKeeper, к которому будет отправлен запрос регистрации.
 	registerInteractive bool   // указывает, следует ли запрашивать логин и пароль интерактивно через консоль.
-	secretKey           string // хранит секретный ключ для генерации JWT (не используется в данном коде, но объявлен).
 )
 
 // init инициализирует флаги команды register.
 func init() {
 	registerCmd.Flags().StringVar(&registerServerURL, "server-url", "http://localhost:8080", "URL сервера GophKeeper")
 	registerCmd.Flags().BoolVar(&registerInteractive, "interactive", false, "Запросить ввод логина и пароля в интерактивном режиме")
-	registerCmd.Flags().StringVar(&secretKey, "secret-key", "", "Секретный ключ для генерации JWT")
 }
 
 // registerCmd команда для регистрации нового пользователя.
@@ -88,8 +86,6 @@ var registerCmd = &cobra.Command{
 			opts = append(opts, configs.WithHTTPClient(registerServerURL))
 		case strings.HasPrefix(registerServerURL, "grpc://"):
 			opts = append(opts, configs.WithGRPCClient(registerServerURL))
-		default:
-			return errors.New("неподдерживаемая схема URL сервера")
 		}
 
 		// 4. Создаём клиентскую конфигурацию.
@@ -98,31 +94,28 @@ var registerCmd = &cobra.Command{
 			return errors.New("не удалось создать конфигурацию клиента")
 		}
 
-		var service *services.RegisterService
+		// 5. Создаём фасад для клиента
+		var facade interface {
+			Register(ctx context.Context, secret *models.UsernamePassword) (string, error)
+		}
 
-		// 5. Создаём фасад и сервис регистрации для HTTP клиента, если он настроен.
-		if config.HTTPClient != nil {
-			facade, err := facades.NewRegisterHTTPFacade(config.HTTPClient)
+		switch {
+		case config.HTTPClient != nil:
+			facade, err = facades.NewRegisterHTTPFacade(config.HTTPClient)
 			if err != nil {
 				return errors.New("не удалось подключиться к серверу по HTTP")
 			}
-			service, err = services.NewRegisterService(facade)
-			if err != nil {
-				return errors.New("ошибка создания сервиса регистрации")
-			}
-		}
-
-		// 6. Аналогично создаём фасад и сервис регистрации для gRPC клиента.
-		if config.GRPCClient != nil {
-			facade, err := facades.NewRegisterGRPCFacade(config.GRPCClient)
+		case config.GRPCClient != nil:
+			facade, err = facades.NewRegisterGRPCFacade(config.GRPCClient)
 			if err != nil {
 				return errors.New("не удалось подключиться к серверу по gRPC")
 			}
-			service, err = services.NewRegisterService(facade)
-			if err != nil {
-				return errors.New("ошибка создания сервиса регистрации")
-			}
+		default:
+			return errors.New("нет доступного клиента для подключения")
 		}
+
+		// 6. Создаем сервис для регистрации пользователя
+		service := services.NewRegisterService(facade)
 
 		// 7. Выполняем регистрацию и получаем JWT токен.
 		token, err := service.Register(context.Background(), secret)
@@ -131,8 +124,14 @@ var registerCmd = &cobra.Command{
 		}
 
 		// 8. Сохраняем URL сервера и токен в переменные окружения.
-		configs.SetServerURLToEnv(registerServerURL)
-		configs.SetTokenToEnv(token)
+		err = os.Setenv(serverURLEnvKey, registerServerURL)
+		if err != nil {
+			return errors.New("не удалось установить переменную окружения для адреса сервера")
+		}
+		err = os.Setenv(tokenEnvKey, token)
+		if err != nil {
+			return errors.New("не удалось установить переменную окружения для токена")
+		}
 
 		return nil
 	},
