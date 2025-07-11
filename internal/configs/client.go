@@ -3,6 +3,7 @@ package configs
 import (
 	"errors"
 	"net/url"
+	"strings"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
@@ -102,6 +103,8 @@ func WithGRPCClient(serverURL ...string) ClientConfigOpt {
 				break
 			}
 		}
+
+		addr = strings.TrimPrefix(addr, "grpc://")
 
 		conn, err := grpc.NewClient(
 			addr,
