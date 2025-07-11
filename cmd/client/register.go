@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
-	"github.com/sbilibin2017/gophkeeper/internal/facades"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/services"
+	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +40,7 @@ var registerCmd = &cobra.Command{
 		var secret *models.UsernamePassword
 		var err error
 
-		// 1. Получаем логин и пароль:
+		// 1. Получение логина и пароля:
 		//    - из интерактивного ввода, если установлен флаг --interactive,
 		//    - либо из аргументов командной строки.
 		if registerInteractive {
@@ -74,56 +74,50 @@ var registerCmd = &cobra.Command{
 			}
 		}
 
-		// 2. Валидируем логин и пароль: они не должны быть пустыми.
+		// 2. Валидация: логин и пароль не должны быть пустыми.
 		if secret.Username == "" || secret.Password == "" {
 			return errors.New("логин или пароль не могут быть пустыми")
 		}
 
-		// 3. Определяем тип клиента (HTTP или gRPC) на основе схемы URL сервера.
+		// 3. Определение типа клиента (HTTP или gRPC) на основе схемы URL сервера.
 		var opts []configs.ClientConfigOpt
 		switch {
 		case strings.HasPrefix(registerServerURL, "http://"), strings.HasPrefix(registerServerURL, "https://"):
 			opts = append(opts, configs.WithHTTPClient(registerServerURL))
 		case strings.HasPrefix(registerServerURL, "grpc://"):
 			opts = append(opts, configs.WithGRPCClient(registerServerURL))
+		default:
+			return errors.New("неверный формат URL сервера")
 		}
 
-		// 4. Создаём клиентскую конфигурацию.
+		// 4. Создание клиентской конфигурации.
 		config, err := configs.NewClientConfig(opts...)
 		if err != nil {
 			return errors.New("не удалось создать конфигурацию клиента")
 		}
 
-		// 5. Создаём фасад для клиента
-		var facade interface {
-			Register(ctx context.Context, secret *models.UsernamePassword) (string, error)
-		}
+		var token string
 
+		// 5. Выполнение регистрации:
+		//    - вызов HTTP или gRPC сервиса в зависимости от клиента,
+		//    - получение JWT токена.
 		switch {
 		case config.HTTPClient != nil:
-			facade, err = facades.NewRegisterHTTPFacade(config.HTTPClient)
+			token, err = services.RegisterHTTP(context.Background(), config.HTTPClient, secret)
 			if err != nil {
-				return errors.New("не удалось подключиться к серверу по HTTP")
+				return fmt.Errorf("не удалось подключиться к серверу по HTTP: %w", err)
 			}
 		case config.GRPCClient != nil:
-			facade, err = facades.NewRegisterGRPCFacade(config.GRPCClient)
+			client := pb.NewRegisterServiceClient(config.GRPCClient)
+			token, err = services.RegisterGRPC(context.Background(), client, secret)
 			if err != nil {
-				return errors.New("не удалось подключиться к серверу по gRPC")
+				return fmt.Errorf("не удалось подключиться к серверу по gRPC: %w", err)
 			}
 		default:
 			return errors.New("нет доступного клиента для подключения")
 		}
 
-		// 6. Создаем сервис для регистрации пользователя
-		service := services.NewRegisterService(facade)
-
-		// 7. Выполняем регистрацию и получаем JWT токен.
-		token, err := service.Register(context.Background(), secret)
-		if err != nil {
-			return errors.New("ошибка регистрации пользователя")
-		}
-
-		// 8. Сохраняем URL сервера и токен в переменные окружения.
+		// 6. Сохранение URL сервера и токена в переменных окружения.
 		err = os.Setenv(serverURLEnvKey, registerServerURL)
 		if err != nil {
 			return errors.New("не удалось установить переменную окружения для адреса сервера")

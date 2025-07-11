@@ -7,6 +7,6 @@ import (
 func main() {
 	err := executeCommand()
 	if err != nil {
-		log.Fatalf("Ошибка выполнения команды: %v", err)
+		log.Fatal(err)
 	}
 }
