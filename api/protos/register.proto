@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc;grpc";
+
+// RegisterRequest представляет данные, необходимые для регистрации пользователя.
+message RegisterRequest {
+  string username = 1; // Имя пользователя (логин)
+  string password = 2; // Пароль пользователя
+}
+
+// RegisterResponse содержит результат попытки регистрации.
+message RegisterResponse {
+  string token = 1; // JWT токен, если регистрация успешна
+  string error = 2; // Сообщение об ошибке, если регистрация не удалась
+}
+
+// RegisterService предоставляет функциональность для регистрации новых пользователей.
+service RegisterService {
+  // Register выполняет регистрацию нового пользователя.
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+}
