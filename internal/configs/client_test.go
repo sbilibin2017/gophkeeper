@@ -13,19 +13,6 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
-// Тест GetServerType для разных конфигураций
-func TestGetServerType(t *testing.T) {
-	cfg := &ClientConfig{}
-	assert.Equal(t, "", cfg.GetServerType())
-
-	cfg.HTTPClient = resty.New()
-	assert.Equal(t, ServerTypeHTTP, cfg.GetServerType())
-
-	cfg.HTTPClient = nil
-	cfg.GRPCClient = &grpc.ClientConn{} // исправлено: используем реальный тип
-	assert.Equal(t, ServerTypeGRPC, cfg.GetServerType())
-}
-
 // Тест WithDB — проверяем успешное и неуспешное подключение
 func TestWithDB(t *testing.T) {
 	// Ошибка при пустом пути

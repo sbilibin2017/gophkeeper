@@ -37,24 +37,6 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	return c, nil
 }
 
-const (
-	ServerTypeHTTP = "http" // представляет тип сервера HTTP.
-	ServerTypeGRPC = "grpc" // представляет тип сервера gRPC.
-)
-
-// GetServerType возвращает тип сервера, используемого в конфигурации:
-// "http" для HTTP клиента или "grpc" для gRPC клиента.
-// Если ни один клиент не настроен, возвращает пустую строку.
-func (c *ClientConfig) GetServerType() string {
-	if c.HTTPClient != nil {
-		return ServerTypeHTTP
-	}
-	if c.GRPCClient != nil {
-		return ServerTypeGRPC
-	}
-	return ""
-}
-
 // WithDB настраивает SQLite базу данных.
 // Использует первый непустой путь из переданных аргументов.
 // Возвращает ошибку, если путь не указан или не удалось подключиться к базе.
