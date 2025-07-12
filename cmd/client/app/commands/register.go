@@ -16,10 +16,10 @@ import (
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// RegisterCommand выполняет регистрацию пользователя.
+// Register выполняет регистрацию пользователя.
 // Принимает контекст ctx, аргументы args, флаги flags, переменные окружения envs и reader для интерактивного ввода.
 // Возвращает ошибку в случае неудачи.
-func RegisterCommand(
+func Register(
 	ctx context.Context,
 	args []string,
 	flags map[string]string,

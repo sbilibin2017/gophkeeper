@@ -16,8 +16,8 @@ import (
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// LoginCommand выполняет вход пользователя в систему.
-func LoginCommand(
+// Login выполняет вход пользователя в систему.
+func Login(
 	ctx context.Context,
 	args []string,
 	flags map[string]string,
