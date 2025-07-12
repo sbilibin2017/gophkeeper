@@ -1,12 +1,12 @@
 package configs
 
 import (
+	"database/sql"
 	"errors"
 	"net/url"
 	"strings"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/jmoiron/sqlx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	_ "modernc.org/sqlite"
@@ -17,7 +17,7 @@ import (
 type ClientConfig struct {
 	HTTPClient *resty.Client    // HTTP клиент
 	GRPCClient *grpc.ClientConn // gRPC клиент
-	DB         *sqlx.DB         // подключение к базе данных
+	DB         *sql.DB          // подключение к базе данных
 }
 
 // ClientConfigOpt определяет функцию настройки ClientConfig.
@@ -51,7 +51,7 @@ func WithDB(pathToDB ...string) ClientConfigOpt {
 			return errors.New("database path not provided")
 		}
 
-		db, err := sqlx.Open("sqlite", path)
+		db, err := sql.Open("sqlite", path)
 		if err != nil {
 			return err
 		}
