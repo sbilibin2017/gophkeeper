@@ -87,7 +87,7 @@ func parseRegisterFlags(flags map[string]string) (string, bool, error) {
 	return serverURL, interactive, nil
 }
 
-// parseRegisterFlagsInteractive запрашивает у пользователя логин и пароль из stdin или другого io.Reader.
+// parseRegisterFlagsInteractive запрашивает у пользователя логин, пароль и метаданные из stdin или другого io.Reader.
 // Возвращает структуру UsernamePassword и ошибку, если ввод не удался.
 func parseRegisterFlagsInteractive(r io.Reader) (*models.UsernamePassword, error) {
 	reader := bufio.NewReader(r)
@@ -98,6 +98,9 @@ func parseRegisterFlagsInteractive(r io.Reader) (*models.UsernamePassword, error
 		return nil, errors.New("ошибка при вводе логина")
 	}
 	login := strings.TrimSpace(inputLogin)
+	if login == "" {
+		return nil, errors.New("логин не может быть пустым")
+	}
 
 	print("Введите пароль: ")
 	inputPassword, err := reader.ReadString('\n')
@@ -105,10 +108,44 @@ func parseRegisterFlagsInteractive(r io.Reader) (*models.UsernamePassword, error
 		return nil, errors.New("ошибка при вводе пароля")
 	}
 	password := strings.TrimSpace(inputPassword)
+	if password == "" {
+		return nil, errors.New("пароль не может быть пустым")
+	}
+
+	meta := make(map[string]string)
+	fmt.Println("Введите метаданные в формате key=value. Для окончания ввода нажмите Enter на пустой строке.")
+
+	for {
+		fmt.Print("meta> ")
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, errors.New("ошибка при вводе метаданных")
+		}
+		line = strings.TrimSpace(line)
+		if line == "" {
+			break
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			fmt.Println("Некорректный формат. Введите метаданные в формате key=value.")
+			continue
+		}
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if key == "" {
+			fmt.Println("Ключ не может быть пустым.")
+			continue
+		}
+		meta[key] = value
+	}
 
 	return &models.UsernamePassword{
 		Username: login,
 		Password: password,
+		Meta:     meta,
 	}, nil
 }
 

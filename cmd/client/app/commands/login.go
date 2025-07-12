@@ -95,6 +95,9 @@ func parseLoginFlagsInteractive(r io.Reader) (*models.UsernamePassword, error) {
 		return nil, errors.New("ошибка при вводе логина")
 	}
 	login := strings.TrimSpace(inputLogin)
+	if login == "" {
+		return nil, errors.New("логин не может быть пустым")
+	}
 
 	fmt.Print("Введите пароль: ")
 	inputPassword, err := reader.ReadString('\n')
@@ -102,6 +105,9 @@ func parseLoginFlagsInteractive(r io.Reader) (*models.UsernamePassword, error) {
 		return nil, errors.New("ошибка при вводе пароля")
 	}
 	password := strings.TrimSpace(inputPassword)
+	if password == "" {
+		return nil, errors.New("пароль не может быть пустым")
+	}
 
 	return &models.UsernamePassword{
 		Username: login,

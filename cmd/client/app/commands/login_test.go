@@ -33,11 +33,12 @@ func TestParseLoginFlags(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.wantURL, gotURL)
-				assert.Equal(t, tt.wantInt, gotInt)
+				return
 			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantURL, gotURL)
+			assert.Equal(t, tt.wantInt, gotInt)
 		})
 	}
 }
@@ -52,6 +53,7 @@ func TestParseLoginFlagsInteractive(t *testing.T) {
 	}{
 		{"valid input", "john\nsecret\n", "john", "secret", false},
 		{"empty input", "", "", "", true},
+		{"only username", "john\n", "", "", true}, // добавил кейс, когда нет пароля
 	}
 
 	for _, tt := range tests {
@@ -61,11 +63,12 @@ func TestParseLoginFlagsInteractive(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.wantUser, secret.Username)
-				require.Equal(t, tt.wantPass, secret.Password)
+				return
 			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.wantUser, secret.Username)
+			require.Equal(t, tt.wantPass, secret.Password)
 		})
 	}
 }
@@ -89,11 +92,12 @@ func TestParseLoginArgs(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, tt.wantUser, secret.Username)
-				require.Equal(t, tt.wantPass, secret.Password)
+				return
 			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.wantUser, secret.Username)
+			require.Equal(t, tt.wantPass, secret.Password)
 		})
 	}
 }
@@ -105,9 +109,9 @@ func TestValidateLoginRequest(t *testing.T) {
 		wantError bool
 	}{
 		{"nil secret", nil, true},
-		{"empty username", &models.UsernamePassword{"", "pass"}, true},
-		{"empty password", &models.UsernamePassword{"user", ""}, true},
-		{"valid", &models.UsernamePassword{"user", "pass"}, false},
+		{"empty username", &models.UsernamePassword{Username: "", Password: "pass"}, true},
+		{"empty password", &models.UsernamePassword{Username: "user", Password: ""}, true},
+		{"valid", &models.UsernamePassword{Username: "user", Password: "pass"}, false},
 	}
 
 	for _, tt := range tests {
@@ -161,8 +165,8 @@ func TestSetLoginEnv(t *testing.T) {
 			err := setLoginEnv(tt.serverURL, tt.token)
 			require.NoError(t, err)
 
-			require.Equal(t, tt.serverURL, os.Getenv("GOPHKEEPER_SERVER_URL"))
-			require.Equal(t, tt.token, os.Getenv("GOPHKEEPER_TOKEN"))
+			assert.Equal(t, tt.serverURL, os.Getenv("GOPHKEEPER_SERVER_URL"))
+			assert.Equal(t, tt.token, os.Getenv("GOPHKEEPER_TOKEN"))
 		})
 	}
 }

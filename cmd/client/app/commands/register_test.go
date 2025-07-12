@@ -11,6 +11,7 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
+// Тесты для parseRegisterFlags, проверяем парсинг флагов из map[string]string
 func TestParseRegisterFlags(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -62,16 +63,17 @@ func TestParseRegisterFlags(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.wantURL, gotURL)
-				assert.Equal(t, tt.wantInt, gotInt)
+				return
 			}
+
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantURL, gotURL)
+			assert.Equal(t, tt.wantInt, gotInt)
 		})
 	}
 }
 
-// --- Табличные тесты для parseRegisterFlagsInteractive ---
+// Тесты для parseRegisterFlagsInteractive, читаем username и password из io.Reader
 func TestParseRegisterFlagsInteractive(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -82,6 +84,7 @@ func TestParseRegisterFlagsInteractive(t *testing.T) {
 	}{
 		{"valid input", "testuser\nmypassword\n", "testuser", "mypassword", false},
 		{"empty input", "", "", "", true},
+		{"only username", "onlyuser\n", "", "", true},
 	}
 
 	for _, tt := range tests {
@@ -101,7 +104,7 @@ func TestParseRegisterFlagsInteractive(t *testing.T) {
 	}
 }
 
-// --- Табличные тесты для parseRegisterArgs ---
+// Тесты для parseRegisterArgs — проверяем наличие username и password в args
 func TestParseRegisterArgs(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -112,6 +115,7 @@ func TestParseRegisterArgs(t *testing.T) {
 	}{
 		{"valid args", []string{"user", "pass"}, "user", "pass", false},
 		{"missing password", []string{"onlyone"}, "", "", true},
+		{"empty args", []string{}, "", "", true},
 	}
 
 	for _, tt := range tests {
@@ -130,7 +134,7 @@ func TestParseRegisterArgs(t *testing.T) {
 	}
 }
 
-// --- Табличные тесты для validateRegisterRequest ---
+// Тесты для validateRegisterRequest — проверяем наличие обязательных полей
 func TestValidateRegisterRequest(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -138,9 +142,9 @@ func TestValidateRegisterRequest(t *testing.T) {
 		wantError bool
 	}{
 		{"nil secret", nil, true},
-		{"empty username", &models.UsernamePassword{"", "pass"}, true},
-		{"empty password", &models.UsernamePassword{"user", ""}, true},
-		{"valid secret", &models.UsernamePassword{"user", "pass"}, false},
+		{"empty username", &models.UsernamePassword{Username: "", Password: "pass"}, true},
+		{"empty password", &models.UsernamePassword{Username: "user", Password: ""}, true},
+		{"valid secret", &models.UsernamePassword{Username: "user", Password: "pass"}, false},
 	}
 
 	for _, tt := range tests {
@@ -155,7 +159,7 @@ func TestValidateRegisterRequest(t *testing.T) {
 	}
 }
 
-// --- Табличные тесты для newRegisterConfig ---
+// Тесты для newRegisterConfig — проверка url на поддерживаемые протоколы
 func TestNewRegisterConfig(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -174,15 +178,13 @@ func TestNewRegisterConfig(t *testing.T) {
 			if tt.wantError {
 				require.Error(t, err)
 			} else {
-				if err != nil {
-					t.Logf("warning: newRegisterConfig returned error: %v", err)
-				}
+				require.NoError(t, err)
 			}
 		})
 	}
 }
 
-// --- Табличные тесты для setRegisterEnv ---
+// Тесты для setRegisterEnv — проверяем корректность установки env переменных
 func TestSetRegisterEnv(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -198,8 +200,8 @@ func TestSetRegisterEnv(t *testing.T) {
 			err := setRegisterEnv(tt.serverURL, tt.token)
 			require.NoError(t, err)
 
-			require.Equal(t, tt.serverURL, os.Getenv("GOPHKEEPER_SERVER_URL"))
-			require.Equal(t, tt.token, os.Getenv("GOPHKEEPER_TOKEN"))
+			assert.Equal(t, tt.serverURL, os.Getenv("GOPHKEEPER_SERVER_URL"))
+			assert.Equal(t, tt.token, os.Getenv("GOPHKEEPER_TOKEN"))
 		})
 	}
 }
