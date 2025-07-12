@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc;grpc";
+
+// Запрос на добавление username и password
+message AddUsernamePasswordRequest {
+  string username = 1;
+  string password = 2;
+  map<string, string> meta = 3;
+}
+
+// Ответ с ошибкой (пустая строка — без ошибок)
+message AddResponse {
+  string error = 1;
+}
+
+// Запрос на добавление произвольного текста
+message AddTextRequest {
+  string content = 1;
+  map<string, string> meta = 2;
+}
+
+// Запрос на добавление бинарных данных
+message AddBinaryRequest {
+  bytes data = 1;
+  map<string, string> meta = 2;
+}
+
+// Запрос на добавление данных банковской карты
+message AddBankCardRequest {
+  string number = 1;
+  string owner = 2;
+  string expiry = 3;
+  string cvv = 4;
+  map<string, string> meta = 5;
+}
+
+// Сервис добавления секретов
+service AddService {
+  rpc AddUsernamePassword(AddUsernamePasswordRequest) returns (AddResponse);
+  rpc AddText(AddTextRequest) returns (AddResponse);
+  rpc AddBinary(AddBinaryRequest) returns (AddResponse);
+  rpc AddBankCard(AddBankCardRequest) returns (AddResponse);
+}
