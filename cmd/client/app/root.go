@@ -14,7 +14,15 @@ func NewCommand() *cobra.Command {
 	}
 
 	// Добавляем подкоманды
+
+	// регистрация+аутенификация
 	rootCmd.AddCommand(commands.NewAuthCommand())
+
+	// добавление секрета
+	rootCmd.AddCommand(commands.NewAddUsernamePasswordCommand())
+	rootCmd.AddCommand(commands.NewAddTextCommand())
+	rootCmd.AddCommand(commands.NewAddBinaryCommand())
+	rootCmd.AddCommand(commands.NewAddBankCardCommand())
 
 	return rootCmd
 }

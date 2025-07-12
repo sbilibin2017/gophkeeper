@@ -10,19 +10,26 @@ import (
 func TestNewCommand(t *testing.T) {
 	cmd := app.NewCommand()
 
-	// Проверяем, что команда создана и имеет правильное имя
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "gophkeeper", cmd.Use)
 	assert.Contains(t, cmd.Short, "GophKeeper")
 
-	// Проверяем, что в списке подкоманд есть команда "auth"
-	foundAuth := false
-	for _, c := range cmd.Commands() {
-		if c.Name() == "auth" {
-			foundAuth = true
-			break
-		}
+	expectedSubcommands := []string{
+		"auth",
+		"add-username-password",
+		"add-text",
+		"add-binary",
+		"add-bank-card",
 	}
 
-	assert.True(t, foundAuth, "expected to find 'auth' subcommand")
+	subCmds := cmd.Commands()
+	found := make(map[string]bool)
+
+	for _, c := range subCmds {
+		found[c.Name()] = true
+	}
+
+	for _, name := range expectedSubcommands {
+		assert.True(t, found[name], "expected to find '%s' subcommand", name)
+	}
 }
