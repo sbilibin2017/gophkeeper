@@ -55,7 +55,7 @@ func TestParseAuthFlagsInteractive(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "john", secret.Username)
 	assert.Equal(t, "secret", secret.Password)
-	assert.NotNil(t, secret.Meta)
+
 }
 
 // Тесты для parseAuthArgs — проверка аргументов

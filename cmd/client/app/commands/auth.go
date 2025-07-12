@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config"
-	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/parsemeta"
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/services"
@@ -24,7 +22,7 @@ func NewAuthCommand() *cobra.Command {
 	var interactive bool
 
 	cmd := &cobra.Command{
-		Use:   "auth [login password]",
+		Use:   "auth [username password]",
 		Short: "Аутентификация пользователя",
 		Long: `Команда для аутентификации пользователя с указанием логина и пароля
 или в интерактивном режиме.`,
@@ -66,6 +64,15 @@ func runAuth(
 		err    error
 	)
 
+	if serverURL == "" {
+		return errors.New("URL сервера не может быть пустым")
+	}
+
+	config, err := newAuthClientConfig(serverURL)
+	if err != nil {
+		return errors.New("клиент не был сконфигурирован")
+	}
+
 	if interactive {
 		secret, err = parseAuthFlagsInteractive(reader)
 	} else {
@@ -79,14 +86,8 @@ func runAuth(
 		return err
 	}
 
-	// Создание конфигурации клиента по URL сервера.
-	cfg, err := config.NewConfig(serverURL)
-	if err != nil {
-		return err
-	}
-
 	// Запуск аутентификации через HTTP или gRPC.
-	token, err := auth(ctx, cfg, secret)
+	token, err := auth(ctx, config, secret)
 	if err != nil {
 		return err
 	}
@@ -97,6 +98,27 @@ func runAuth(
 	}
 
 	return nil
+}
+
+// newAuthClientConfig создает и возвращает конфигурацию клиента по serverURL.
+func newAuthClientConfig(serverURL string) (*configs.ClientConfig, error) {
+	var opts []configs.ClientConfigOpt
+
+	switch {
+	case strings.HasPrefix(serverURL, "http://"), strings.HasPrefix(serverURL, "https://"):
+		opts = append(opts, configs.WithHTTPClient(serverURL))
+	case strings.HasPrefix(serverURL, "grpc://"):
+		opts = append(opts, configs.WithGRPCClient(serverURL))
+	default:
+		return nil, errors.New("неверный формат URL сервера")
+	}
+
+	config, err := configs.NewClientConfig(opts...)
+	if err != nil {
+		return nil, errors.New("клиент не был сконфигурирован")
+	}
+
+	return config, nil
 }
 
 // parseAuthFlags разбирает флаги команды для получения serverURL и режима interactive.
@@ -143,15 +165,9 @@ func parseAuthFlagsInteractive(reader *bufio.Reader) (*models.UsernamePassword, 
 		return nil, errors.New("пароль не может быть пустым")
 	}
 
-	meta, err := parsemeta.ParseMetaInteractive(reader)
-	if err != nil {
-		return nil, err
-	}
-
 	return &models.UsernamePassword{
 		Username: login,
 		Password: password,
-		Meta:     meta,
 	}, nil
 }
 
