@@ -20,6 +20,12 @@ func TestNewCommand(t *testing.T) {
 		"add-text",
 		"add-binary",
 		"add-bank-card",
+
+		// Добавленные команды list
+		"list-username-password",
+		"list-text",
+		"list-binary",
+		"list-bank-card",
 	}
 
 	subCmds := cmd.Commands()
