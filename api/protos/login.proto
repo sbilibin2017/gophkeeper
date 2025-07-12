@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc;grpc";
+
+// LoginRequest представляет данные, необходимые для входа пользователя.
+message LoginRequest {
+  string username = 1; // Имя пользователя (логин)
+  string password = 2; // Пароль пользователя
+}
+
+// LoginResponse содержит результат попытки входа.
+message LoginResponse {
+  string token = 1; // JWT токен, если вход успешен
+  string error = 2; // Сообщение об ошибке, если вход не удался
+}
+
+// LoginService предоставляет функциональность для входа зарегистрированных пользователей.
+service LoginService {
+  // Login выполняет аутентификацию пользователя.
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
