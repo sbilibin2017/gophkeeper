@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package gophkeeper.grpc;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc;grpc";
+
+// AuthRequest представляет данные для аутентификации пользователя.
+message AuthRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// AuthResponse содержит результат аутентификации.
+message AuthResponse {
+  string token = 1;
+  string error = 2;
+}
+
+// AuthService предоставляет функциональность аутентификации пользователей.
+service AuthService {
+  // Auth выполняет аутентификацию пользователя.
+  rpc Auth(AuthRequest) returns (AuthResponse);
+}

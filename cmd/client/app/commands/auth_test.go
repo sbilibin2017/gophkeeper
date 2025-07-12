@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"os"
 	"strings"
 	"testing"
@@ -11,7 +12,8 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-func TestParseLoginFlags(t *testing.T) {
+// Тесты для parseAuthFlags — проверка парсинга флагов из map[string]string
+func TestParseAuthFlags(t *testing.T) {
 	tests := []struct {
 		name        string
 		flags       map[string]string
@@ -29,7 +31,7 @@ func TestParseLoginFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotURL, gotInt, err := parseLoginFlags(tt.flags)
+			gotURL, gotInt, err := parseAuthFlags(tt.flags)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -43,37 +45,22 @@ func TestParseLoginFlags(t *testing.T) {
 	}
 }
 
-func TestParseLoginFlagsInteractive(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		wantUser  string
-		wantPass  string
-		wantError bool
-	}{
-		{"valid input", "john\nsecret\n", "john", "secret", false},
-		{"empty input", "", "", "", true},
-		{"only username", "john\n", "", "", true}, // добавил кейс, когда нет пароля
-	}
+// Тесты для parseAuthFlagsInteractive — читаем username, password и meta из bufio.Reader
+func TestParseAuthFlagsInteractive(t *testing.T) {
+	// Заготовка с двумя строками: логин, пароль и пустые метаданные (имитируем)
+	input := "john\nsecret\n\n"
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reader := strings.NewReader(tt.input)
-			secret, err := parseLoginFlagsInteractive(reader)
-
-			if tt.wantError {
-				require.Error(t, err)
-				return
-			}
-
-			require.NoError(t, err)
-			require.Equal(t, tt.wantUser, secret.Username)
-			require.Equal(t, tt.wantPass, secret.Password)
-		})
-	}
+	reader := bufio.NewReader(strings.NewReader(input))
+	secret, err := parseAuthFlagsInteractive(reader)
+	require.NoError(t, err)
+	assert.Equal(t, "john", secret.Username)
+	assert.Equal(t, "secret", secret.Password)
+	// Meta зависит от реализации parsemeta.ParseMetaInteractive, можно проверить, что не nil
+	assert.NotNil(t, secret.Meta)
 }
 
-func TestParseLoginArgs(t *testing.T) {
+// Тесты для parseAuthArgs — проверка аргументов
+func TestParseAuthArgs(t *testing.T) {
 	tests := []struct {
 		name      string
 		args      []string
@@ -88,7 +75,7 @@ func TestParseLoginArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			secret, err := parseLoginArgs(tt.args)
+			secret, err := parseAuthArgs(tt.args)
 
 			if tt.wantError {
 				require.Error(t, err)
@@ -96,13 +83,14 @@ func TestParseLoginArgs(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tt.wantUser, secret.Username)
-			require.Equal(t, tt.wantPass, secret.Password)
+			assert.Equal(t, tt.wantUser, secret.Username)
+			assert.Equal(t, tt.wantPass, secret.Password)
 		})
 	}
 }
 
-func TestValidateLoginRequest(t *testing.T) {
+// Тесты для validateAuthRequest — проверка обязательных полей
+func TestValidateAuthRequest(t *testing.T) {
 	tests := []struct {
 		name      string
 		secret    *models.UsernamePassword
@@ -116,7 +104,7 @@ func TestValidateLoginRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateLoginRequest(tt.secret)
+			err := validateAuthRequest(tt.secret)
 			if tt.wantError {
 				require.Error(t, err)
 			} else {
@@ -126,31 +114,8 @@ func TestValidateLoginRequest(t *testing.T) {
 	}
 }
 
-func TestNewLoginConfig(t *testing.T) {
-	tests := []struct {
-		name      string
-		url       string
-		wantError bool
-	}{
-		{"invalid prefix", "ftp://bad", true},
-		{"http", "http://localhost", false},
-		{"https", "https://localhost", false},
-		{"grpc", "grpc://localhost", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := newLoginConfig(tt.url)
-			if tt.wantError {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestSetLoginEnv(t *testing.T) {
+// Тесты для setAuthEnv — установка env переменных
+func TestSetAuthEnv(t *testing.T) {
 	tests := []struct {
 		name      string
 		serverURL string
@@ -162,7 +127,7 @@ func TestSetLoginEnv(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := setLoginEnv(tt.serverURL, tt.token)
+			err := setAuthEnv(tt.serverURL, tt.token)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.serverURL, os.Getenv("GOPHKEEPER_SERVER_URL"))

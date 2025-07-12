@@ -52,9 +52,9 @@ func Execute(ctx context.Context) error {
 	// В зависимости от команды вызываем соответствующую функцию из commands
 	switch cmd {
 	case "register":
-		return commands.Register(ctx, args, *flags, envs, reader)
+		return commands.Auth(ctx, args, *flags, envs, reader)
 	case "login":
-		return commands.Login(ctx, args, *flags, envs, reader)
+		return commands.Auth(ctx, args, *flags, envs, reader)
 	default:
 		return fmt.Errorf("неизвестная команда: %s", cmd)
 	}
