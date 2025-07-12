@@ -15,28 +15,56 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/services"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
+	"github.com/spf13/cobra"
 )
 
-// Auth выполняет аутентификацию пользователя.
+// NewAuthCommand создает и возвращает команду аутентификации.
+func NewAuthCommand() *cobra.Command {
+	var serverURL string
+	var interactive bool
+
+	cmd := &cobra.Command{
+		Use:   "auth [login password]",
+		Short: "Аутентификация пользователя",
+		Long: `Команда для аутентификации пользователя с указанием логина и пароля
+или в интерактивном режиме.`,
+		Args: cobra.MaximumNArgs(2),
+		Example: `  # Аутентификация с логином и паролем
+  gophkeeper auth username password --server-url https://example.com
+
+  # Аутентификация в интерактивном режиме
+  gophkeeper auth --interactive --server-url https://example.com`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runAuth(
+				context.Background(),
+				args,
+				serverURL,
+				interactive,
+				bufio.NewReader(os.Stdin),
+			)
+		},
+	}
+
+	cmd.Flags().StringVar(&serverURL, "server-url", "", "URL сервера для подключения")
+	cmd.Flags().BoolVar(&interactive, "interactive", false, "Интерактивный ввод логина и пароля")
+
+	return cmd
+}
+
+// auth выполняет аутентификацию пользователя.
 // Принимает контекст ctx, аргументы args, флаги flags, переменные окружения envs и reader для интерактивного ввода.
 // Возвращает ошибку в случае неудачи.
-func Auth(
+func runAuth(
 	ctx context.Context,
 	args []string,
-	flags map[string]string,
-	envs []string,
+	serverURL string,
+	interactive bool,
 	reader *bufio.Reader,
 ) error {
 	var (
 		secret *models.UsernamePassword
 		err    error
 	)
-
-	// Парсинг параметров
-	serverURL, interactive, err := parseAuthFlags(flags)
-	if err != nil {
-		return err
-	}
 
 	if interactive {
 		secret, err = parseAuthFlagsInteractive(reader)
@@ -58,7 +86,7 @@ func Auth(
 	}
 
 	// Запуск аутентификации через HTTP или gRPC.
-	token, err := runAuth(ctx, cfg, secret)
+	token, err := auth(ctx, cfg, secret)
 	if err != nil {
 		return err
 	}
@@ -157,7 +185,7 @@ func validateAuthRequest(secret *models.UsernamePassword) error {
 
 // runAuth выполняет аутентификацию пользователя через HTTP или gRPC в зависимости от конфигурации клиента.
 // Возвращает полученный токен или ошибку.
-func runAuth(
+func auth(
 	ctx context.Context,
 	config *configs.ClientConfig,
 	secret *models.UsernamePassword,

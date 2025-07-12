@@ -1,28 +1,28 @@
-package app
+package app_test
 
 import (
-	"context"
-	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestExecute_NoArgs(t *testing.T) {
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-	os.Args = []string{"app"} // только имя программы
+func TestNewCommand(t *testing.T) {
+	cmd := app.NewCommand()
 
-	err := Execute(context.Background())
-	require.EqualError(t, err, "не указана команда")
-}
+	// Проверяем, что команда создана и имеет правильное имя
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "gophkeeper", cmd.Use)
+	assert.Contains(t, cmd.Short, "GophKeeper")
 
-func TestExecute_UnknownCommand(t *testing.T) {
-	oldArgs := os.Args
-	defer func() { os.Args = oldArgs }()
-	os.Args = []string{"app", "unknown"}
+	// Проверяем, что в списке подкоманд есть команда "auth"
+	foundAuth := false
+	for _, c := range cmd.Commands() {
+		if c.Name() == "auth" {
+			foundAuth = true
+			break
+		}
+	}
 
-	err := Execute(context.Background())
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "неизвестная команда: unknown")
+	assert.True(t, foundAuth, "expected to find 'auth' subcommand")
 }

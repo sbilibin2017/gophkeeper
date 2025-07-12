@@ -47,7 +47,7 @@ func TestParseAuthFlags(t *testing.T) {
 
 // Тесты для parseAuthFlagsInteractive — читаем username, password и meta из bufio.Reader
 func TestParseAuthFlagsInteractive(t *testing.T) {
-	// Заготовка с двумя строками: логин, пароль и пустые метаданные (имитируем)
+	// Ввод: логин, пароль, пустые метаданные (имитируем)
 	input := "john\nsecret\n\n"
 
 	reader := bufio.NewReader(strings.NewReader(input))
@@ -55,7 +55,6 @@ func TestParseAuthFlagsInteractive(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "john", secret.Username)
 	assert.Equal(t, "secret", secret.Password)
-	// Meta зависит от реализации parsemeta.ParseMetaInteractive, можно проверить, что не nil
 	assert.NotNil(t, secret.Meta)
 }
 

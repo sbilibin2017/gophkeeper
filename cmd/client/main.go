@@ -1,14 +1,15 @@
 package main
 
 import (
-	"context"
 	"log"
 
 	"github.com/sbilibin2017/gophkeeper/cmd/client/app"
 )
 
 func main() {
-	err := app.Execute(context.Background())
+	cmd := app.NewCommand()
+
+	err := cmd.Execute()
 	if err != nil {
 		log.Fatal(err)
 	}
