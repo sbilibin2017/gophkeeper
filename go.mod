@@ -3,8 +3,8 @@ module github.com/sbilibin2017/gophkeeper
 go 1.24.4
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/go-resty/resty/v2 v2.16.5
-	github.com/jmoiron/sqlx v1.4.0
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
 	google.golang.org/grpc v1.73.0

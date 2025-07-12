@@ -33,7 +33,6 @@ func ParseMetaInteractive(r io.Reader) (map[string]string, error) {
 		fmt.Print("meta> ")
 		line, err := reader.ReadString('\n')
 
-		// Обработка частичной строки при EOF
 		if errors.Is(err, io.EOF) {
 			line = strings.TrimSpace(line)
 			if line == "" {
