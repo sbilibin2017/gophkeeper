@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
 	"github.com/sbilibin2017/gophkeeper/internal/facades"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
@@ -15,18 +16,13 @@ import (
 )
 
 // RegisterRegisterCommand добавляет в корневую команду подкоманду "register",
-// которая выполняет регистрацию пользователя через HTTP или gRPC.
-//
-// Использование:
-//
-//	gophkeeper register --username=vasya --password=secret123 --auth-url=http://localhost:8080 --protocol=http
-//
+// которая производит регистрацию пользователя через HTTP или gRPC.
 // Флаги:
 //
 //	--username  (обязательный) имя пользователя (только буквы и цифры)
 //	--password  (обязательный) пароль (не менее 6 символов)
 //	--auth-url  (обязательный) адрес сервера аутентификации
-//	--protocol  протокол для связи с сервером: "http" (по умолчанию) или "grpc"
+//	--protocol  протокол связи с сервером: "http" (по умолчанию) или "grpc"
 func RegisterRegisterCommand(root *cobra.Command) {
 	var username string
 	var password string
@@ -45,7 +41,6 @@ func RegisterRegisterCommand(root *cobra.Command) {
 			if username == "" {
 				return fmt.Errorf("имя пользователя не может быть пустым")
 			}
-
 			matched, err := regexp.MatchString(`^[a-zA-Z0-9]+$`, username)
 			if err != nil {
 				return fmt.Errorf("ошибка при проверке имени пользователя")
@@ -76,20 +71,22 @@ func RegisterRegisterCommand(root *cobra.Command) {
 				Register(context.Context, *models.AuthRequest) (string, error)
 			}
 
-			// Создание фасада в зависимости от протокола
+			var config *configs.ClientConfig
+
 			switch protocol {
 			case "http":
-				config, err := configs.NewClientConfig(
+				config, err = configs.NewClientConfig(
 					configs.WithHTTPClient(authURL),
+					configs.WithDB("gophkeeper_client.db"),
 				)
 				if err != nil {
 					return fmt.Errorf("не удалось подключиться к HTTP серверу")
 				}
-				registerFacade = facades.NewRegisterHTTPFacade(config.HTTPClient)
 
 			case "grpc":
-				config, err := configs.NewClientConfig(
+				config, err = configs.NewClientConfig(
 					configs.WithGRPCClient(authURL),
+					configs.WithDB("gophkeeper_client.db"),
 				)
 				if err != nil {
 					return fmt.Errorf("не удалось подключиться к gRPC серверу")
@@ -97,6 +94,18 @@ func RegisterRegisterCommand(root *cobra.Command) {
 				if config.GRPCClient == nil {
 					return fmt.Errorf("подключение к gRPC серверу отсутствует")
 				}
+			}
+
+			// Создаем все необходимые таблицы
+			if err := createAllTables(config.DB); err != nil {
+				return fmt.Errorf("внутренняя ошибка")
+			}
+
+			// Создаем фасад для регистрации в зависимости от протокола
+			switch protocol {
+			case models.ProtocolHTTP, models.ProtocolHTTPS:
+				registerFacade = facades.NewRegisterHTTPFacade(config.HTTPClient)
+			case models.ProtocolGRPC:
 				grpcClient := pb.NewAuthServiceClient(config.GRPCClient)
 				registerFacade = facades.NewRegisterGRPCFacade(grpcClient)
 			}
@@ -106,10 +115,8 @@ func RegisterRegisterCommand(root *cobra.Command) {
 				Password: password,
 			}
 
-			// Вызов регистрации и вывод токена
 			token, err := registerFacade.Register(ctx, req)
 			if err != nil {
-				// Возвращаем клиенту общее сообщение об ошибке без технических деталей
 				return fmt.Errorf("не удалось зарегистрировать пользователя")
 			}
 
@@ -128,4 +135,98 @@ func RegisterRegisterCommand(root *cobra.Command) {
 	_ = cmd.MarkFlagRequired("auth-url")
 
 	root.AddCommand(cmd)
+}
+
+// createAllTables создаёт все необходимые таблицы в базе данных клиента.
+// Возвращает ошибку, если создание какой-либо таблицы не удалось.
+func createAllTables(db *sqlx.DB) error {
+	if err := createSecretBinaryClientTable(db); err != nil {
+		return fmt.Errorf("ошибка создания таблицы secret_binary_client: %w", err)
+	}
+	if err := createSecretTextClientTable(db); err != nil {
+		return fmt.Errorf("ошибка создания таблицы secret_text_client: %w", err)
+	}
+	if err := createSecretUsernamePasswordClientTable(db); err != nil {
+		return fmt.Errorf("ошибка создания таблицы secret_username_password_client: %w", err)
+	}
+	if err := createSecretBankCardClientTable(db); err != nil {
+		return fmt.Errorf("ошибка создания таблицы secret_bank_card_client: %w", err)
+	}
+	return nil
+}
+
+// createSecretBinaryClientTable удаляет, если существует, и создает таблицу для SecretBinaryClient
+func createSecretBinaryClientTable(db *sqlx.DB) error {
+	dropQuery := `DROP TABLE IF EXISTS secret_binary_client;`
+	createQuery := `
+	CREATE TABLE secret_binary_client (
+		secret_name TEXT PRIMARY KEY,
+		data BYTEA NOT NULL,
+		meta TEXT NULL,
+		updated_at TIMESTAMP NOT NULL
+	);`
+
+	if _, err := db.Exec(dropQuery); err != nil {
+		return err
+	}
+	_, err := db.Exec(createQuery)
+	return err
+}
+
+// createSecretTextClientTable удаляет и создает таблицу для SecretTextClient
+func createSecretTextClientTable(db *sqlx.DB) error {
+	dropQuery := `DROP TABLE IF EXISTS secret_text_client;`
+	createQuery := `
+	CREATE TABLE secret_text_client (
+		secret_name TEXT PRIMARY KEY,
+		content TEXT NOT NULL,
+		meta TEXT NULL,
+		updated_at TIMESTAMP NOT NULL
+	);`
+
+	if _, err := db.Exec(dropQuery); err != nil {
+		return err
+	}
+	_, err := db.Exec(createQuery)
+	return err
+}
+
+// createSecretUsernamePasswordClientTable удаляет и создает таблицу для SecretUsernamePasswordClient
+func createSecretUsernamePasswordClientTable(db *sqlx.DB) error {
+	dropQuery := `DROP TABLE IF EXISTS secret_username_password_client;`
+	createQuery := `
+	CREATE TABLE secret_username_password_client (
+		secret_name TEXT PRIMARY KEY,
+		username TEXT NOT NULL,
+		password TEXT NOT NULL,
+		meta TEXT NULL,
+		updated_at TIMESTAMP NOT NULL
+	);`
+
+	if _, err := db.Exec(dropQuery); err != nil {
+		return err
+	}
+	_, err := db.Exec(createQuery)
+	return err
+}
+
+// createSecretBankCardClientTable удаляет и создает таблицу для SecretBankCardClient
+func createSecretBankCardClientTable(db *sqlx.DB) error {
+	dropQuery := `DROP TABLE IF EXISTS secret_bank_card_client;`
+	createQuery := `
+	CREATE TABLE secret_bank_card_client (
+		secret_name TEXT PRIMARY KEY,
+		number TEXT NOT NULL,
+		owner TEXT NULL,
+		exp TEXT NOT NULL,
+		cvv TEXT NOT NULL,
+		meta TEXT NULL,
+		updated_at TIMESTAMP NOT NULL
+	);`
+
+	if _, err := db.Exec(dropQuery); err != nil {
+		return err
+	}
+	_, err := db.Exec(createQuery)
+	return err
 }
