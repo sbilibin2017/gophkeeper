@@ -13,6 +13,8 @@ func NewCobraCommand() *cobra.Command {
 		Short: "Клиент для работы с GophKeeper",
 	}
 
+	commands.RegisterVersionCommand(root)
+
 	commands.RegisterRegisterCommand(root)
 	commands.RegisterLoginCommand(root)
 
