@@ -53,7 +53,7 @@ func TestSecretBankCardListHTTPFacade_List(t *testing.T) {
 	defer ts.Close()
 
 	client := resty.New().SetBaseURL(ts.URL).SetTimeout(5 * time.Second)
-	facade := NewBankCardListHTTPFacade(client)
+	facade := NewSecretBankCardListHTTPFacade(client)
 
 	secrets, err := facade.List(context.Background(), "test-token")
 	assert.NoError(t, err)
@@ -110,7 +110,7 @@ func TestSecretBankCardListGRPCFacade_List(t *testing.T) {
 	defer conn.Close()
 
 	client := pb.NewSecretBankCardServiceClient(conn)
-	facade := NewBankCardListGRPCFacade(client)
+	facade := NewSecretBankCardListGRPCFacade(client)
 
 	secrets, err := facade.List(ctx, "test-token")
 	assert.NoError(t, err)
@@ -159,7 +159,7 @@ func TestSecretBankCardListGRPCFacade_List_InvalidUpdatedAt(t *testing.T) {
 	defer conn.Close()
 
 	client := pb.NewSecretBankCardServiceClient(conn)
-	facade := NewBankCardListGRPCFacade(client)
+	facade := NewSecretBankCardListGRPCFacade(client)
 
 	_, err = facade.List(ctx, "test-token")
 	assert.Error(t, err)

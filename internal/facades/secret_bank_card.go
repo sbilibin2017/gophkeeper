@@ -19,7 +19,7 @@ type SecretBankCardListHTTPFacade struct {
 }
 
 // NewBankCardListHTTPFacade создает новый SecretBankCardListHTTPFacade.
-func NewBankCardListHTTPFacade(client *resty.Client) *SecretBankCardListHTTPFacade {
+func NewSecretBankCardListHTTPFacade(client *resty.Client) *SecretBankCardListHTTPFacade {
 	return &SecretBankCardListHTTPFacade{client: client}
 }
 
@@ -49,7 +49,7 @@ type SecretBankCardListGRPCFacade struct {
 }
 
 // NewBankCardListGRPCFacade создает новый SecretBankCardListGRPCFacade.
-func NewBankCardListGRPCFacade(client pb.SecretBankCardServiceClient) *SecretBankCardListGRPCFacade {
+func NewSecretBankCardListGRPCFacade(client pb.SecretBankCardServiceClient) *SecretBankCardListGRPCFacade {
 	return &SecretBankCardListGRPCFacade{client: client}
 }
 
