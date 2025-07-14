@@ -19,7 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SecretTextService_ListTextSecrets_FullMethodName = "/gophkeeper.SecretTextService/ListTextSecrets"
+	SecretTextService_List_FullMethodName = "/gophkeeper.SecretTextService/List"
+	SecretTextService_Get_FullMethodName  = "/gophkeeper.SecretTextService/Get"
+	SecretTextService_Save_FullMethodName = "/gophkeeper.SecretTextService/Save"
 )
 
 // SecretTextServiceClient is the client API for SecretTextService service.
@@ -28,7 +30,9 @@ const (
 //
 // gRPC-сервис для работы с текстовыми секретами
 type SecretTextServiceClient interface {
-	ListTextSecrets(ctx context.Context, in *SecretTextListRequest, opts ...grpc.CallOption) (*SecretTextListResponse, error)
+	List(ctx context.Context, in *SecretTextListRequest, opts ...grpc.CallOption) (*SecretTextListResponse, error)
+	Get(ctx context.Context, in *SecretTextGetRequest, opts ...grpc.CallOption) (*SecretTextGetResponse, error)
+	Save(ctx context.Context, in *SecretTextSaveRequest, opts ...grpc.CallOption) (*SecretTextSaveResponse, error)
 }
 
 type secretTextServiceClient struct {
@@ -39,10 +43,30 @@ func NewSecretTextServiceClient(cc grpc.ClientConnInterface) SecretTextServiceCl
 	return &secretTextServiceClient{cc}
 }
 
-func (c *secretTextServiceClient) ListTextSecrets(ctx context.Context, in *SecretTextListRequest, opts ...grpc.CallOption) (*SecretTextListResponse, error) {
+func (c *secretTextServiceClient) List(ctx context.Context, in *SecretTextListRequest, opts ...grpc.CallOption) (*SecretTextListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SecretTextListResponse)
-	err := c.cc.Invoke(ctx, SecretTextService_ListTextSecrets_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SecretTextService_List_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretTextServiceClient) Get(ctx context.Context, in *SecretTextGetRequest, opts ...grpc.CallOption) (*SecretTextGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretTextGetResponse)
+	err := c.cc.Invoke(ctx, SecretTextService_Get_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretTextServiceClient) Save(ctx context.Context, in *SecretTextSaveRequest, opts ...grpc.CallOption) (*SecretTextSaveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretTextSaveResponse)
+	err := c.cc.Invoke(ctx, SecretTextService_Save_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +79,9 @@ func (c *secretTextServiceClient) ListTextSecrets(ctx context.Context, in *Secre
 //
 // gRPC-сервис для работы с текстовыми секретами
 type SecretTextServiceServer interface {
-	ListTextSecrets(context.Context, *SecretTextListRequest) (*SecretTextListResponse, error)
+	List(context.Context, *SecretTextListRequest) (*SecretTextListResponse, error)
+	Get(context.Context, *SecretTextGetRequest) (*SecretTextGetResponse, error)
+	Save(context.Context, *SecretTextSaveRequest) (*SecretTextSaveResponse, error)
 	mustEmbedUnimplementedSecretTextServiceServer()
 }
 
@@ -66,8 +92,14 @@ type SecretTextServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSecretTextServiceServer struct{}
 
-func (UnimplementedSecretTextServiceServer) ListTextSecrets(context.Context, *SecretTextListRequest) (*SecretTextListResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListTextSecrets not implemented")
+func (UnimplementedSecretTextServiceServer) List(context.Context, *SecretTextListRequest) (*SecretTextListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedSecretTextServiceServer) Get(context.Context, *SecretTextGetRequest) (*SecretTextGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedSecretTextServiceServer) Save(context.Context, *SecretTextSaveRequest) (*SecretTextSaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Save not implemented")
 }
 func (UnimplementedSecretTextServiceServer) mustEmbedUnimplementedSecretTextServiceServer() {}
 func (UnimplementedSecretTextServiceServer) testEmbeddedByValue()                           {}
@@ -90,20 +122,56 @@ func RegisterSecretTextServiceServer(s grpc.ServiceRegistrar, srv SecretTextServ
 	s.RegisterService(&SecretTextService_ServiceDesc, srv)
 }
 
-func _SecretTextService_ListTextSecrets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SecretTextService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SecretTextListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SecretTextServiceServer).ListTextSecrets(ctx, in)
+		return srv.(SecretTextServiceServer).List(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SecretTextService_ListTextSecrets_FullMethodName,
+		FullMethod: SecretTextService_List_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecretTextServiceServer).ListTextSecrets(ctx, req.(*SecretTextListRequest))
+		return srv.(SecretTextServiceServer).List(ctx, req.(*SecretTextListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretTextService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretTextGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretTextServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretTextService_Get_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretTextServiceServer).Get(ctx, req.(*SecretTextGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretTextService_Save_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretTextSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretTextServiceServer).Save(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretTextService_Save_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretTextServiceServer).Save(ctx, req.(*SecretTextSaveRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -116,8 +184,16 @@ var SecretTextService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*SecretTextServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListTextSecrets",
-			Handler:    _SecretTextService_ListTextSecrets_Handler,
+			MethodName: "List",
+			Handler:    _SecretTextService_List_Handler,
+		},
+		{
+			MethodName: "Get",
+			Handler:    _SecretTextService_Get_Handler,
+		},
+		{
+			MethodName: "Save",
+			Handler:    _SecretTextService_Save_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

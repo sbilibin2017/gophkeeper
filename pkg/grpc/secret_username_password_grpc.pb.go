@@ -19,16 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SecretUsernamePasswordService_ListUsernamePasswordSecrets_FullMethodName = "/gophkeeper.SecretUsernamePasswordService/ListUsernamePasswordSecrets"
+	SecretUsernamePasswordService_List_FullMethodName = "/gophkeeper.SecretUsernamePasswordService/List"
+	SecretUsernamePasswordService_Get_FullMethodName  = "/gophkeeper.SecretUsernamePasswordService/Get"
+	SecretUsernamePasswordService_Save_FullMethodName = "/gophkeeper.SecretUsernamePasswordService/Save"
 )
 
 // SecretUsernamePasswordServiceClient is the client API for SecretUsernamePasswordService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// gRPC-сервис для работы с секретами логина и пароля
+// gRPC-сервис для работы с секретами логина и паролем
 type SecretUsernamePasswordServiceClient interface {
-	ListUsernamePasswordSecrets(ctx context.Context, in *SecretUsernamePasswordListRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordListResponse, error)
+	List(ctx context.Context, in *SecretUsernamePasswordListRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordListResponse, error)
+	Get(ctx context.Context, in *SecretUsernamePasswordGetRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordGetResponse, error)
+	Save(ctx context.Context, in *SecretUsernamePasswordSaveRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordSaveResponse, error)
 }
 
 type secretUsernamePasswordServiceClient struct {
@@ -39,10 +43,30 @@ func NewSecretUsernamePasswordServiceClient(cc grpc.ClientConnInterface) SecretU
 	return &secretUsernamePasswordServiceClient{cc}
 }
 
-func (c *secretUsernamePasswordServiceClient) ListUsernamePasswordSecrets(ctx context.Context, in *SecretUsernamePasswordListRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordListResponse, error) {
+func (c *secretUsernamePasswordServiceClient) List(ctx context.Context, in *SecretUsernamePasswordListRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SecretUsernamePasswordListResponse)
-	err := c.cc.Invoke(ctx, SecretUsernamePasswordService_ListUsernamePasswordSecrets_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SecretUsernamePasswordService_List_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretUsernamePasswordServiceClient) Get(ctx context.Context, in *SecretUsernamePasswordGetRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretUsernamePasswordGetResponse)
+	err := c.cc.Invoke(ctx, SecretUsernamePasswordService_Get_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretUsernamePasswordServiceClient) Save(ctx context.Context, in *SecretUsernamePasswordSaveRequest, opts ...grpc.CallOption) (*SecretUsernamePasswordSaveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretUsernamePasswordSaveResponse)
+	err := c.cc.Invoke(ctx, SecretUsernamePasswordService_Save_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -53,9 +77,11 @@ func (c *secretUsernamePasswordServiceClient) ListUsernamePasswordSecrets(ctx co
 // All implementations must embed UnimplementedSecretUsernamePasswordServiceServer
 // for forward compatibility.
 //
-// gRPC-сервис для работы с секретами логина и пароля
+// gRPC-сервис для работы с секретами логина и паролем
 type SecretUsernamePasswordServiceServer interface {
-	ListUsernamePasswordSecrets(context.Context, *SecretUsernamePasswordListRequest) (*SecretUsernamePasswordListResponse, error)
+	List(context.Context, *SecretUsernamePasswordListRequest) (*SecretUsernamePasswordListResponse, error)
+	Get(context.Context, *SecretUsernamePasswordGetRequest) (*SecretUsernamePasswordGetResponse, error)
+	Save(context.Context, *SecretUsernamePasswordSaveRequest) (*SecretUsernamePasswordSaveResponse, error)
 	mustEmbedUnimplementedSecretUsernamePasswordServiceServer()
 }
 
@@ -66,8 +92,14 @@ type SecretUsernamePasswordServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSecretUsernamePasswordServiceServer struct{}
 
-func (UnimplementedSecretUsernamePasswordServiceServer) ListUsernamePasswordSecrets(context.Context, *SecretUsernamePasswordListRequest) (*SecretUsernamePasswordListResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListUsernamePasswordSecrets not implemented")
+func (UnimplementedSecretUsernamePasswordServiceServer) List(context.Context, *SecretUsernamePasswordListRequest) (*SecretUsernamePasswordListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedSecretUsernamePasswordServiceServer) Get(context.Context, *SecretUsernamePasswordGetRequest) (*SecretUsernamePasswordGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedSecretUsernamePasswordServiceServer) Save(context.Context, *SecretUsernamePasswordSaveRequest) (*SecretUsernamePasswordSaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Save not implemented")
 }
 func (UnimplementedSecretUsernamePasswordServiceServer) mustEmbedUnimplementedSecretUsernamePasswordServiceServer() {
 }
@@ -91,20 +123,56 @@ func RegisterSecretUsernamePasswordServiceServer(s grpc.ServiceRegistrar, srv Se
 	s.RegisterService(&SecretUsernamePasswordService_ServiceDesc, srv)
 }
 
-func _SecretUsernamePasswordService_ListUsernamePasswordSecrets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SecretUsernamePasswordService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SecretUsernamePasswordListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SecretUsernamePasswordServiceServer).ListUsernamePasswordSecrets(ctx, in)
+		return srv.(SecretUsernamePasswordServiceServer).List(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SecretUsernamePasswordService_ListUsernamePasswordSecrets_FullMethodName,
+		FullMethod: SecretUsernamePasswordService_List_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecretUsernamePasswordServiceServer).ListUsernamePasswordSecrets(ctx, req.(*SecretUsernamePasswordListRequest))
+		return srv.(SecretUsernamePasswordServiceServer).List(ctx, req.(*SecretUsernamePasswordListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretUsernamePasswordService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretUsernamePasswordGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretUsernamePasswordServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretUsernamePasswordService_Get_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretUsernamePasswordServiceServer).Get(ctx, req.(*SecretUsernamePasswordGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretUsernamePasswordService_Save_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretUsernamePasswordSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretUsernamePasswordServiceServer).Save(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretUsernamePasswordService_Save_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretUsernamePasswordServiceServer).Save(ctx, req.(*SecretUsernamePasswordSaveRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -117,8 +185,16 @@ var SecretUsernamePasswordService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*SecretUsernamePasswordServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListUsernamePasswordSecrets",
-			Handler:    _SecretUsernamePasswordService_ListUsernamePasswordSecrets_Handler,
+			MethodName: "List",
+			Handler:    _SecretUsernamePasswordService_List_Handler,
+		},
+		{
+			MethodName: "Get",
+			Handler:    _SecretUsernamePasswordService_Get_Handler,
+		},
+		{
+			MethodName: "Save",
+			Handler:    _SecretUsernamePasswordService_Save_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -157,8 +157,8 @@ func listBinarySecrets(ctx context.Context, protocol, serverURL, token string) (
 		if err != nil {
 			return "", fmt.Errorf("не удалось создать HTTP клиента: %w", err)
 		}
-		facade := facades.NewBinaryListFacade(cfg.HTTPClient)
-		secrets, err := facade.List(ctx)
+		facade := facades.NewSecretBankCardListHTTPFacade(cfg.HTTPClient)
+		secrets, err := facade.List(ctx, token)
 		if err != nil {
 			return "", err
 		}
@@ -175,7 +175,7 @@ func listBinarySecrets(ctx context.Context, protocol, serverURL, token string) (
 		}
 		defer conn.Close()
 
-		client := facades.NewBinaryListGRPCFacade(pb.NewSecretBinaryServiceClient(conn))
+		client := facades.NewSecretBinaryListGRPCFacade(pb.NewSecretBinaryServiceClient(conn))
 		secrets, err := client.List(ctx, token)
 		if err != nil {
 			return "", err
@@ -198,7 +198,7 @@ func listTextSecrets(ctx context.Context, protocol, serverURL, token string) (st
 			return "", fmt.Errorf("не удалось создать HTTP клиента: %w", err)
 		}
 		facade := facades.NewTextListFacade(cfg.HTTPClient)
-		secrets, err := facade.List(ctx)
+		secrets, err := facade.List(ctx, token)
 		if err != nil {
 			return "", err
 		}
@@ -237,8 +237,8 @@ func listUsernamePasswordSecrets(ctx context.Context, protocol, serverURL, token
 		if err != nil {
 			return "", fmt.Errorf("не удалось создать HTTP клиента: %w", err)
 		}
-		facade := facades.NewUsernamePasswordListFacade(cfg.HTTPClient)
-		secrets, err := facade.List(ctx)
+		facade := facades.NewSecretUsernamePasswordListHTTPFacade(cfg.HTTPClient)
+		secrets, err := facade.List(ctx, token)
 		if err != nil {
 			return "", err
 		}
@@ -255,7 +255,7 @@ func listUsernamePasswordSecrets(ctx context.Context, protocol, serverURL, token
 		}
 		defer conn.Close()
 
-		client := facades.NewUsernamePasswordListGRPCFacade(pb.NewSecretUsernamePasswordServiceClient(conn))
+		client := facades.NewSecretUsernamePasswordListGRPCFacade(pb.NewSecretUsernamePasswordServiceClient(conn))
 		secrets, err := client.List(ctx, token)
 		if err != nil {
 			return "", err

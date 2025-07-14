@@ -45,3 +45,35 @@ func (r *SecretBankCardClientSaveRepository) Save(
 	_, err := r.db.NamedExecContext(ctx, query, secret)
 	return err
 }
+
+// SecretBankCardClientListRepository обеспечивает чтение всех секретных банковских карт клиента из базы данных.
+type SecretBankCardClientListRepository struct {
+	db *sqlx.DB
+}
+
+// NewSecretBankCardClientListRepository создаёт новый экземпляр SecretBankCardClientListRepository.
+func NewSecretBankCardClientListRepository(db *sqlx.DB) *SecretBankCardClientListRepository {
+	return &SecretBankCardClientListRepository{db: db}
+}
+
+// List возвращает все записи секретных банковских карт клиента из базы данных.
+//
+// Параметры:
+//   - ctx: контекст для управления таймаутами и отменой запроса.
+//
+// Возвращает:
+//   - []models.SecretBankCardClient: список всех найденных записей
+//   - error: ошибка, если чтение не удалось
+func (r *SecretBankCardClientListRepository) List(ctx context.Context) ([]models.SecretBankCardClient, error) {
+	query := `
+		SELECT secret_name, owner, number, exp, cvv, meta, updated_at
+		FROM secret_bank_card_client;
+	`
+
+	var secrets []models.SecretBankCardClient
+	if err := r.db.SelectContext(ctx, &secrets, query); err != nil {
+		return nil, err
+	}
+
+	return secrets, nil
+}

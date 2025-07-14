@@ -90,10 +90,9 @@ func (x *SecretBinary) GetUpdatedAt() string {
 	return ""
 }
 
-// Запрос списка бинарных секретов
+// Запрос списка бинарных секретов (без поля token)
 type SecretBinaryListRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -126,13 +125,6 @@ func (x *SecretBinaryListRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SecretBinaryListRequest.ProtoReflect.Descriptor instead.
 func (*SecretBinaryListRequest) Descriptor() ([]byte, []int) {
 	return file_secret_binary_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *SecretBinaryListRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
 }
 
 // Ответ со списком бинарных секретов
@@ -180,6 +172,178 @@ func (x *SecretBinaryListResponse) GetItems() []*SecretBinary {
 	return nil
 }
 
+// Запрос для получения одного бинарного секрета по имени (без поля token)
+type SecretBinaryGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinaryGetRequest) Reset() {
+	*x = SecretBinaryGetRequest{}
+	mi := &file_secret_binary_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinaryGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinaryGetRequest) ProtoMessage() {}
+
+func (x *SecretBinaryGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinaryGetRequest.ProtoReflect.Descriptor instead.
+func (*SecretBinaryGetRequest) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SecretBinaryGetRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+// Ответ для получения одного бинарного секрета
+type SecretBinaryGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Secret        *SecretBinary          `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinaryGetResponse) Reset() {
+	*x = SecretBinaryGetResponse{}
+	mi := &file_secret_binary_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinaryGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinaryGetResponse) ProtoMessage() {}
+
+func (x *SecretBinaryGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinaryGetResponse.ProtoReflect.Descriptor instead.
+func (*SecretBinaryGetResponse) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SecretBinaryGetResponse) GetSecret() *SecretBinary {
+	if x != nil {
+		return x.Secret
+	}
+	return nil
+}
+
+// Запрос на сохранение бинарного секрета (без поля token)
+type SecretBinarySaveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Secret        *SecretBinary          `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinarySaveRequest) Reset() {
+	*x = SecretBinarySaveRequest{}
+	mi := &file_secret_binary_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinarySaveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinarySaveRequest) ProtoMessage() {}
+
+func (x *SecretBinarySaveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinarySaveRequest.ProtoReflect.Descriptor instead.
+func (*SecretBinarySaveRequest) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SecretBinarySaveRequest) GetSecret() *SecretBinary {
+	if x != nil {
+		return x.Secret
+	}
+	return nil
+}
+
+// Ответ на сохранение (пустой)
+type SecretBinarySaveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinarySaveResponse) Reset() {
+	*x = SecretBinarySaveResponse{}
+	mi := &file_secret_binary_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinarySaveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinarySaveResponse) ProtoMessage() {}
+
+func (x *SecretBinarySaveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinarySaveResponse.ProtoReflect.Descriptor instead.
+func (*SecretBinarySaveResponse) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{6}
+}
+
 var File_secret_binary_proto protoreflect.FileDescriptor
 
 const file_secret_binary_proto_rawDesc = "" +
@@ -192,13 +356,22 @@ const file_secret_binary_proto_rawDesc = "" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +
 	"\x04meta\x18\x03 \x01(\tR\x04meta\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\tR\tupdatedAt\"/\n" +
-	"\x17SecretBinaryListRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"J\n" +
+	"updated_at\x18\x04 \x01(\tR\tupdatedAt\"\x19\n" +
+	"\x17SecretBinaryListRequest\"J\n" +
 	"\x18SecretBinaryListResponse\x12.\n" +
-	"\x05items\x18\x01 \x03(\v2\x18.gophkeeper.SecretBinaryR\x05items2u\n" +
-	"\x13SecretBinaryService\x12^\n" +
-	"\x11ListBinarySecrets\x12#.gophkeeper.SecretBinaryListRequest\x1a$.gophkeeper.SecretBinaryListResponseB\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.gophkeeper.SecretBinaryR\x05items\"9\n" +
+	"\x16SecretBinaryGetRequest\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\"K\n" +
+	"\x17SecretBinaryGetResponse\x120\n" +
+	"\x06secret\x18\x01 \x01(\v2\x18.gophkeeper.SecretBinaryR\x06secret\"K\n" +
+	"\x17SecretBinarySaveRequest\x120\n" +
+	"\x06secret\x18\x01 \x01(\v2\x18.gophkeeper.SecretBinaryR\x06secret\"\x1a\n" +
+	"\x18SecretBinarySaveResponse2\x8b\x02\n" +
+	"\x13SecretBinaryService\x12Q\n" +
+	"\x04List\x12#.gophkeeper.SecretBinaryListRequest\x1a$.gophkeeper.SecretBinaryListResponse\x12N\n" +
+	"\x03Get\x12\".gophkeeper.SecretBinaryGetRequest\x1a#.gophkeeper.SecretBinaryGetResponse\x12Q\n" +
+	"\x04Save\x12#.gophkeeper.SecretBinarySaveRequest\x1a$.gophkeeper.SecretBinarySaveResponseB\n" +
 	"Z\bpkg/grpcb\x06proto3"
 
 var (
@@ -213,21 +386,31 @@ func file_secret_binary_proto_rawDescGZIP() []byte {
 	return file_secret_binary_proto_rawDescData
 }
 
-var file_secret_binary_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_secret_binary_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_secret_binary_proto_goTypes = []any{
 	(*SecretBinary)(nil),             // 0: gophkeeper.SecretBinary
 	(*SecretBinaryListRequest)(nil),  // 1: gophkeeper.SecretBinaryListRequest
 	(*SecretBinaryListResponse)(nil), // 2: gophkeeper.SecretBinaryListResponse
+	(*SecretBinaryGetRequest)(nil),   // 3: gophkeeper.SecretBinaryGetRequest
+	(*SecretBinaryGetResponse)(nil),  // 4: gophkeeper.SecretBinaryGetResponse
+	(*SecretBinarySaveRequest)(nil),  // 5: gophkeeper.SecretBinarySaveRequest
+	(*SecretBinarySaveResponse)(nil), // 6: gophkeeper.SecretBinarySaveResponse
 }
 var file_secret_binary_proto_depIdxs = []int32{
 	0, // 0: gophkeeper.SecretBinaryListResponse.items:type_name -> gophkeeper.SecretBinary
-	1, // 1: gophkeeper.SecretBinaryService.ListBinarySecrets:input_type -> gophkeeper.SecretBinaryListRequest
-	2, // 2: gophkeeper.SecretBinaryService.ListBinarySecrets:output_type -> gophkeeper.SecretBinaryListResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 1: gophkeeper.SecretBinaryGetResponse.secret:type_name -> gophkeeper.SecretBinary
+	0, // 2: gophkeeper.SecretBinarySaveRequest.secret:type_name -> gophkeeper.SecretBinary
+	1, // 3: gophkeeper.SecretBinaryService.List:input_type -> gophkeeper.SecretBinaryListRequest
+	3, // 4: gophkeeper.SecretBinaryService.Get:input_type -> gophkeeper.SecretBinaryGetRequest
+	5, // 5: gophkeeper.SecretBinaryService.Save:input_type -> gophkeeper.SecretBinarySaveRequest
+	2, // 6: gophkeeper.SecretBinaryService.List:output_type -> gophkeeper.SecretBinaryListResponse
+	4, // 7: gophkeeper.SecretBinaryService.Get:output_type -> gophkeeper.SecretBinaryGetResponse
+	6, // 8: gophkeeper.SecretBinaryService.Save:output_type -> gophkeeper.SecretBinarySaveResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_secret_binary_proto_init() }
@@ -241,7 +424,7 @@ func file_secret_binary_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_binary_proto_rawDesc), len(file_secret_binary_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -19,7 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SecretBankCardService_ListBankCards_FullMethodName = "/gophkeeper.SecretBankCardService/ListBankCards"
+	SecretBankCardService_List_FullMethodName = "/gophkeeper.SecretBankCardService/List"
+	SecretBankCardService_Get_FullMethodName  = "/gophkeeper.SecretBankCardService/Get"
+	SecretBankCardService_Save_FullMethodName = "/gophkeeper.SecretBankCardService/Save"
 )
 
 // SecretBankCardServiceClient is the client API for SecretBankCardService service.
@@ -28,7 +30,9 @@ const (
 //
 // Сервис управления банковскими картами
 type SecretBankCardServiceClient interface {
-	ListBankCards(ctx context.Context, in *SecretBankCardListRequest, opts ...grpc.CallOption) (*SecretBankCardListResponse, error)
+	List(ctx context.Context, in *SecretBankCardListRequest, opts ...grpc.CallOption) (*SecretBankCardListResponse, error)
+	Get(ctx context.Context, in *SecretBankCardGetRequest, opts ...grpc.CallOption) (*SecretBankCardGetResponse, error)
+	Save(ctx context.Context, in *SecretBankCardSaveRequest, opts ...grpc.CallOption) (*SecretBankCardSaveResponse, error)
 }
 
 type secretBankCardServiceClient struct {
@@ -39,10 +43,30 @@ func NewSecretBankCardServiceClient(cc grpc.ClientConnInterface) SecretBankCardS
 	return &secretBankCardServiceClient{cc}
 }
 
-func (c *secretBankCardServiceClient) ListBankCards(ctx context.Context, in *SecretBankCardListRequest, opts ...grpc.CallOption) (*SecretBankCardListResponse, error) {
+func (c *secretBankCardServiceClient) List(ctx context.Context, in *SecretBankCardListRequest, opts ...grpc.CallOption) (*SecretBankCardListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SecretBankCardListResponse)
-	err := c.cc.Invoke(ctx, SecretBankCardService_ListBankCards_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SecretBankCardService_List_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretBankCardServiceClient) Get(ctx context.Context, in *SecretBankCardGetRequest, opts ...grpc.CallOption) (*SecretBankCardGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretBankCardGetResponse)
+	err := c.cc.Invoke(ctx, SecretBankCardService_Get_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretBankCardServiceClient) Save(ctx context.Context, in *SecretBankCardSaveRequest, opts ...grpc.CallOption) (*SecretBankCardSaveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretBankCardSaveResponse)
+	err := c.cc.Invoke(ctx, SecretBankCardService_Save_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +79,9 @@ func (c *secretBankCardServiceClient) ListBankCards(ctx context.Context, in *Sec
 //
 // Сервис управления банковскими картами
 type SecretBankCardServiceServer interface {
-	ListBankCards(context.Context, *SecretBankCardListRequest) (*SecretBankCardListResponse, error)
+	List(context.Context, *SecretBankCardListRequest) (*SecretBankCardListResponse, error)
+	Get(context.Context, *SecretBankCardGetRequest) (*SecretBankCardGetResponse, error)
+	Save(context.Context, *SecretBankCardSaveRequest) (*SecretBankCardSaveResponse, error)
 	mustEmbedUnimplementedSecretBankCardServiceServer()
 }
 
@@ -66,8 +92,14 @@ type SecretBankCardServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSecretBankCardServiceServer struct{}
 
-func (UnimplementedSecretBankCardServiceServer) ListBankCards(context.Context, *SecretBankCardListRequest) (*SecretBankCardListResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListBankCards not implemented")
+func (UnimplementedSecretBankCardServiceServer) List(context.Context, *SecretBankCardListRequest) (*SecretBankCardListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedSecretBankCardServiceServer) Get(context.Context, *SecretBankCardGetRequest) (*SecretBankCardGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedSecretBankCardServiceServer) Save(context.Context, *SecretBankCardSaveRequest) (*SecretBankCardSaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Save not implemented")
 }
 func (UnimplementedSecretBankCardServiceServer) mustEmbedUnimplementedSecretBankCardServiceServer() {}
 func (UnimplementedSecretBankCardServiceServer) testEmbeddedByValue()                               {}
@@ -90,20 +122,56 @@ func RegisterSecretBankCardServiceServer(s grpc.ServiceRegistrar, srv SecretBank
 	s.RegisterService(&SecretBankCardService_ServiceDesc, srv)
 }
 
-func _SecretBankCardService_ListBankCards_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SecretBankCardService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SecretBankCardListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SecretBankCardServiceServer).ListBankCards(ctx, in)
+		return srv.(SecretBankCardServiceServer).List(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SecretBankCardService_ListBankCards_FullMethodName,
+		FullMethod: SecretBankCardService_List_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecretBankCardServiceServer).ListBankCards(ctx, req.(*SecretBankCardListRequest))
+		return srv.(SecretBankCardServiceServer).List(ctx, req.(*SecretBankCardListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretBankCardService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretBankCardGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretBankCardServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretBankCardService_Get_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretBankCardServiceServer).Get(ctx, req.(*SecretBankCardGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretBankCardService_Save_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretBankCardSaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretBankCardServiceServer).Save(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretBankCardService_Save_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretBankCardServiceServer).Save(ctx, req.(*SecretBankCardSaveRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -116,8 +184,16 @@ var SecretBankCardService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*SecretBankCardServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListBankCards",
-			Handler:    _SecretBankCardService_ListBankCards_Handler,
+			MethodName: "List",
+			Handler:    _SecretBankCardService_List_Handler,
+		},
+		{
+			MethodName: "Get",
+			Handler:    _SecretBankCardService_Get_Handler,
+		},
+		{
+			MethodName: "Save",
+			Handler:    _SecretBankCardService_Save_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

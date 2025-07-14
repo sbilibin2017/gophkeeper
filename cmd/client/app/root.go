@@ -25,5 +25,7 @@ func NewCobraCommand() *cobra.Command {
 
 	commands.RegisterListSecretCommand(root)
 
+	commands.RegisterSyncCommand(root)
+
 	return root
 }

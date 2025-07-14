@@ -43,3 +43,35 @@ func (r *SecretTextClientSaveRepository) Save(
 	_, err := r.db.NamedExecContext(ctx, query, secret)
 	return err
 }
+
+// SecretTextClientListRepository предоставляет методы для получения текстовых секретов клиента из базы данных.
+type SecretTextClientListRepository struct {
+	db *sqlx.DB
+}
+
+// NewSecretTextClientListRepository создаёт новый экземпляр SecretTextClientListRepository.
+func NewSecretTextClientListRepository(db *sqlx.DB) *SecretTextClientListRepository {
+	return &SecretTextClientListRepository{db: db}
+}
+
+// List возвращает все текстовые секреты клиента из базы данных.
+//
+// Параметры:
+//   - ctx: контекст для управления временем выполнения и отмены операции.
+//
+// Возвращает:
+//   - []models.SecretTextClient: список всех найденных текстовых секретов
+//   - error: ошибка, если операция завершилась неудачей
+func (r *SecretTextClientListRepository) List(ctx context.Context) ([]models.SecretTextClient, error) {
+	query := `
+		SELECT secret_name, content, meta, updated_at
+		FROM secret_text;
+	`
+
+	var secrets []models.SecretTextClient
+	if err := r.db.SelectContext(ctx, &secrets, query); err != nil {
+		return nil, err
+	}
+
+	return secrets, nil
+}

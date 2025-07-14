@@ -19,7 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SecretBinaryService_ListBinarySecrets_FullMethodName = "/gophkeeper.SecretBinaryService/ListBinarySecrets"
+	SecretBinaryService_List_FullMethodName = "/gophkeeper.SecretBinaryService/List"
+	SecretBinaryService_Get_FullMethodName  = "/gophkeeper.SecretBinaryService/Get"
+	SecretBinaryService_Save_FullMethodName = "/gophkeeper.SecretBinaryService/Save"
 )
 
 // SecretBinaryServiceClient is the client API for SecretBinaryService service.
@@ -28,7 +30,9 @@ const (
 //
 // gRPC-сервис для работы с бинарными секретами
 type SecretBinaryServiceClient interface {
-	ListBinarySecrets(ctx context.Context, in *SecretBinaryListRequest, opts ...grpc.CallOption) (*SecretBinaryListResponse, error)
+	List(ctx context.Context, in *SecretBinaryListRequest, opts ...grpc.CallOption) (*SecretBinaryListResponse, error)
+	Get(ctx context.Context, in *SecretBinaryGetRequest, opts ...grpc.CallOption) (*SecretBinaryGetResponse, error)
+	Save(ctx context.Context, in *SecretBinarySaveRequest, opts ...grpc.CallOption) (*SecretBinarySaveResponse, error)
 }
 
 type secretBinaryServiceClient struct {
@@ -39,10 +43,30 @@ func NewSecretBinaryServiceClient(cc grpc.ClientConnInterface) SecretBinaryServi
 	return &secretBinaryServiceClient{cc}
 }
 
-func (c *secretBinaryServiceClient) ListBinarySecrets(ctx context.Context, in *SecretBinaryListRequest, opts ...grpc.CallOption) (*SecretBinaryListResponse, error) {
+func (c *secretBinaryServiceClient) List(ctx context.Context, in *SecretBinaryListRequest, opts ...grpc.CallOption) (*SecretBinaryListResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SecretBinaryListResponse)
-	err := c.cc.Invoke(ctx, SecretBinaryService_ListBinarySecrets_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, SecretBinaryService_List_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretBinaryServiceClient) Get(ctx context.Context, in *SecretBinaryGetRequest, opts ...grpc.CallOption) (*SecretBinaryGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretBinaryGetResponse)
+	err := c.cc.Invoke(ctx, SecretBinaryService_Get_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *secretBinaryServiceClient) Save(ctx context.Context, in *SecretBinarySaveRequest, opts ...grpc.CallOption) (*SecretBinarySaveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SecretBinarySaveResponse)
+	err := c.cc.Invoke(ctx, SecretBinaryService_Save_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +79,9 @@ func (c *secretBinaryServiceClient) ListBinarySecrets(ctx context.Context, in *S
 //
 // gRPC-сервис для работы с бинарными секретами
 type SecretBinaryServiceServer interface {
-	ListBinarySecrets(context.Context, *SecretBinaryListRequest) (*SecretBinaryListResponse, error)
+	List(context.Context, *SecretBinaryListRequest) (*SecretBinaryListResponse, error)
+	Get(context.Context, *SecretBinaryGetRequest) (*SecretBinaryGetResponse, error)
+	Save(context.Context, *SecretBinarySaveRequest) (*SecretBinarySaveResponse, error)
 	mustEmbedUnimplementedSecretBinaryServiceServer()
 }
 
@@ -66,8 +92,14 @@ type SecretBinaryServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSecretBinaryServiceServer struct{}
 
-func (UnimplementedSecretBinaryServiceServer) ListBinarySecrets(context.Context, *SecretBinaryListRequest) (*SecretBinaryListResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListBinarySecrets not implemented")
+func (UnimplementedSecretBinaryServiceServer) List(context.Context, *SecretBinaryListRequest) (*SecretBinaryListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedSecretBinaryServiceServer) Get(context.Context, *SecretBinaryGetRequest) (*SecretBinaryGetResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedSecretBinaryServiceServer) Save(context.Context, *SecretBinarySaveRequest) (*SecretBinarySaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Save not implemented")
 }
 func (UnimplementedSecretBinaryServiceServer) mustEmbedUnimplementedSecretBinaryServiceServer() {}
 func (UnimplementedSecretBinaryServiceServer) testEmbeddedByValue()                             {}
@@ -90,20 +122,56 @@ func RegisterSecretBinaryServiceServer(s grpc.ServiceRegistrar, srv SecretBinary
 	s.RegisterService(&SecretBinaryService_ServiceDesc, srv)
 }
 
-func _SecretBinaryService_ListBinarySecrets_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _SecretBinaryService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SecretBinaryListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(SecretBinaryServiceServer).ListBinarySecrets(ctx, in)
+		return srv.(SecretBinaryServiceServer).List(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: SecretBinaryService_ListBinarySecrets_FullMethodName,
+		FullMethod: SecretBinaryService_List_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecretBinaryServiceServer).ListBinarySecrets(ctx, req.(*SecretBinaryListRequest))
+		return srv.(SecretBinaryServiceServer).List(ctx, req.(*SecretBinaryListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretBinaryService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretBinaryGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretBinaryServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretBinaryService_Get_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretBinaryServiceServer).Get(ctx, req.(*SecretBinaryGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SecretBinaryService_Save_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SecretBinarySaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SecretBinaryServiceServer).Save(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SecretBinaryService_Save_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SecretBinaryServiceServer).Save(ctx, req.(*SecretBinarySaveRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -116,8 +184,16 @@ var SecretBinaryService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*SecretBinaryServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ListBinarySecrets",
-			Handler:    _SecretBinaryService_ListBinarySecrets_Handler,
+			MethodName: "List",
+			Handler:    _SecretBinaryService_List_Handler,
+		},
+		{
+			MethodName: "Get",
+			Handler:    _SecretBinaryService_Get_Handler,
+		},
+		{
+			MethodName: "Save",
+			Handler:    _SecretBinaryService_Save_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

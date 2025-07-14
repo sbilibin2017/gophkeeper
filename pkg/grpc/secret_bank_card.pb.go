@@ -21,7 +21,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Пустое сообщение
+// Пустое сообщение, используется для RPC без параметров и результатов
 type Empty struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -151,10 +151,9 @@ func (x *SecretBankCard) GetUpdatedAt() string {
 	return ""
 }
 
-// Запрос на получение списка
+// Запрос на получение списка банковских карт
 type SecretBankCardListRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -187,13 +186,6 @@ func (x *SecretBankCardListRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SecretBankCardListRequest.ProtoReflect.Descriptor instead.
 func (*SecretBankCardListRequest) Descriptor() ([]byte, []int) {
 	return file_secret_bank_card_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SecretBankCardListRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
 }
 
 // Ответ со списком банковских карт
@@ -241,6 +233,178 @@ func (x *SecretBankCardListResponse) GetItems() []*SecretBankCard {
 	return nil
 }
 
+// Запрос для получения одной банковской карты по имени
+type SecretBankCardGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBankCardGetRequest) Reset() {
+	*x = SecretBankCardGetRequest{}
+	mi := &file_secret_bank_card_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBankCardGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBankCardGetRequest) ProtoMessage() {}
+
+func (x *SecretBankCardGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_bank_card_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBankCardGetRequest.ProtoReflect.Descriptor instead.
+func (*SecretBankCardGetRequest) Descriptor() ([]byte, []int) {
+	return file_secret_bank_card_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SecretBankCardGetRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+// Ответ для получения одной банковской карты
+type SecretBankCardGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Card          *SecretBankCard        `protobuf:"bytes,1,opt,name=card,proto3" json:"card,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBankCardGetResponse) Reset() {
+	*x = SecretBankCardGetResponse{}
+	mi := &file_secret_bank_card_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBankCardGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBankCardGetResponse) ProtoMessage() {}
+
+func (x *SecretBankCardGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_bank_card_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBankCardGetResponse.ProtoReflect.Descriptor instead.
+func (*SecretBankCardGetResponse) Descriptor() ([]byte, []int) {
+	return file_secret_bank_card_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SecretBankCardGetResponse) GetCard() *SecretBankCard {
+	if x != nil {
+		return x.Card
+	}
+	return nil
+}
+
+// Запрос на сохранение банковской карты
+type SecretBankCardSaveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Card          *SecretBankCard        `protobuf:"bytes,1,opt,name=card,proto3" json:"card,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBankCardSaveRequest) Reset() {
+	*x = SecretBankCardSaveRequest{}
+	mi := &file_secret_bank_card_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBankCardSaveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBankCardSaveRequest) ProtoMessage() {}
+
+func (x *SecretBankCardSaveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_bank_card_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBankCardSaveRequest.ProtoReflect.Descriptor instead.
+func (*SecretBankCardSaveRequest) Descriptor() ([]byte, []int) {
+	return file_secret_bank_card_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SecretBankCardSaveRequest) GetCard() *SecretBankCard {
+	if x != nil {
+		return x.Card
+	}
+	return nil
+}
+
+// Ответ на сохранение (пустой)
+type SecretBankCardSaveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBankCardSaveResponse) Reset() {
+	*x = SecretBankCardSaveResponse{}
+	mi := &file_secret_bank_card_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBankCardSaveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBankCardSaveResponse) ProtoMessage() {}
+
+func (x *SecretBankCardSaveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_bank_card_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBankCardSaveResponse.ProtoReflect.Descriptor instead.
+func (*SecretBankCardSaveResponse) Descriptor() ([]byte, []int) {
+	return file_secret_bank_card_proto_rawDescGZIP(), []int{7}
+}
+
 var File_secret_bank_card_proto protoreflect.FileDescriptor
 
 const file_secret_bank_card_proto_rawDesc = "" +
@@ -257,14 +421,22 @@ const file_secret_bank_card_proto_rawDesc = "" +
 	"\x03cvv\x18\x05 \x01(\tR\x03cvv\x12\x12\n" +
 	"\x04meta\x18\x06 \x01(\tR\x04meta\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\tR\tupdatedAt\"1\n" +
-	"\x19SecretBankCardListRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"N\n" +
+	"updated_at\x18\a \x01(\tR\tupdatedAt\"\x1b\n" +
+	"\x19SecretBankCardListRequest\"N\n" +
 	"\x1aSecretBankCardListResponse\x120\n" +
-	"\x05items\x18\x01 \x03(\v2\x1a.gophkeeper.SecretBankCardR\x05items2w\n" +
-	"\x15SecretBankCardService\x12^\n" +
-	"\rListBankCards\x12%.gophkeeper.SecretBankCardListRequest\x1a&.gophkeeper.SecretBankCardListResponseB\n" +
-	"Z\bpkg/grpcb\x06proto3"
+	"\x05items\x18\x01 \x03(\v2\x1a.gophkeeper.SecretBankCardR\x05items\";\n" +
+	"\x18SecretBankCardGetRequest\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\"K\n" +
+	"\x19SecretBankCardGetResponse\x12.\n" +
+	"\x04card\x18\x01 \x01(\v2\x1a.gophkeeper.SecretBankCardR\x04card\"K\n" +
+	"\x19SecretBankCardSaveRequest\x12.\n" +
+	"\x04card\x18\x01 \x01(\v2\x1a.gophkeeper.SecretBankCardR\x04card\"\x1c\n" +
+	"\x1aSecretBankCardSaveResponse2\x99\x02\n" +
+	"\x15SecretBankCardService\x12U\n" +
+	"\x04List\x12%.gophkeeper.SecretBankCardListRequest\x1a&.gophkeeper.SecretBankCardListResponse\x12R\n" +
+	"\x03Get\x12$.gophkeeper.SecretBankCardGetRequest\x1a%.gophkeeper.SecretBankCardGetResponse\x12U\n" +
+	"\x04Save\x12%.gophkeeper.SecretBankCardSaveRequest\x1a&.gophkeeper.SecretBankCardSaveResponseB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
 	file_secret_bank_card_proto_rawDescOnce sync.Once
@@ -278,22 +450,32 @@ func file_secret_bank_card_proto_rawDescGZIP() []byte {
 	return file_secret_bank_card_proto_rawDescData
 }
 
-var file_secret_bank_card_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_secret_bank_card_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_secret_bank_card_proto_goTypes = []any{
 	(*Empty)(nil),                      // 0: gophkeeper.Empty
 	(*SecretBankCard)(nil),             // 1: gophkeeper.SecretBankCard
 	(*SecretBankCardListRequest)(nil),  // 2: gophkeeper.SecretBankCardListRequest
 	(*SecretBankCardListResponse)(nil), // 3: gophkeeper.SecretBankCardListResponse
+	(*SecretBankCardGetRequest)(nil),   // 4: gophkeeper.SecretBankCardGetRequest
+	(*SecretBankCardGetResponse)(nil),  // 5: gophkeeper.SecretBankCardGetResponse
+	(*SecretBankCardSaveRequest)(nil),  // 6: gophkeeper.SecretBankCardSaveRequest
+	(*SecretBankCardSaveResponse)(nil), // 7: gophkeeper.SecretBankCardSaveResponse
 }
 var file_secret_bank_card_proto_depIdxs = []int32{
 	1, // 0: gophkeeper.SecretBankCardListResponse.items:type_name -> gophkeeper.SecretBankCard
-	2, // 1: gophkeeper.SecretBankCardService.ListBankCards:input_type -> gophkeeper.SecretBankCardListRequest
-	3, // 2: gophkeeper.SecretBankCardService.ListBankCards:output_type -> gophkeeper.SecretBankCardListResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	1, // 1: gophkeeper.SecretBankCardGetResponse.card:type_name -> gophkeeper.SecretBankCard
+	1, // 2: gophkeeper.SecretBankCardSaveRequest.card:type_name -> gophkeeper.SecretBankCard
+	2, // 3: gophkeeper.SecretBankCardService.List:input_type -> gophkeeper.SecretBankCardListRequest
+	4, // 4: gophkeeper.SecretBankCardService.Get:input_type -> gophkeeper.SecretBankCardGetRequest
+	6, // 5: gophkeeper.SecretBankCardService.Save:input_type -> gophkeeper.SecretBankCardSaveRequest
+	3, // 6: gophkeeper.SecretBankCardService.List:output_type -> gophkeeper.SecretBankCardListResponse
+	5, // 7: gophkeeper.SecretBankCardService.Get:output_type -> gophkeeper.SecretBankCardGetResponse
+	7, // 8: gophkeeper.SecretBankCardService.Save:output_type -> gophkeeper.SecretBankCardSaveResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_secret_bank_card_proto_init() }
@@ -307,7 +489,7 @@ func file_secret_bank_card_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_bank_card_proto_rawDesc), len(file_secret_bank_card_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

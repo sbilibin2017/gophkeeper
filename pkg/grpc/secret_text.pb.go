@@ -90,10 +90,9 @@ func (x *SecretText) GetUpdatedAt() string {
 	return ""
 }
 
-// Запрос списка текстовых секретов
+// Запрос списка текстовых секретов (без token)
 type SecretTextListRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -126,13 +125,6 @@ func (x *SecretTextListRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SecretTextListRequest.ProtoReflect.Descriptor instead.
 func (*SecretTextListRequest) Descriptor() ([]byte, []int) {
 	return file_secret_text_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *SecretTextListRequest) GetToken() string {
-	if x != nil {
-		return x.Token
-	}
-	return ""
 }
 
 // Ответ со списком текстовых секретов
@@ -180,6 +172,178 @@ func (x *SecretTextListResponse) GetItems() []*SecretText {
 	return nil
 }
 
+// Запрос для получения одного текстового секрета по имени (без token)
+type SecretTextGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextGetRequest) Reset() {
+	*x = SecretTextGetRequest{}
+	mi := &file_secret_text_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextGetRequest) ProtoMessage() {}
+
+func (x *SecretTextGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextGetRequest.ProtoReflect.Descriptor instead.
+func (*SecretTextGetRequest) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SecretTextGetRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+// Ответ для получения одного текстового секрета
+type SecretTextGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Secret        *SecretText            `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextGetResponse) Reset() {
+	*x = SecretTextGetResponse{}
+	mi := &file_secret_text_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextGetResponse) ProtoMessage() {}
+
+func (x *SecretTextGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextGetResponse.ProtoReflect.Descriptor instead.
+func (*SecretTextGetResponse) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *SecretTextGetResponse) GetSecret() *SecretText {
+	if x != nil {
+		return x.Secret
+	}
+	return nil
+}
+
+// Запрос на сохранение текстового секрета (без token)
+type SecretTextSaveRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Secret        *SecretText            `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextSaveRequest) Reset() {
+	*x = SecretTextSaveRequest{}
+	mi := &file_secret_text_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextSaveRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextSaveRequest) ProtoMessage() {}
+
+func (x *SecretTextSaveRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextSaveRequest.ProtoReflect.Descriptor instead.
+func (*SecretTextSaveRequest) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SecretTextSaveRequest) GetSecret() *SecretText {
+	if x != nil {
+		return x.Secret
+	}
+	return nil
+}
+
+// Ответ на сохранение (пустой)
+type SecretTextSaveResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextSaveResponse) Reset() {
+	*x = SecretTextSaveResponse{}
+	mi := &file_secret_text_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextSaveResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextSaveResponse) ProtoMessage() {}
+
+func (x *SecretTextSaveResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextSaveResponse.ProtoReflect.Descriptor instead.
+func (*SecretTextSaveResponse) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{6}
+}
+
 var File_secret_text_proto protoreflect.FileDescriptor
 
 const file_secret_text_proto_rawDesc = "" +
@@ -193,13 +357,22 @@ const file_secret_text_proto_rawDesc = "" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x12\n" +
 	"\x04meta\x18\x03 \x01(\tR\x04meta\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x04 \x01(\tR\tupdatedAt\"-\n" +
-	"\x15SecretTextListRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"F\n" +
+	"updated_at\x18\x04 \x01(\tR\tupdatedAt\"\x17\n" +
+	"\x15SecretTextListRequest\"F\n" +
 	"\x16SecretTextListResponse\x12,\n" +
-	"\x05items\x18\x01 \x03(\v2\x16.gophkeeper.SecretTextR\x05items2m\n" +
-	"\x11SecretTextService\x12X\n" +
-	"\x0fListTextSecrets\x12!.gophkeeper.SecretTextListRequest\x1a\".gophkeeper.SecretTextListResponseB\n" +
+	"\x05items\x18\x01 \x03(\v2\x16.gophkeeper.SecretTextR\x05items\"7\n" +
+	"\x14SecretTextGetRequest\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\"G\n" +
+	"\x15SecretTextGetResponse\x12.\n" +
+	"\x06secret\x18\x01 \x01(\v2\x16.gophkeeper.SecretTextR\x06secret\"G\n" +
+	"\x15SecretTextSaveRequest\x12.\n" +
+	"\x06secret\x18\x01 \x01(\v2\x16.gophkeeper.SecretTextR\x06secret\"\x18\n" +
+	"\x16SecretTextSaveResponse2\xfd\x01\n" +
+	"\x11SecretTextService\x12M\n" +
+	"\x04List\x12!.gophkeeper.SecretTextListRequest\x1a\".gophkeeper.SecretTextListResponse\x12J\n" +
+	"\x03Get\x12 .gophkeeper.SecretTextGetRequest\x1a!.gophkeeper.SecretTextGetResponse\x12M\n" +
+	"\x04Save\x12!.gophkeeper.SecretTextSaveRequest\x1a\".gophkeeper.SecretTextSaveResponseB\n" +
 	"Z\bpkg/grpcb\x06proto3"
 
 var (
@@ -214,21 +387,31 @@ func file_secret_text_proto_rawDescGZIP() []byte {
 	return file_secret_text_proto_rawDescData
 }
 
-var file_secret_text_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_secret_text_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_secret_text_proto_goTypes = []any{
 	(*SecretText)(nil),             // 0: gophkeeper.SecretText
 	(*SecretTextListRequest)(nil),  // 1: gophkeeper.SecretTextListRequest
 	(*SecretTextListResponse)(nil), // 2: gophkeeper.SecretTextListResponse
+	(*SecretTextGetRequest)(nil),   // 3: gophkeeper.SecretTextGetRequest
+	(*SecretTextGetResponse)(nil),  // 4: gophkeeper.SecretTextGetResponse
+	(*SecretTextSaveRequest)(nil),  // 5: gophkeeper.SecretTextSaveRequest
+	(*SecretTextSaveResponse)(nil), // 6: gophkeeper.SecretTextSaveResponse
 }
 var file_secret_text_proto_depIdxs = []int32{
 	0, // 0: gophkeeper.SecretTextListResponse.items:type_name -> gophkeeper.SecretText
-	1, // 1: gophkeeper.SecretTextService.ListTextSecrets:input_type -> gophkeeper.SecretTextListRequest
-	2, // 2: gophkeeper.SecretTextService.ListTextSecrets:output_type -> gophkeeper.SecretTextListResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 1: gophkeeper.SecretTextGetResponse.secret:type_name -> gophkeeper.SecretText
+	0, // 2: gophkeeper.SecretTextSaveRequest.secret:type_name -> gophkeeper.SecretText
+	1, // 3: gophkeeper.SecretTextService.List:input_type -> gophkeeper.SecretTextListRequest
+	3, // 4: gophkeeper.SecretTextService.Get:input_type -> gophkeeper.SecretTextGetRequest
+	5, // 5: gophkeeper.SecretTextService.Save:input_type -> gophkeeper.SecretTextSaveRequest
+	2, // 6: gophkeeper.SecretTextService.List:output_type -> gophkeeper.SecretTextListResponse
+	4, // 7: gophkeeper.SecretTextService.Get:output_type -> gophkeeper.SecretTextGetResponse
+	6, // 8: gophkeeper.SecretTextService.Save:output_type -> gophkeeper.SecretTextSaveResponse
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_secret_text_proto_init() }
@@ -242,7 +425,7 @@ func file_secret_text_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_text_proto_rawDesc), len(file_secret_text_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

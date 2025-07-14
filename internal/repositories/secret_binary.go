@@ -43,3 +43,35 @@ func (r *SecretBinaryClientSaveRepository) Save(
 	_, err := r.db.NamedExecContext(ctx, query, secret)
 	return err
 }
+
+// SecretBinaryClientListRepository предоставляет методы для чтения бинарных секретов клиента из базы данных.
+type SecretBinaryClientListRepository struct {
+	db *sqlx.DB
+}
+
+// NewSecretBinaryClientListRepository создаёт новый экземпляр SecretBinaryClientListRepository.
+func NewSecretBinaryClientListRepository(db *sqlx.DB) *SecretBinaryClientListRepository {
+	return &SecretBinaryClientListRepository{db: db}
+}
+
+// List возвращает все бинарные секреты клиента из базы данных.
+//
+// Параметры:
+//   - ctx: контекст для управления временем выполнения и отмены операции.
+//
+// Возвращает:
+//   - []models.SecretBinaryClient: список всех найденных бинарных секретов
+//   - error: ошибка, если операция завершилась неудачей
+func (r *SecretBinaryClientListRepository) List(ctx context.Context) ([]models.SecretBinaryClient, error) {
+	query := `
+		SELECT secret_name, data, meta, updated_at
+		FROM secret_binary_client;
+	`
+
+	var secrets []models.SecretBinaryClient
+	if err := r.db.SelectContext(ctx, &secrets, query); err != nil {
+		return nil, err
+	}
+
+	return secrets, nil
+}
