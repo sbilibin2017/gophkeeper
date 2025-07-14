@@ -77,7 +77,7 @@ func RegisterLoginCommand(root *cobra.Command) {
 
 			// Создание фасада в зависимости от протокола
 			switch protocol {
-			case "http":
+			case models.ProtocolTypeHTTP, models.ProtocolTypeHTTPS:
 				config, err := configs.NewClientConfig(
 					configs.WithHTTPClient(authURL),
 				)
@@ -86,7 +86,7 @@ func RegisterLoginCommand(root *cobra.Command) {
 				}
 				loginFacade = facades.NewLoginHTTPFacade(config.HTTPClient)
 
-			case "grpc":
+			case models.ProtocolTypeGRPC:
 				config, err := configs.NewClientConfig(
 					configs.WithGRPCClient(authURL),
 				)

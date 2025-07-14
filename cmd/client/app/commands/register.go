@@ -74,7 +74,7 @@ func RegisterRegisterCommand(root *cobra.Command) {
 			var config *configs.ClientConfig
 
 			switch protocol {
-			case "http":
+			case models.ProtocolTypeHTTP, models.ProtocolTypeHTTPS:
 				config, err = configs.NewClientConfig(
 					configs.WithHTTPClient(authURL),
 					configs.WithDB("gophkeeper_client.db"),
@@ -83,7 +83,7 @@ func RegisterRegisterCommand(root *cobra.Command) {
 					return fmt.Errorf("не удалось подключиться к HTTP серверу")
 				}
 
-			case "grpc":
+			case models.ProtocolTypeGRPC:
 				config, err = configs.NewClientConfig(
 					configs.WithGRPCClient(authURL),
 					configs.WithDB("gophkeeper_client.db"),
@@ -103,9 +103,9 @@ func RegisterRegisterCommand(root *cobra.Command) {
 
 			// Создаем фасад для регистрации в зависимости от протокола
 			switch protocol {
-			case models.ProtocolHTTP, models.ProtocolHTTPS:
+			case models.ProtocolTypeHTTP, models.ProtocolTypeHTTPS:
 				registerFacade = facades.NewRegisterHTTPFacade(config.HTTPClient)
-			case models.ProtocolGRPC:
+			case models.ProtocolTypeGRPC:
 				grpcClient := pb.NewAuthServiceClient(config.GRPCClient)
 				registerFacade = facades.NewRegisterGRPCFacade(grpcClient)
 			}
