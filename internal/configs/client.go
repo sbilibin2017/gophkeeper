@@ -5,11 +5,13 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
+	"google.golang.org/grpc"
 )
 
-// ClientConfig хранит конфигурацию клиента, включая владельца секрета, токен, HTTP клиент и подключение к базе данных.
+// ClientConfig хранит конфигурацию клиента, включая HTTP клиент, gRPC клиент и подключение к базе данных.
 type ClientConfig struct {
 	HTTPClient *resty.Client
+	GRPCClient *grpc.ClientConn
 	DB         *sqlx.DB
 }
 
@@ -27,13 +29,30 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 	return cfg, nil
 }
 
-// WithClient устанавливает базовый URL клиента по первому непустому значению.
+// WithHTTPClient устанавливает базовый URL клиента по первому непустому значению.
 func WithHTTPClient(baseURL ...string) ClientConfigOpt {
 	return func(cfg *ClientConfig) error {
 		for _, v := range baseURL {
 			if v != "" {
 				cfg.HTTPClient = clients.NewHTTPClient(v)
 				break
+			}
+		}
+		return nil
+	}
+}
+
+// WithGRPCClient подключает gRPC клиент по первому непустому адресу.
+func WithGRPCClient(addrs ...string) ClientConfigOpt {
+	return func(cfg *ClientConfig) error {
+		for _, addr := range addrs {
+			if addr != "" {
+				conn, err := clients.NewGRPCClient(addr)
+				if err != nil {
+					return err
+				}
+				cfg.GRPCClient = conn
+				return nil
 			}
 		}
 		return nil

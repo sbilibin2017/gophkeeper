@@ -13,6 +13,7 @@ func TestNewClientConfig(t *testing.T) {
 	assert.NotNil(t, cfg)
 	assert.Nil(t, cfg.HTTPClient)
 	assert.Nil(t, cfg.DB)
+	assert.Nil(t, cfg.GRPCClient)
 }
 
 func TestWithHTTPClient(t *testing.T) {
@@ -65,6 +66,53 @@ func TestWithDB(t *testing.T) {
 				assert.Nil(t, cfg.DB)
 			} else {
 				assert.NotNil(t, cfg.DB)
+			}
+		})
+	}
+}
+
+func TestWithGRPCClient(t *testing.T) {
+	tests := []struct {
+		name       string
+		addrs      []string
+		wantErr    bool
+		wantClient bool
+	}{
+		{
+			name:       "empty address",
+			addrs:      []string{""},
+			wantErr:    false,
+			wantClient: false,
+		},
+		{
+			name:       "invalid address", // формат адреса неверен, тут возможна ошибка
+			addrs:      []string{"%$@#@!"},
+			wantErr:    true,
+			wantClient: false,
+		},
+		{
+			name:       "valid address with no server",
+			addrs:      []string{"localhost:50051"},
+			wantErr:    false, // не будет ошибки — соединение ленивое
+			wantClient: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &ClientConfig{}
+			err := WithGRPCClient(tt.addrs...)(cfg)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			if tt.wantClient {
+				assert.NotNil(t, cfg.GRPCClient)
+			} else {
+				assert.Nil(t, cfg.GRPCClient)
 			}
 		})
 	}
