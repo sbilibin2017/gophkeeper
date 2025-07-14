@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"time"
 
@@ -37,6 +38,12 @@ func RegisterRegisterCommand(root *cobra.Command) {
 который можно использовать для дальнейших запросов.`,
 		Example: `  gophkeeper register --username=vasya --password=secret123 --auth-url=http://localhost:8080 --protocol=http`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Проверка существования файла БД
+			dbPath := "gophkeeper_client.db"
+			if _, err := os.Stat(dbPath); err == nil {
+				return fmt.Errorf("найден существующий клиент (%s); пожалуйста, выполните синхронизацию перед регистрацией или входом", dbPath)
+			}
+
 			// Проверка имени пользователя
 			if username == "" {
 				return fmt.Errorf("имя пользователя не может быть пустым")
@@ -164,6 +171,12 @@ func RegisterLoginCommand(root *cobra.Command) {
 который можно использовать для дальнейших запросов.`,
 		Example: `  gophkeeper login --username=vasya --password=secret123 --auth-url=http://localhost:8080 --protocol=http`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Проверка существования файла БД
+			dbPath := "gophkeeper_client.db"
+			if _, err := os.Stat(dbPath); err == nil {
+				return fmt.Errorf("найден существующий клиент (%s); пожалуйста, выполните синхронизацию перед регистрацией или входом", dbPath)
+			}
+
 			// Валидация username
 			if username == "" {
 				return fmt.Errorf("имя пользователя не может быть пустым")
