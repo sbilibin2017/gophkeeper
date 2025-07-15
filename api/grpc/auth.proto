@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "pkg/grpc";
+
+// Запрос для регистрации и логина
+message AuthRequest {
+  string username = 1;    // Логин пользователя
+  string password = 2; // Пароль пользователя
+}
+
+// Ответ с JWT токеном
+message AuthResponse {
+  string token = 1; // JWT токен
+}
+
+// gRPC-сервис авторизации и регистрации
+service AuthService {
+  rpc Register(AuthRequest) returns (AuthResponse); // Регистрация
+  rpc Login(AuthRequest) returns (AuthResponse);    // Аутентификация
+}
