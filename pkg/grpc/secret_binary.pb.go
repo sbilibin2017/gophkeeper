@@ -21,258 +21,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Представление бинарного секрета
-type SecretBinary struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
-	Meta          string                 `protobuf:"bytes,3,opt,name=meta,proto3" json:"meta,omitempty"`
-	UpdatedAt     string                 `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretBinary) Reset() {
-	*x = SecretBinary{}
-	mi := &file_secret_binary_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretBinary) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretBinary) ProtoMessage() {}
-
-func (x *SecretBinary) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_binary_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretBinary.ProtoReflect.Descriptor instead.
-func (*SecretBinary) Descriptor() ([]byte, []int) {
-	return file_secret_binary_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *SecretBinary) GetSecretName() string {
-	if x != nil {
-		return x.SecretName
-	}
-	return ""
-}
-
-func (x *SecretBinary) GetData() []byte {
-	if x != nil {
-		return x.Data
-	}
-	return nil
-}
-
-func (x *SecretBinary) GetMeta() string {
-	if x != nil {
-		return x.Meta
-	}
-	return ""
-}
-
-func (x *SecretBinary) GetUpdatedAt() string {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return ""
-}
-
-// Запрос списка бинарных секретов (без поля token)
-type SecretBinaryListRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretBinaryListRequest) Reset() {
-	*x = SecretBinaryListRequest{}
-	mi := &file_secret_binary_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretBinaryListRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretBinaryListRequest) ProtoMessage() {}
-
-func (x *SecretBinaryListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_binary_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretBinaryListRequest.ProtoReflect.Descriptor instead.
-func (*SecretBinaryListRequest) Descriptor() ([]byte, []int) {
-	return file_secret_binary_proto_rawDescGZIP(), []int{1}
-}
-
-// Ответ со списком бинарных секретов
-type SecretBinaryListResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*SecretBinary        `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretBinaryListResponse) Reset() {
-	*x = SecretBinaryListResponse{}
-	mi := &file_secret_binary_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretBinaryListResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretBinaryListResponse) ProtoMessage() {}
-
-func (x *SecretBinaryListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_binary_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretBinaryListResponse.ProtoReflect.Descriptor instead.
-func (*SecretBinaryListResponse) Descriptor() ([]byte, []int) {
-	return file_secret_binary_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SecretBinaryListResponse) GetItems() []*SecretBinary {
-	if x != nil {
-		return x.Items
-	}
-	return nil
-}
-
-// Запрос для получения одного бинарного секрета по имени (без поля token)
-type SecretBinaryGetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretBinaryGetRequest) Reset() {
-	*x = SecretBinaryGetRequest{}
-	mi := &file_secret_binary_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretBinaryGetRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretBinaryGetRequest) ProtoMessage() {}
-
-func (x *SecretBinaryGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_binary_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretBinaryGetRequest.ProtoReflect.Descriptor instead.
-func (*SecretBinaryGetRequest) Descriptor() ([]byte, []int) {
-	return file_secret_binary_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *SecretBinaryGetRequest) GetSecretName() string {
-	if x != nil {
-		return x.SecretName
-	}
-	return ""
-}
-
-// Ответ для получения одного бинарного секрета
-type SecretBinaryGetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Secret        *SecretBinary          `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretBinaryGetResponse) Reset() {
-	*x = SecretBinaryGetResponse{}
-	mi := &file_secret_binary_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretBinaryGetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretBinaryGetResponse) ProtoMessage() {}
-
-func (x *SecretBinaryGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_binary_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretBinaryGetResponse.ProtoReflect.Descriptor instead.
-func (*SecretBinaryGetResponse) Descriptor() ([]byte, []int) {
-	return file_secret_binary_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SecretBinaryGetResponse) GetSecret() *SecretBinary {
-	if x != nil {
-		return x.Secret
-	}
-	return nil
-}
-
-// Запрос на сохранение бинарного секрета (без поля token)
+// Запрос на сохранение бинарного секрета
 type SecretBinarySaveRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Secret        *SecretBinary          `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"` // Уникальное имя секрета
+	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`                               // Содержимое бинарного секрета
+	Meta          string                 `protobuf:"bytes,3,opt,name=meta,proto3" json:"meta,omitempty"`                               // Дополнительные метаданные (может быть пустым)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SecretBinarySaveRequest) Reset() {
 	*x = SecretBinarySaveRequest{}
-	mi := &file_secret_binary_proto_msgTypes[5]
+	mi := &file_secret_binary_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -284,7 +45,7 @@ func (x *SecretBinarySaveRequest) String() string {
 func (*SecretBinarySaveRequest) ProtoMessage() {}
 
 func (x *SecretBinarySaveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_binary_proto_msgTypes[5]
+	mi := &file_secret_binary_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -297,14 +58,28 @@ func (x *SecretBinarySaveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecretBinarySaveRequest.ProtoReflect.Descriptor instead.
 func (*SecretBinarySaveRequest) Descriptor() ([]byte, []int) {
-	return file_secret_binary_proto_rawDescGZIP(), []int{5}
+	return file_secret_binary_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SecretBinarySaveRequest) GetSecret() *SecretBinary {
+func (x *SecretBinarySaveRequest) GetSecretName() string {
 	if x != nil {
-		return x.Secret
+		return x.SecretName
+	}
+	return ""
+}
+
+func (x *SecretBinarySaveRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
 	}
 	return nil
+}
+
+func (x *SecretBinarySaveRequest) GetMeta() string {
+	if x != nil {
+		return x.Meta
+	}
+	return ""
 }
 
 // Ответ на сохранение (пустой)
@@ -316,7 +91,7 @@ type SecretBinarySaveResponse struct {
 
 func (x *SecretBinarySaveResponse) Reset() {
 	*x = SecretBinarySaveResponse{}
-	mi := &file_secret_binary_proto_msgTypes[6]
+	mi := &file_secret_binary_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -328,7 +103,7 @@ func (x *SecretBinarySaveResponse) String() string {
 func (*SecretBinarySaveResponse) ProtoMessage() {}
 
 func (x *SecretBinarySaveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_binary_proto_msgTypes[6]
+	mi := &file_secret_binary_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -341,7 +116,211 @@ func (x *SecretBinarySaveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecretBinarySaveResponse.ProtoReflect.Descriptor instead.
 func (*SecretBinarySaveResponse) Descriptor() ([]byte, []int) {
-	return file_secret_binary_proto_rawDescGZIP(), []int{6}
+	return file_secret_binary_proto_rawDescGZIP(), []int{1}
+}
+
+// Запрос для получения одного бинарного секрета по имени
+type SecretBinaryGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinaryGetRequest) Reset() {
+	*x = SecretBinaryGetRequest{}
+	mi := &file_secret_binary_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinaryGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinaryGetRequest) ProtoMessage() {}
+
+func (x *SecretBinaryGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinaryGetRequest.ProtoReflect.Descriptor instead.
+func (*SecretBinaryGetRequest) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SecretBinaryGetRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+// Ответ для получения одного бинарного секрета
+type SecretBinaryGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	SecretOwner   string                 `protobuf:"bytes,2,opt,name=secret_owner,json=secretOwner,proto3" json:"secret_owner,omitempty"` // Владелец секрета
+	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	Meta          string                 `protobuf:"bytes,4,opt,name=meta,proto3" json:"meta,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinaryGetResponse) Reset() {
+	*x = SecretBinaryGetResponse{}
+	mi := &file_secret_binary_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinaryGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinaryGetResponse) ProtoMessage() {}
+
+func (x *SecretBinaryGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinaryGetResponse.ProtoReflect.Descriptor instead.
+func (*SecretBinaryGetResponse) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SecretBinaryGetResponse) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+func (x *SecretBinaryGetResponse) GetSecretOwner() string {
+	if x != nil {
+		return x.SecretOwner
+	}
+	return ""
+}
+
+func (x *SecretBinaryGetResponse) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+func (x *SecretBinaryGetResponse) GetMeta() string {
+	if x != nil {
+		return x.Meta
+	}
+	return ""
+}
+
+func (x *SecretBinaryGetResponse) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+// Запрос на получение списка бинарных секретов
+type SecretBinaryListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinaryListRequest) Reset() {
+	*x = SecretBinaryListRequest{}
+	mi := &file_secret_binary_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinaryListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinaryListRequest) ProtoMessage() {}
+
+func (x *SecretBinaryListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinaryListRequest.ProtoReflect.Descriptor instead.
+func (*SecretBinaryListRequest) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{4}
+}
+
+// Ответ со списком бинарных секретов
+type SecretBinaryListResponse struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	Items         []*SecretBinaryGetResponse `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretBinaryListResponse) Reset() {
+	*x = SecretBinaryListResponse{}
+	mi := &file_secret_binary_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretBinaryListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretBinaryListResponse) ProtoMessage() {}
+
+func (x *SecretBinaryListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_binary_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretBinaryListResponse.ProtoReflect.Descriptor instead.
+func (*SecretBinaryListResponse) Descriptor() ([]byte, []int) {
+	return file_secret_binary_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SecretBinaryListResponse) GetItems() []*SecretBinaryGetResponse {
+	if x != nil {
+		return x.Items
+	}
+	return nil
 }
 
 var File_secret_binary_proto protoreflect.FileDescriptor
@@ -349,25 +328,27 @@ var File_secret_binary_proto protoreflect.FileDescriptor
 const file_secret_binary_proto_rawDesc = "" +
 	"\n" +
 	"\x13secret_binary.proto\x12\n" +
-	"gophkeeper\"v\n" +
-	"\fSecretBinary\x12\x1f\n" +
+	"gophkeeper\"b\n" +
+	"\x17SecretBinarySaveRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
 	"secretName\x12\x12\n" +
 	"\x04data\x18\x02 \x01(\fR\x04data\x12\x12\n" +
-	"\x04meta\x18\x03 \x01(\tR\x04meta\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\x04 \x01(\tR\tupdatedAt\"\x19\n" +
-	"\x17SecretBinaryListRequest\"J\n" +
-	"\x18SecretBinaryListResponse\x12.\n" +
-	"\x05items\x18\x01 \x03(\v2\x18.gophkeeper.SecretBinaryR\x05items\"9\n" +
+	"\x04meta\x18\x03 \x01(\tR\x04meta\"\x1a\n" +
+	"\x18SecretBinarySaveResponse\"9\n" +
 	"\x16SecretBinaryGetRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
-	"secretName\"K\n" +
-	"\x17SecretBinaryGetResponse\x120\n" +
-	"\x06secret\x18\x01 \x01(\v2\x18.gophkeeper.SecretBinaryR\x06secret\"K\n" +
-	"\x17SecretBinarySaveRequest\x120\n" +
-	"\x06secret\x18\x01 \x01(\v2\x18.gophkeeper.SecretBinaryR\x06secret\"\x1a\n" +
-	"\x18SecretBinarySaveResponse2\x8b\x02\n" +
+	"secretName\"\xa4\x01\n" +
+	"\x17SecretBinaryGetResponse\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\x12!\n" +
+	"\fsecret_owner\x18\x02 \x01(\tR\vsecretOwner\x12\x12\n" +
+	"\x04data\x18\x03 \x01(\fR\x04data\x12\x12\n" +
+	"\x04meta\x18\x04 \x01(\tR\x04meta\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\tR\tupdatedAt\"\x19\n" +
+	"\x17SecretBinaryListRequest\"U\n" +
+	"\x18SecretBinaryListResponse\x129\n" +
+	"\x05items\x18\x01 \x03(\v2#.gophkeeper.SecretBinaryGetResponseR\x05items2\x8b\x02\n" +
 	"\x13SecretBinaryService\x12Q\n" +
 	"\x04List\x12#.gophkeeper.SecretBinaryListRequest\x1a$.gophkeeper.SecretBinaryListResponse\x12N\n" +
 	"\x03Get\x12\".gophkeeper.SecretBinaryGetRequest\x1a#.gophkeeper.SecretBinaryGetResponse\x12Q\n" +
@@ -386,31 +367,28 @@ func file_secret_binary_proto_rawDescGZIP() []byte {
 	return file_secret_binary_proto_rawDescData
 }
 
-var file_secret_binary_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_secret_binary_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_secret_binary_proto_goTypes = []any{
-	(*SecretBinary)(nil),             // 0: gophkeeper.SecretBinary
-	(*SecretBinaryListRequest)(nil),  // 1: gophkeeper.SecretBinaryListRequest
-	(*SecretBinaryListResponse)(nil), // 2: gophkeeper.SecretBinaryListResponse
-	(*SecretBinaryGetRequest)(nil),   // 3: gophkeeper.SecretBinaryGetRequest
-	(*SecretBinaryGetResponse)(nil),  // 4: gophkeeper.SecretBinaryGetResponse
-	(*SecretBinarySaveRequest)(nil),  // 5: gophkeeper.SecretBinarySaveRequest
-	(*SecretBinarySaveResponse)(nil), // 6: gophkeeper.SecretBinarySaveResponse
+	(*SecretBinarySaveRequest)(nil),  // 0: gophkeeper.SecretBinarySaveRequest
+	(*SecretBinarySaveResponse)(nil), // 1: gophkeeper.SecretBinarySaveResponse
+	(*SecretBinaryGetRequest)(nil),   // 2: gophkeeper.SecretBinaryGetRequest
+	(*SecretBinaryGetResponse)(nil),  // 3: gophkeeper.SecretBinaryGetResponse
+	(*SecretBinaryListRequest)(nil),  // 4: gophkeeper.SecretBinaryListRequest
+	(*SecretBinaryListResponse)(nil), // 5: gophkeeper.SecretBinaryListResponse
 }
 var file_secret_binary_proto_depIdxs = []int32{
-	0, // 0: gophkeeper.SecretBinaryListResponse.items:type_name -> gophkeeper.SecretBinary
-	0, // 1: gophkeeper.SecretBinaryGetResponse.secret:type_name -> gophkeeper.SecretBinary
-	0, // 2: gophkeeper.SecretBinarySaveRequest.secret:type_name -> gophkeeper.SecretBinary
-	1, // 3: gophkeeper.SecretBinaryService.List:input_type -> gophkeeper.SecretBinaryListRequest
-	3, // 4: gophkeeper.SecretBinaryService.Get:input_type -> gophkeeper.SecretBinaryGetRequest
-	5, // 5: gophkeeper.SecretBinaryService.Save:input_type -> gophkeeper.SecretBinarySaveRequest
-	2, // 6: gophkeeper.SecretBinaryService.List:output_type -> gophkeeper.SecretBinaryListResponse
-	4, // 7: gophkeeper.SecretBinaryService.Get:output_type -> gophkeeper.SecretBinaryGetResponse
-	6, // 8: gophkeeper.SecretBinaryService.Save:output_type -> gophkeeper.SecretBinarySaveResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 0: gophkeeper.SecretBinaryListResponse.items:type_name -> gophkeeper.SecretBinaryGetResponse
+	4, // 1: gophkeeper.SecretBinaryService.List:input_type -> gophkeeper.SecretBinaryListRequest
+	2, // 2: gophkeeper.SecretBinaryService.Get:input_type -> gophkeeper.SecretBinaryGetRequest
+	0, // 3: gophkeeper.SecretBinaryService.Save:input_type -> gophkeeper.SecretBinarySaveRequest
+	5, // 4: gophkeeper.SecretBinaryService.List:output_type -> gophkeeper.SecretBinaryListResponse
+	3, // 5: gophkeeper.SecretBinaryService.Get:output_type -> gophkeeper.SecretBinaryGetResponse
+	1, // 6: gophkeeper.SecretBinaryService.Save:output_type -> gophkeeper.SecretBinarySaveResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_secret_binary_proto_init() }
@@ -424,7 +402,7 @@ func file_secret_binary_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_binary_proto_rawDesc), len(file_secret_binary_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

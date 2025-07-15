@@ -21,258 +21,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Представление текстового секрета
-type SecretText struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
-	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`
-	Meta          string                 `protobuf:"bytes,3,opt,name=meta,proto3" json:"meta,omitempty"`
-	UpdatedAt     string                 `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretText) Reset() {
-	*x = SecretText{}
-	mi := &file_secret_text_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretText) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretText) ProtoMessage() {}
-
-func (x *SecretText) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_text_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretText.ProtoReflect.Descriptor instead.
-func (*SecretText) Descriptor() ([]byte, []int) {
-	return file_secret_text_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *SecretText) GetSecretName() string {
-	if x != nil {
-		return x.SecretName
-	}
-	return ""
-}
-
-func (x *SecretText) GetContent() string {
-	if x != nil {
-		return x.Content
-	}
-	return ""
-}
-
-func (x *SecretText) GetMeta() string {
-	if x != nil {
-		return x.Meta
-	}
-	return ""
-}
-
-func (x *SecretText) GetUpdatedAt() string {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return ""
-}
-
-// Запрос списка текстовых секретов (без token)
-type SecretTextListRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretTextListRequest) Reset() {
-	*x = SecretTextListRequest{}
-	mi := &file_secret_text_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretTextListRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretTextListRequest) ProtoMessage() {}
-
-func (x *SecretTextListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_text_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretTextListRequest.ProtoReflect.Descriptor instead.
-func (*SecretTextListRequest) Descriptor() ([]byte, []int) {
-	return file_secret_text_proto_rawDescGZIP(), []int{1}
-}
-
-// Ответ со списком текстовых секретов
-type SecretTextListResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*SecretText          `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretTextListResponse) Reset() {
-	*x = SecretTextListResponse{}
-	mi := &file_secret_text_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretTextListResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretTextListResponse) ProtoMessage() {}
-
-func (x *SecretTextListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_text_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretTextListResponse.ProtoReflect.Descriptor instead.
-func (*SecretTextListResponse) Descriptor() ([]byte, []int) {
-	return file_secret_text_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SecretTextListResponse) GetItems() []*SecretText {
-	if x != nil {
-		return x.Items
-	}
-	return nil
-}
-
-// Запрос для получения одного текстового секрета по имени (без token)
-type SecretTextGetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretTextGetRequest) Reset() {
-	*x = SecretTextGetRequest{}
-	mi := &file_secret_text_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretTextGetRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretTextGetRequest) ProtoMessage() {}
-
-func (x *SecretTextGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_text_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretTextGetRequest.ProtoReflect.Descriptor instead.
-func (*SecretTextGetRequest) Descriptor() ([]byte, []int) {
-	return file_secret_text_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *SecretTextGetRequest) GetSecretName() string {
-	if x != nil {
-		return x.SecretName
-	}
-	return ""
-}
-
-// Ответ для получения одного текстового секрета
-type SecretTextGetResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Secret        *SecretText            `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretTextGetResponse) Reset() {
-	*x = SecretTextGetResponse{}
-	mi := &file_secret_text_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretTextGetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretTextGetResponse) ProtoMessage() {}
-
-func (x *SecretTextGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_text_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretTextGetResponse.ProtoReflect.Descriptor instead.
-func (*SecretTextGetResponse) Descriptor() ([]byte, []int) {
-	return file_secret_text_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SecretTextGetResponse) GetSecret() *SecretText {
-	if x != nil {
-		return x.Secret
-	}
-	return nil
-}
-
-// Запрос на сохранение текстового секрета (без token)
+// Запрос на сохранение текстового секрета
 type SecretTextSaveRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Secret        *SecretText            `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"` // Уникальное имя секрета
+	Content       string                 `protobuf:"bytes,2,opt,name=content,proto3" json:"content,omitempty"`                         // Текстовое содержимое секрета
+	Meta          string                 `protobuf:"bytes,3,opt,name=meta,proto3" json:"meta,omitempty"`                               // Дополнительные метаданные (может быть пустым)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SecretTextSaveRequest) Reset() {
 	*x = SecretTextSaveRequest{}
-	mi := &file_secret_text_proto_msgTypes[5]
+	mi := &file_secret_text_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -284,7 +45,7 @@ func (x *SecretTextSaveRequest) String() string {
 func (*SecretTextSaveRequest) ProtoMessage() {}
 
 func (x *SecretTextSaveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_text_proto_msgTypes[5]
+	mi := &file_secret_text_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -297,14 +58,28 @@ func (x *SecretTextSaveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecretTextSaveRequest.ProtoReflect.Descriptor instead.
 func (*SecretTextSaveRequest) Descriptor() ([]byte, []int) {
-	return file_secret_text_proto_rawDescGZIP(), []int{5}
+	return file_secret_text_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SecretTextSaveRequest) GetSecret() *SecretText {
+func (x *SecretTextSaveRequest) GetSecretName() string {
 	if x != nil {
-		return x.Secret
+		return x.SecretName
 	}
-	return nil
+	return ""
+}
+
+func (x *SecretTextSaveRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *SecretTextSaveRequest) GetMeta() string {
+	if x != nil {
+		return x.Meta
+	}
+	return ""
 }
 
 // Ответ на сохранение (пустой)
@@ -316,7 +91,7 @@ type SecretTextSaveResponse struct {
 
 func (x *SecretTextSaveResponse) Reset() {
 	*x = SecretTextSaveResponse{}
-	mi := &file_secret_text_proto_msgTypes[6]
+	mi := &file_secret_text_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -328,7 +103,7 @@ func (x *SecretTextSaveResponse) String() string {
 func (*SecretTextSaveResponse) ProtoMessage() {}
 
 func (x *SecretTextSaveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_text_proto_msgTypes[6]
+	mi := &file_secret_text_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -341,7 +116,211 @@ func (x *SecretTextSaveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecretTextSaveResponse.ProtoReflect.Descriptor instead.
 func (*SecretTextSaveResponse) Descriptor() ([]byte, []int) {
-	return file_secret_text_proto_rawDescGZIP(), []int{6}
+	return file_secret_text_proto_rawDescGZIP(), []int{1}
+}
+
+// Запрос на получение одного текстового секрета по имени
+type SecretTextGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextGetRequest) Reset() {
+	*x = SecretTextGetRequest{}
+	mi := &file_secret_text_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextGetRequest) ProtoMessage() {}
+
+func (x *SecretTextGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextGetRequest.ProtoReflect.Descriptor instead.
+func (*SecretTextGetRequest) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SecretTextGetRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+// Ответ на получение одного текстового секрета
+type SecretTextGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	SecretOwner   string                 `protobuf:"bytes,2,opt,name=secret_owner,json=secretOwner,proto3" json:"secret_owner,omitempty"` // Владелец секрета
+	Content       string                 `protobuf:"bytes,3,opt,name=content,proto3" json:"content,omitempty"`
+	Meta          string                 `protobuf:"bytes,4,opt,name=meta,proto3" json:"meta,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextGetResponse) Reset() {
+	*x = SecretTextGetResponse{}
+	mi := &file_secret_text_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextGetResponse) ProtoMessage() {}
+
+func (x *SecretTextGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextGetResponse.ProtoReflect.Descriptor instead.
+func (*SecretTextGetResponse) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SecretTextGetResponse) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+func (x *SecretTextGetResponse) GetSecretOwner() string {
+	if x != nil {
+		return x.SecretOwner
+	}
+	return ""
+}
+
+func (x *SecretTextGetResponse) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *SecretTextGetResponse) GetMeta() string {
+	if x != nil {
+		return x.Meta
+	}
+	return ""
+}
+
+func (x *SecretTextGetResponse) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+// Запрос на получение списка текстовых секретов
+type SecretTextListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextListRequest) Reset() {
+	*x = SecretTextListRequest{}
+	mi := &file_secret_text_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextListRequest) ProtoMessage() {}
+
+func (x *SecretTextListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextListRequest.ProtoReflect.Descriptor instead.
+func (*SecretTextListRequest) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{4}
+}
+
+// Ответ со списком текстовых секретов
+type SecretTextListResponse struct {
+	state         protoimpl.MessageState   `protogen:"open.v1"`
+	Items         []*SecretTextGetResponse `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretTextListResponse) Reset() {
+	*x = SecretTextListResponse{}
+	mi := &file_secret_text_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretTextListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretTextListResponse) ProtoMessage() {}
+
+func (x *SecretTextListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_text_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretTextListResponse.ProtoReflect.Descriptor instead.
+func (*SecretTextListResponse) Descriptor() ([]byte, []int) {
+	return file_secret_text_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SecretTextListResponse) GetItems() []*SecretTextGetResponse {
+	if x != nil {
+		return x.Items
+	}
+	return nil
 }
 
 var File_secret_text_proto protoreflect.FileDescriptor
@@ -349,26 +328,27 @@ var File_secret_text_proto protoreflect.FileDescriptor
 const file_secret_text_proto_rawDesc = "" +
 	"\n" +
 	"\x11secret_text.proto\x12\n" +
-	"gophkeeper\"z\n" +
-	"\n" +
-	"SecretText\x12\x1f\n" +
+	"gophkeeper\"f\n" +
+	"\x15SecretTextSaveRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
 	"secretName\x12\x18\n" +
 	"\acontent\x18\x02 \x01(\tR\acontent\x12\x12\n" +
-	"\x04meta\x18\x03 \x01(\tR\x04meta\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\x04 \x01(\tR\tupdatedAt\"\x17\n" +
-	"\x15SecretTextListRequest\"F\n" +
-	"\x16SecretTextListResponse\x12,\n" +
-	"\x05items\x18\x01 \x03(\v2\x16.gophkeeper.SecretTextR\x05items\"7\n" +
+	"\x04meta\x18\x03 \x01(\tR\x04meta\"\x18\n" +
+	"\x16SecretTextSaveResponse\"7\n" +
 	"\x14SecretTextGetRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
-	"secretName\"G\n" +
-	"\x15SecretTextGetResponse\x12.\n" +
-	"\x06secret\x18\x01 \x01(\v2\x16.gophkeeper.SecretTextR\x06secret\"G\n" +
-	"\x15SecretTextSaveRequest\x12.\n" +
-	"\x06secret\x18\x01 \x01(\v2\x16.gophkeeper.SecretTextR\x06secret\"\x18\n" +
-	"\x16SecretTextSaveResponse2\xfd\x01\n" +
+	"secretName\"\xa8\x01\n" +
+	"\x15SecretTextGetResponse\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\x12!\n" +
+	"\fsecret_owner\x18\x02 \x01(\tR\vsecretOwner\x12\x18\n" +
+	"\acontent\x18\x03 \x01(\tR\acontent\x12\x12\n" +
+	"\x04meta\x18\x04 \x01(\tR\x04meta\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\tR\tupdatedAt\"\x17\n" +
+	"\x15SecretTextListRequest\"Q\n" +
+	"\x16SecretTextListResponse\x127\n" +
+	"\x05items\x18\x01 \x03(\v2!.gophkeeper.SecretTextGetResponseR\x05items2\xfd\x01\n" +
 	"\x11SecretTextService\x12M\n" +
 	"\x04List\x12!.gophkeeper.SecretTextListRequest\x1a\".gophkeeper.SecretTextListResponse\x12J\n" +
 	"\x03Get\x12 .gophkeeper.SecretTextGetRequest\x1a!.gophkeeper.SecretTextGetResponse\x12M\n" +
@@ -387,31 +367,28 @@ func file_secret_text_proto_rawDescGZIP() []byte {
 	return file_secret_text_proto_rawDescData
 }
 
-var file_secret_text_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_secret_text_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_secret_text_proto_goTypes = []any{
-	(*SecretText)(nil),             // 0: gophkeeper.SecretText
-	(*SecretTextListRequest)(nil),  // 1: gophkeeper.SecretTextListRequest
-	(*SecretTextListResponse)(nil), // 2: gophkeeper.SecretTextListResponse
-	(*SecretTextGetRequest)(nil),   // 3: gophkeeper.SecretTextGetRequest
-	(*SecretTextGetResponse)(nil),  // 4: gophkeeper.SecretTextGetResponse
-	(*SecretTextSaveRequest)(nil),  // 5: gophkeeper.SecretTextSaveRequest
-	(*SecretTextSaveResponse)(nil), // 6: gophkeeper.SecretTextSaveResponse
+	(*SecretTextSaveRequest)(nil),  // 0: gophkeeper.SecretTextSaveRequest
+	(*SecretTextSaveResponse)(nil), // 1: gophkeeper.SecretTextSaveResponse
+	(*SecretTextGetRequest)(nil),   // 2: gophkeeper.SecretTextGetRequest
+	(*SecretTextGetResponse)(nil),  // 3: gophkeeper.SecretTextGetResponse
+	(*SecretTextListRequest)(nil),  // 4: gophkeeper.SecretTextListRequest
+	(*SecretTextListResponse)(nil), // 5: gophkeeper.SecretTextListResponse
 }
 var file_secret_text_proto_depIdxs = []int32{
-	0, // 0: gophkeeper.SecretTextListResponse.items:type_name -> gophkeeper.SecretText
-	0, // 1: gophkeeper.SecretTextGetResponse.secret:type_name -> gophkeeper.SecretText
-	0, // 2: gophkeeper.SecretTextSaveRequest.secret:type_name -> gophkeeper.SecretText
-	1, // 3: gophkeeper.SecretTextService.List:input_type -> gophkeeper.SecretTextListRequest
-	3, // 4: gophkeeper.SecretTextService.Get:input_type -> gophkeeper.SecretTextGetRequest
-	5, // 5: gophkeeper.SecretTextService.Save:input_type -> gophkeeper.SecretTextSaveRequest
-	2, // 6: gophkeeper.SecretTextService.List:output_type -> gophkeeper.SecretTextListResponse
-	4, // 7: gophkeeper.SecretTextService.Get:output_type -> gophkeeper.SecretTextGetResponse
-	6, // 8: gophkeeper.SecretTextService.Save:output_type -> gophkeeper.SecretTextSaveResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 0: gophkeeper.SecretTextListResponse.items:type_name -> gophkeeper.SecretTextGetResponse
+	4, // 1: gophkeeper.SecretTextService.List:input_type -> gophkeeper.SecretTextListRequest
+	2, // 2: gophkeeper.SecretTextService.Get:input_type -> gophkeeper.SecretTextGetRequest
+	0, // 3: gophkeeper.SecretTextService.Save:input_type -> gophkeeper.SecretTextSaveRequest
+	5, // 4: gophkeeper.SecretTextService.List:output_type -> gophkeeper.SecretTextListResponse
+	3, // 5: gophkeeper.SecretTextService.Get:output_type -> gophkeeper.SecretTextGetResponse
+	1, // 6: gophkeeper.SecretTextService.Save:output_type -> gophkeeper.SecretTextSaveResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_secret_text_proto_init() }
@@ -425,7 +402,7 @@ func file_secret_text_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_text_proto_rawDesc), len(file_secret_text_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -21,266 +21,20 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Представление секрета с логином и паролем
-type SecretUsernamePassword struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
-	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
-	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
-	Meta          string                 `protobuf:"bytes,4,opt,name=meta,proto3" json:"meta,omitempty"`
-	UpdatedAt     string                 `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretUsernamePassword) Reset() {
-	*x = SecretUsernamePassword{}
-	mi := &file_secret_username_password_proto_msgTypes[0]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretUsernamePassword) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretUsernamePassword) ProtoMessage() {}
-
-func (x *SecretUsernamePassword) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_username_password_proto_msgTypes[0]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretUsernamePassword.ProtoReflect.Descriptor instead.
-func (*SecretUsernamePassword) Descriptor() ([]byte, []int) {
-	return file_secret_username_password_proto_rawDescGZIP(), []int{0}
-}
-
-func (x *SecretUsernamePassword) GetSecretName() string {
-	if x != nil {
-		return x.SecretName
-	}
-	return ""
-}
-
-func (x *SecretUsernamePassword) GetUsername() string {
-	if x != nil {
-		return x.Username
-	}
-	return ""
-}
-
-func (x *SecretUsernamePassword) GetPassword() string {
-	if x != nil {
-		return x.Password
-	}
-	return ""
-}
-
-func (x *SecretUsernamePassword) GetMeta() string {
-	if x != nil {
-		return x.Meta
-	}
-	return ""
-}
-
-func (x *SecretUsernamePassword) GetUpdatedAt() string {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return ""
-}
-
-// Запрос списка секретов с логином и паролем (без token)
-type SecretUsernamePasswordListRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretUsernamePasswordListRequest) Reset() {
-	*x = SecretUsernamePasswordListRequest{}
-	mi := &file_secret_username_password_proto_msgTypes[1]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretUsernamePasswordListRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretUsernamePasswordListRequest) ProtoMessage() {}
-
-func (x *SecretUsernamePasswordListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_username_password_proto_msgTypes[1]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretUsernamePasswordListRequest.ProtoReflect.Descriptor instead.
-func (*SecretUsernamePasswordListRequest) Descriptor() ([]byte, []int) {
-	return file_secret_username_password_proto_rawDescGZIP(), []int{1}
-}
-
-// Ответ со списком секретов с логином и паролем
-type SecretUsernamePasswordListResponse struct {
-	state         protoimpl.MessageState    `protogen:"open.v1"`
-	Items         []*SecretUsernamePassword `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretUsernamePasswordListResponse) Reset() {
-	*x = SecretUsernamePasswordListResponse{}
-	mi := &file_secret_username_password_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretUsernamePasswordListResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretUsernamePasswordListResponse) ProtoMessage() {}
-
-func (x *SecretUsernamePasswordListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_username_password_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretUsernamePasswordListResponse.ProtoReflect.Descriptor instead.
-func (*SecretUsernamePasswordListResponse) Descriptor() ([]byte, []int) {
-	return file_secret_username_password_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *SecretUsernamePasswordListResponse) GetItems() []*SecretUsernamePassword {
-	if x != nil {
-		return x.Items
-	}
-	return nil
-}
-
-// Запрос для получения одного секрета по имени (без token)
-type SecretUsernamePasswordGetRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretUsernamePasswordGetRequest) Reset() {
-	*x = SecretUsernamePasswordGetRequest{}
-	mi := &file_secret_username_password_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretUsernamePasswordGetRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretUsernamePasswordGetRequest) ProtoMessage() {}
-
-func (x *SecretUsernamePasswordGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_username_password_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretUsernamePasswordGetRequest.ProtoReflect.Descriptor instead.
-func (*SecretUsernamePasswordGetRequest) Descriptor() ([]byte, []int) {
-	return file_secret_username_password_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *SecretUsernamePasswordGetRequest) GetSecretName() string {
-	if x != nil {
-		return x.SecretName
-	}
-	return ""
-}
-
-// Ответ для получения одного секрета
-type SecretUsernamePasswordGetResponse struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Secret        *SecretUsernamePassword `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SecretUsernamePasswordGetResponse) Reset() {
-	*x = SecretUsernamePasswordGetResponse{}
-	mi := &file_secret_username_password_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SecretUsernamePasswordGetResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SecretUsernamePasswordGetResponse) ProtoMessage() {}
-
-func (x *SecretUsernamePasswordGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_username_password_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SecretUsernamePasswordGetResponse.ProtoReflect.Descriptor instead.
-func (*SecretUsernamePasswordGetResponse) Descriptor() ([]byte, []int) {
-	return file_secret_username_password_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *SecretUsernamePasswordGetResponse) GetSecret() *SecretUsernamePassword {
-	if x != nil {
-		return x.Secret
-	}
-	return nil
-}
-
-// Запрос на сохранение секрета (без token)
+// Запрос на сохранение секрета с логином и паролем
 type SecretUsernamePasswordSaveRequest struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	Secret        *SecretUsernamePassword `protobuf:"bytes,1,opt,name=secret,proto3" json:"secret,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"` // Уникальное имя секрета
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`                       // Логин
+	Password      string                 `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`                       // Пароль
+	Meta          string                 `protobuf:"bytes,4,opt,name=meta,proto3" json:"meta,omitempty"`                               // Дополнительные метаданные (может быть пустым)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SecretUsernamePasswordSaveRequest) Reset() {
 	*x = SecretUsernamePasswordSaveRequest{}
-	mi := &file_secret_username_password_proto_msgTypes[5]
+	mi := &file_secret_username_password_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -292,7 +46,7 @@ func (x *SecretUsernamePasswordSaveRequest) String() string {
 func (*SecretUsernamePasswordSaveRequest) ProtoMessage() {}
 
 func (x *SecretUsernamePasswordSaveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_username_password_proto_msgTypes[5]
+	mi := &file_secret_username_password_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -305,14 +59,35 @@ func (x *SecretUsernamePasswordSaveRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use SecretUsernamePasswordSaveRequest.ProtoReflect.Descriptor instead.
 func (*SecretUsernamePasswordSaveRequest) Descriptor() ([]byte, []int) {
-	return file_secret_username_password_proto_rawDescGZIP(), []int{5}
+	return file_secret_username_password_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *SecretUsernamePasswordSaveRequest) GetSecret() *SecretUsernamePassword {
+func (x *SecretUsernamePasswordSaveRequest) GetSecretName() string {
 	if x != nil {
-		return x.Secret
+		return x.SecretName
 	}
-	return nil
+	return ""
+}
+
+func (x *SecretUsernamePasswordSaveRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *SecretUsernamePasswordSaveRequest) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *SecretUsernamePasswordSaveRequest) GetMeta() string {
+	if x != nil {
+		return x.Meta
+	}
+	return ""
 }
 
 // Ответ на сохранение (пустой)
@@ -324,7 +99,7 @@ type SecretUsernamePasswordSaveResponse struct {
 
 func (x *SecretUsernamePasswordSaveResponse) Reset() {
 	*x = SecretUsernamePasswordSaveResponse{}
-	mi := &file_secret_username_password_proto_msgTypes[6]
+	mi := &file_secret_username_password_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -336,7 +111,7 @@ func (x *SecretUsernamePasswordSaveResponse) String() string {
 func (*SecretUsernamePasswordSaveResponse) ProtoMessage() {}
 
 func (x *SecretUsernamePasswordSaveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_username_password_proto_msgTypes[6]
+	mi := &file_secret_username_password_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -349,7 +124,219 @@ func (x *SecretUsernamePasswordSaveResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use SecretUsernamePasswordSaveResponse.ProtoReflect.Descriptor instead.
 func (*SecretUsernamePasswordSaveResponse) Descriptor() ([]byte, []int) {
-	return file_secret_username_password_proto_rawDescGZIP(), []int{6}
+	return file_secret_username_password_proto_rawDescGZIP(), []int{1}
+}
+
+// Запрос на получение одного секрета по имени
+type SecretUsernamePasswordGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretUsernamePasswordGetRequest) Reset() {
+	*x = SecretUsernamePasswordGetRequest{}
+	mi := &file_secret_username_password_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretUsernamePasswordGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretUsernamePasswordGetRequest) ProtoMessage() {}
+
+func (x *SecretUsernamePasswordGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_username_password_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretUsernamePasswordGetRequest.ProtoReflect.Descriptor instead.
+func (*SecretUsernamePasswordGetRequest) Descriptor() ([]byte, []int) {
+	return file_secret_username_password_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SecretUsernamePasswordGetRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+// Ответ на получение одного секрета
+type SecretUsernamePasswordGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	SecretOwner   string                 `protobuf:"bytes,2,opt,name=secret_owner,json=secretOwner,proto3" json:"secret_owner,omitempty"` // Владелец секрета
+	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
+	Password      string                 `protobuf:"bytes,4,opt,name=password,proto3" json:"password,omitempty"`
+	Meta          string                 `protobuf:"bytes,5,opt,name=meta,proto3" json:"meta,omitempty"`
+	UpdatedAt     string                 `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretUsernamePasswordGetResponse) Reset() {
+	*x = SecretUsernamePasswordGetResponse{}
+	mi := &file_secret_username_password_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretUsernamePasswordGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretUsernamePasswordGetResponse) ProtoMessage() {}
+
+func (x *SecretUsernamePasswordGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_username_password_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretUsernamePasswordGetResponse.ProtoReflect.Descriptor instead.
+func (*SecretUsernamePasswordGetResponse) Descriptor() ([]byte, []int) {
+	return file_secret_username_password_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SecretUsernamePasswordGetResponse) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+func (x *SecretUsernamePasswordGetResponse) GetSecretOwner() string {
+	if x != nil {
+		return x.SecretOwner
+	}
+	return ""
+}
+
+func (x *SecretUsernamePasswordGetResponse) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *SecretUsernamePasswordGetResponse) GetPassword() string {
+	if x != nil {
+		return x.Password
+	}
+	return ""
+}
+
+func (x *SecretUsernamePasswordGetResponse) GetMeta() string {
+	if x != nil {
+		return x.Meta
+	}
+	return ""
+}
+
+func (x *SecretUsernamePasswordGetResponse) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+// Запрос на получение списка секретов
+type SecretUsernamePasswordListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretUsernamePasswordListRequest) Reset() {
+	*x = SecretUsernamePasswordListRequest{}
+	mi := &file_secret_username_password_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretUsernamePasswordListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretUsernamePasswordListRequest) ProtoMessage() {}
+
+func (x *SecretUsernamePasswordListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_username_password_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretUsernamePasswordListRequest.ProtoReflect.Descriptor instead.
+func (*SecretUsernamePasswordListRequest) Descriptor() ([]byte, []int) {
+	return file_secret_username_password_proto_rawDescGZIP(), []int{4}
+}
+
+// Ответ со списком секретов
+type SecretUsernamePasswordListResponse struct {
+	state         protoimpl.MessageState               `protogen:"open.v1"`
+	Items         []*SecretUsernamePasswordGetResponse `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretUsernamePasswordListResponse) Reset() {
+	*x = SecretUsernamePasswordListResponse{}
+	mi := &file_secret_username_password_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretUsernamePasswordListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretUsernamePasswordListResponse) ProtoMessage() {}
+
+func (x *SecretUsernamePasswordListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_username_password_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretUsernamePasswordListResponse.ProtoReflect.Descriptor instead.
+func (*SecretUsernamePasswordListResponse) Descriptor() ([]byte, []int) {
+	return file_secret_username_password_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *SecretUsernamePasswordListResponse) GetItems() []*SecretUsernamePasswordGetResponse {
+	if x != nil {
+		return x.Items
+	}
+	return nil
 }
 
 var File_secret_username_password_proto protoreflect.FileDescriptor
@@ -357,26 +344,29 @@ var File_secret_username_password_proto protoreflect.FileDescriptor
 const file_secret_username_password_proto_rawDesc = "" +
 	"\n" +
 	"\x1esecret_username_password.proto\x12\n" +
-	"gophkeeper\"\xa4\x01\n" +
-	"\x16SecretUsernamePassword\x12\x1f\n" +
+	"gophkeeper\"\x90\x01\n" +
+	"!SecretUsernamePasswordSaveRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
 	"secretName\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x03 \x01(\tR\bpassword\x12\x12\n" +
-	"\x04meta\x18\x04 \x01(\tR\x04meta\x12\x1d\n" +
-	"\n" +
-	"updated_at\x18\x05 \x01(\tR\tupdatedAt\"#\n" +
-	"!SecretUsernamePasswordListRequest\"^\n" +
-	"\"SecretUsernamePasswordListResponse\x128\n" +
-	"\x05items\x18\x01 \x03(\v2\".gophkeeper.SecretUsernamePasswordR\x05items\"C\n" +
+	"\x04meta\x18\x04 \x01(\tR\x04meta\"$\n" +
+	"\"SecretUsernamePasswordSaveResponse\"C\n" +
 	" SecretUsernamePasswordGetRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
-	"secretName\"_\n" +
-	"!SecretUsernamePasswordGetResponse\x12:\n" +
-	"\x06secret\x18\x01 \x01(\v2\".gophkeeper.SecretUsernamePasswordR\x06secret\"_\n" +
-	"!SecretUsernamePasswordSaveRequest\x12:\n" +
-	"\x06secret\x18\x01 \x01(\v2\".gophkeeper.SecretUsernamePasswordR\x06secret\"$\n" +
-	"\"SecretUsernamePasswordSaveResponse2\xd1\x02\n" +
+	"secretName\"\xd2\x01\n" +
+	"!SecretUsernamePasswordGetResponse\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\x12!\n" +
+	"\fsecret_owner\x18\x02 \x01(\tR\vsecretOwner\x12\x1a\n" +
+	"\busername\x18\x03 \x01(\tR\busername\x12\x1a\n" +
+	"\bpassword\x18\x04 \x01(\tR\bpassword\x12\x12\n" +
+	"\x04meta\x18\x05 \x01(\tR\x04meta\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\tR\tupdatedAt\"#\n" +
+	"!SecretUsernamePasswordListRequest\"i\n" +
+	"\"SecretUsernamePasswordListResponse\x12C\n" +
+	"\x05items\x18\x01 \x03(\v2-.gophkeeper.SecretUsernamePasswordGetResponseR\x05items2\xd1\x02\n" +
 	"\x1dSecretUsernamePasswordService\x12e\n" +
 	"\x04List\x12-.gophkeeper.SecretUsernamePasswordListRequest\x1a..gophkeeper.SecretUsernamePasswordListResponse\x12b\n" +
 	"\x03Get\x12,.gophkeeper.SecretUsernamePasswordGetRequest\x1a-.gophkeeper.SecretUsernamePasswordGetResponse\x12e\n" +
@@ -395,31 +385,28 @@ func file_secret_username_password_proto_rawDescGZIP() []byte {
 	return file_secret_username_password_proto_rawDescData
 }
 
-var file_secret_username_password_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_secret_username_password_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_secret_username_password_proto_goTypes = []any{
-	(*SecretUsernamePassword)(nil),             // 0: gophkeeper.SecretUsernamePassword
-	(*SecretUsernamePasswordListRequest)(nil),  // 1: gophkeeper.SecretUsernamePasswordListRequest
-	(*SecretUsernamePasswordListResponse)(nil), // 2: gophkeeper.SecretUsernamePasswordListResponse
-	(*SecretUsernamePasswordGetRequest)(nil),   // 3: gophkeeper.SecretUsernamePasswordGetRequest
-	(*SecretUsernamePasswordGetResponse)(nil),  // 4: gophkeeper.SecretUsernamePasswordGetResponse
-	(*SecretUsernamePasswordSaveRequest)(nil),  // 5: gophkeeper.SecretUsernamePasswordSaveRequest
-	(*SecretUsernamePasswordSaveResponse)(nil), // 6: gophkeeper.SecretUsernamePasswordSaveResponse
+	(*SecretUsernamePasswordSaveRequest)(nil),  // 0: gophkeeper.SecretUsernamePasswordSaveRequest
+	(*SecretUsernamePasswordSaveResponse)(nil), // 1: gophkeeper.SecretUsernamePasswordSaveResponse
+	(*SecretUsernamePasswordGetRequest)(nil),   // 2: gophkeeper.SecretUsernamePasswordGetRequest
+	(*SecretUsernamePasswordGetResponse)(nil),  // 3: gophkeeper.SecretUsernamePasswordGetResponse
+	(*SecretUsernamePasswordListRequest)(nil),  // 4: gophkeeper.SecretUsernamePasswordListRequest
+	(*SecretUsernamePasswordListResponse)(nil), // 5: gophkeeper.SecretUsernamePasswordListResponse
 }
 var file_secret_username_password_proto_depIdxs = []int32{
-	0, // 0: gophkeeper.SecretUsernamePasswordListResponse.items:type_name -> gophkeeper.SecretUsernamePassword
-	0, // 1: gophkeeper.SecretUsernamePasswordGetResponse.secret:type_name -> gophkeeper.SecretUsernamePassword
-	0, // 2: gophkeeper.SecretUsernamePasswordSaveRequest.secret:type_name -> gophkeeper.SecretUsernamePassword
-	1, // 3: gophkeeper.SecretUsernamePasswordService.List:input_type -> gophkeeper.SecretUsernamePasswordListRequest
-	3, // 4: gophkeeper.SecretUsernamePasswordService.Get:input_type -> gophkeeper.SecretUsernamePasswordGetRequest
-	5, // 5: gophkeeper.SecretUsernamePasswordService.Save:input_type -> gophkeeper.SecretUsernamePasswordSaveRequest
-	2, // 6: gophkeeper.SecretUsernamePasswordService.List:output_type -> gophkeeper.SecretUsernamePasswordListResponse
-	4, // 7: gophkeeper.SecretUsernamePasswordService.Get:output_type -> gophkeeper.SecretUsernamePasswordGetResponse
-	6, // 8: gophkeeper.SecretUsernamePasswordService.Save:output_type -> gophkeeper.SecretUsernamePasswordSaveResponse
-	6, // [6:9] is the sub-list for method output_type
-	3, // [3:6] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	3, // 0: gophkeeper.SecretUsernamePasswordListResponse.items:type_name -> gophkeeper.SecretUsernamePasswordGetResponse
+	4, // 1: gophkeeper.SecretUsernamePasswordService.List:input_type -> gophkeeper.SecretUsernamePasswordListRequest
+	2, // 2: gophkeeper.SecretUsernamePasswordService.Get:input_type -> gophkeeper.SecretUsernamePasswordGetRequest
+	0, // 3: gophkeeper.SecretUsernamePasswordService.Save:input_type -> gophkeeper.SecretUsernamePasswordSaveRequest
+	5, // 4: gophkeeper.SecretUsernamePasswordService.List:output_type -> gophkeeper.SecretUsernamePasswordListResponse
+	3, // 5: gophkeeper.SecretUsernamePasswordService.Get:output_type -> gophkeeper.SecretUsernamePasswordGetResponse
+	1, // 6: gophkeeper.SecretUsernamePasswordService.Save:output_type -> gophkeeper.SecretUsernamePasswordSaveResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_secret_username_password_proto_init() }
@@ -433,7 +420,7 @@ func file_secret_username_password_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_username_password_proto_rawDesc), len(file_secret_username_password_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

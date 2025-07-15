@@ -1,6 +1,8 @@
 package configs
 
 import (
+	"encoding/json"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients"
@@ -8,14 +10,14 @@ import (
 	"google.golang.org/grpc"
 )
 
-// ClientConfig хранит конфигурацию клиента, включая HTTP клиент, gRPC клиент и подключение к базе данных.
+// Config хранит конфигурацию клиента, включая HTTP клиент, gRPC клиент и подключение к базе данных.
 type ClientConfig struct {
 	HTTPClient *resty.Client
 	GRPCClient *grpc.ClientConn
 	DB         *sqlx.DB
 }
 
-// ClientConfigOpt определяет функцию опции конфигурации клиента.
+// Opt определяет функцию опции конфигурации клиента.
 type ClientConfigOpt func(*ClientConfig) error
 
 // NewClientConfig создает новый ClientConfig и применяет к нему переданные опции.
@@ -30,7 +32,7 @@ func NewClientConfig(opts ...ClientConfigOpt) (*ClientConfig, error) {
 }
 
 // WithHTTPClient устанавливает базовый URL клиента по первому непустому значению.
-func WithHTTPClient(baseURL ...string) ClientConfigOpt {
+func WithClientConfigHTTPClient(baseURL ...string) ClientConfigOpt {
 	return func(cfg *ClientConfig) error {
 		for _, v := range baseURL {
 			if v != "" {
@@ -43,7 +45,7 @@ func WithHTTPClient(baseURL ...string) ClientConfigOpt {
 }
 
 // WithGRPCClient подключает gRPC клиент по первому непустому адресу.
-func WithGRPCClient(addrs ...string) ClientConfigOpt {
+func WithClientConfigGRPCClient(addrs ...string) ClientConfigOpt {
 	return func(cfg *ClientConfig) error {
 		for _, addr := range addrs {
 			if addr != "" {
@@ -60,7 +62,7 @@ func WithGRPCClient(addrs ...string) ClientConfigOpt {
 }
 
 // WithDB подключает базу данных по первому непустому dsn.
-func WithDB(dsn ...string) ClientConfigOpt {
+func WithClientConfigDB(dsn ...string) ClientConfigOpt {
 	return func(cfg *ClientConfig) error {
 		for _, v := range dsn {
 			if v != "" {
@@ -74,4 +76,25 @@ func WithDB(dsn ...string) ClientConfigOpt {
 		}
 		return nil
 	}
+}
+
+// PrepareMetaJSON парсит JSON-строку meta и возвращает её обратно в *string.
+// Проверяет корректность JSON, возвращает ошибку, если невалидно.
+func PrepareMetaJSON(meta string) (*string, error) {
+	if meta == "" {
+		return nil, nil
+	}
+
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(meta), &parsed); err != nil {
+		return nil, err
+	}
+
+	b, err := json.Marshal(parsed)
+	if err != nil {
+		return nil, err
+	}
+
+	s := string(b)
+	return &s, nil
 }

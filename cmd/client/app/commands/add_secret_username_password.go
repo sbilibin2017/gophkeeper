@@ -2,25 +2,16 @@ package commands
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/flags"
+	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
-	"github.com/sbilibin2017/gophkeeper/internal/repositories"
+
 	"github.com/spf13/cobra"
 )
 
-// RegisterAddSecretUsernamePasswordCommand регистрирует команду add-username-password,
-// которая добавляет секрет с логином и паролем.
-//
-// Параметры команды:
-//
-//	--secret-name (обязательный) — название секрета
-//	--username    (обязательный) — имя пользователя
-//	--password    (обязательный) — пароль
-//	--meta        (необязательный) — дополнительные данные в формате JSON
 func RegisterAddSecretUsernamePasswordCommand(root *cobra.Command) {
 	var secretName string
 	var username string
@@ -31,39 +22,51 @@ func RegisterAddSecretUsernamePasswordCommand(root *cobra.Command) {
 		Use:   "add-secret-username-password",
 		Short: "Добавить секрет: логин и пароль",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config, err := configs.NewClientConfig(
-				configs.WithDB("gophkeeper.db"),
-			)
-			if err != nil {
-				return err
+			if secretName == "" {
+				return errors.New("ошибка: параметр --secret-name обязателен")
+			}
+			if username == "" {
+				return errors.New("ошибка: параметр --username обязателен")
+			}
+			if password == "" {
+				return errors.New("ошибка: параметр --password обязателен")
 			}
 
-			metaJSON, err := flags.PrepareMetaJSON(meta)
+			cfg, err := configs.NewClientConfig(
+				configs.WithClientConfigDB("gophkeeper.db"),
+			)
 			if err != nil {
-				return fmt.Errorf("не удалось распарсить meta")
+				return errors.New("ошибка: не удалось инициализировать конфигурацию клиента")
+			}
+
+			metaJSON, err := configs.PrepareMetaJSON(meta)
+			if err != nil {
+				return errors.New("ошибка: неверный формат параметра --meta")
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			repo := repositories.NewSecretUsernamePasswordClientSaveRepository(config.DB)
-
-			secret := models.SecretUsernamePasswordClient{
+			secret := models.SecretUsernamePasswordSaveRequest{
 				SecretName: secretName,
 				Username:   username,
 				Password:   password,
 				Meta:       metaJSON,
-				UpdatedAt:  time.Now(),
 			}
 
-			return repo.Save(ctx, secret)
+			err = client.SaveSecretUsernamePasswordRequest(ctx, cfg.DB, secret)
+			if err != nil {
+				return errors.New("ошибка: не удалось сохранить данные в базу")
+			}
+
+			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&secretName, "secret-name", "", "Название секрета (обязательный параметр)")
-	cmd.Flags().StringVar(&username, "username", "", "Имя пользователя (обязательный параметр)")
-	cmd.Flags().StringVar(&password, "password", "", "Пароль (обязательный параметр)")
-	cmd.Flags().StringVar(&meta, "meta", "", "Дополнительные данные в формате JSON (необязательно)")
+	cmd.Flags().StringVar(&secretName, "secret-name", "", "Имя секрета (обязательно)")
+	cmd.Flags().StringVar(&username, "username", "", "Имя пользователя (обязательно)")
+	cmd.Flags().StringVar(&password, "password", "", "Пароль (обязательно)")
+	cmd.Flags().StringVar(&meta, "meta", "", "Доп. метаданные JSON (необязательно)")
 
 	_ = cmd.MarkFlagRequired("secret-name")
 	_ = cmd.MarkFlagRequired("username")

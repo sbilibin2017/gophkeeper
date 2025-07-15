@@ -8,123 +8,61 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
-	"github.com/sbilibin2017/gophkeeper/internal/facades"
+	"github.com/sbilibin2017/gophkeeper/internal/configs/protocol"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/spf13/cobra"
 
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// RegisterRegisterCommand добавляет в корневую команду подкоманду "register",
-// которая производит регистрацию пользователя через HTTP или gRPC.
-// Флаги:
-//
-//	--username  (обязательный) имя пользователя (только буквы и цифры)
-//	--password  (обязательный) пароль (не менее 6 символов)
-//	--auth-url  (обязательный) адрес сервера аутентификации
-//	--protocol  протокол связи с сервером: "http" (по умолчанию) или "grpc"
 func RegisterRegisterCommand(root *cobra.Command) {
-	var username string
-	var password string
-	var authURL string
-	var protocol string
+	var username, password, authURL string
 
 	cmd := &cobra.Command{
 		Use:   "register",
 		Short: "Регистрация пользователя",
-		Long: `Производит регистрацию пользователя по имени и паролю.
-После успешной регистрации клиент получает токен авторизации,
-который можно использовать для дальнейших запросов.`,
-		Example: `  gophkeeper register --username=vasya --password=secret123 --auth-url=http://localhost:8080 --protocol=http`,
+		Long:  `Регистрация пользователя и получение токена авторизации.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Проверка существования файла БД
-			dbPath := "gophkeeper_client.db"
+			dbPath := "gophkeeper.db"
 			if _, err := os.Stat(dbPath); err == nil {
-				return fmt.Errorf("найден существующий клиент (%s); пожалуйста, выполните синхронизацию перед регистрацией или входом", dbPath)
+				return fmt.Errorf("найден существующий клиент (%s); выполните синхронизацию или вход", dbPath)
 			}
 
-			// Проверка имени пользователя
-			if username == "" {
-				return fmt.Errorf("имя пользователя не может быть пустым")
-			}
-			matched, err := regexp.MatchString(`^[a-zA-Z0-9]+$`, username)
-			if err != nil {
-				return fmt.Errorf("ошибка при проверке имени пользователя")
-			}
-			if !matched {
-				return fmt.Errorf("имя пользователя должно содержать только буквы и цифры (a-z, A-Z, 0-9)")
-			}
-
-			// Проверка пароля
-			if len(password) < 6 {
-				return fmt.Errorf("пароль должен содержать не менее 6 символов")
-			}
-
-			// Проверка адреса сервера
-			if authURL == "" {
-				return fmt.Errorf("адрес сервера не может быть пустым")
-			}
-
-			// Проверка протокола
-			if protocol != "http" && protocol != "grpc" {
-				return fmt.Errorf("протокол должен быть 'http' или 'grpc'")
+			if err := validateInput(username, password, authURL); err != nil {
+				return err
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			var registerFacade interface {
-				Register(context.Context, *models.AuthRequest) (string, error)
-			}
+			p := protocol.GetProtocolFromURL(authURL)
 
-			var config *configs.ClientConfig
-
-			switch protocol {
-			case models.ProtocolTypeHTTP, models.ProtocolTypeHTTPS:
-				config, err = configs.NewClientConfig(
-					configs.WithHTTPClient(authURL),
-					configs.WithDB("gophkeeper_client.db"),
-				)
-				if err != nil {
-					return fmt.Errorf("не удалось подключиться к HTTP серверу")
-				}
-
-			case models.ProtocolTypeGRPC:
-				config, err = configs.NewClientConfig(
-					configs.WithGRPCClient(authURL),
-					configs.WithDB("gophkeeper_client.db"),
-				)
-				if err != nil {
-					return fmt.Errorf("не удалось подключиться к gRPC серверу")
-				}
-				if config.GRPCClient == nil {
-					return fmt.Errorf("подключение к gRPC серверу отсутствует")
-				}
-			}
-
-			// Создаем все необходимые таблицы
-			if err := createAllTables(config.DB); err != nil {
-				return fmt.Errorf("внутренняя ошибка")
-			}
-
-			// Создаем фасад для регистрации в зависимости от протокола
-			switch protocol {
-			case models.ProtocolTypeHTTP, models.ProtocolTypeHTTPS:
-				registerFacade = facades.NewRegisterHTTPFacade(config.HTTPClient)
-			case models.ProtocolTypeGRPC:
-				grpcClient := pb.NewAuthServiceClient(config.GRPCClient)
-				registerFacade = facades.NewRegisterGRPCFacade(grpcClient)
-			}
-
-			req := &models.AuthRequest{
-				Username: username,
-				Password: password,
-			}
-
-			token, err := registerFacade.Register(ctx, req)
+			cfg, err := prepareConfig(p, authURL, dbPath)
 			if err != nil {
-				return fmt.Errorf("не удалось зарегистрировать пользователя")
+				return fmt.Errorf("не удалось подготовить конфигурацию клиента: %w", err)
+			}
+
+			if err := createAllTables(cfg.DB); err != nil {
+				return fmt.Errorf("не удалось создать таблицы базы данных: %w", err)
+			}
+
+			req := models.AuthRequest{Username: username, Password: password}
+
+			var token string
+			switch p {
+			case protocol.HTTP, protocol.HTTPS:
+				token, err = client.RegisterUserHTTP(ctx, cfg.HTTPClient, &req)
+			case protocol.GRPC:
+				grpcClient := pb.NewAuthServiceClient(cfg.GRPCClient)
+				token, err = client.RegisterUserGRPC(ctx, grpcClient, &req)
+			default:
+				return fmt.Errorf("неизвестный протокол: %s", p)
+			}
+
+			if err != nil {
+				return fmt.Errorf("не удалось зарегистрировать пользователя: %w", err)
 			}
 
 			fmt.Println(token)
@@ -132,10 +70,9 @@ func RegisterRegisterCommand(root *cobra.Command) {
 		},
 	}
 
-	cmd.Flags().StringVar(&username, "username", "", "Имя пользователя (обязательный параметр)")
-	cmd.Flags().StringVar(&password, "password", "", "Пароль (обязательный параметр)")
-	cmd.Flags().StringVar(&authURL, "auth-url", "", "URI сервера аутентификации и авторизации (обязательный параметр)")
-	cmd.Flags().StringVar(&protocol, "protocol", "http", "Протокол для связи с сервером: 'http' или 'grpc'")
+	cmd.Flags().StringVar(&username, "username", "", "Имя пользователя (обязательно)")
+	cmd.Flags().StringVar(&password, "password", "", "Пароль (обязательно)")
+	cmd.Flags().StringVar(&authURL, "auth-url", "", "URI сервера аутентификации (обязательно)")
 
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
@@ -144,121 +81,52 @@ func RegisterRegisterCommand(root *cobra.Command) {
 	root.AddCommand(cmd)
 }
 
-// RegisterLoginCommand добавляет в корневую команду подкоманду "login",
-// которая выполняет аутентификацию пользователя через HTTP или gRPC.
-//
-// Использование:
-//
-//	gophkeeper login --username=vasya --password=secret123 --auth-url=http://localhost:8080 --protocol=http
-//
-// Флаги:
-//
-//	--username  (обязательный) имя пользователя (только буквы и цифры)
-//	--password  (обязательный) пароль (не менее 6 символов)
-//	--auth-url  (обязательный) адрес сервера аутентификации
-//	--protocol  протокол для связи с сервером: "http" (по умолчанию) или "grpc"
 func RegisterLoginCommand(root *cobra.Command) {
-	var username string
-	var password string
-	var authURL string
-	var protocol string
+	var username, password, authURL string
 
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Аутентификация пользователя",
-		Long: `Производит аутентификацию пользователя по имени и паролю.
-После успешной аутентификации клиент получает токен авторизации,
-который можно использовать для дальнейших запросов.`,
-		Example: `  gophkeeper login --username=vasya --password=secret123 --auth-url=http://localhost:8080 --protocol=http`,
+		Long:  `Аутентификация пользователя и получение токена авторизации.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Проверка существования файла БД
-			dbPath := "gophkeeper_client.db"
+			dbPath := "gophkeeper.db"
 			if _, err := os.Stat(dbPath); err == nil {
-				return fmt.Errorf("найден существующий клиент (%s); пожалуйста, выполните синхронизацию перед регистрацией или входом", dbPath)
+				return fmt.Errorf("найден существующий клиент (%s); выполните синхронизацию или вход", dbPath)
 			}
 
-			// Валидация username
-			if username == "" {
-				return fmt.Errorf("имя пользователя не может быть пустым")
-			}
-			matched, err := regexp.MatchString(`^[a-zA-Z0-9]+$`, username)
-			if err != nil {
-				return fmt.Errorf("ошибка при проверке имени пользователя")
-			}
-			if !matched {
-				return fmt.Errorf("имя пользователя должно содержать только буквы и цифры (a-z, A-Z, 0-9)")
-			}
-
-			// Валидация пароля
-			if len(password) < 6 {
-				return fmt.Errorf("пароль должен содержать не менее 6 символов")
-			}
-
-			// Валидация адреса сервера
-			if authURL == "" {
-				return fmt.Errorf("адрес сервера не может быть пустым")
-			}
-
-			// Валидация протокола
-			if protocol != "http" && protocol != "grpc" {
-				return fmt.Errorf("протокол должен быть 'http' или 'grpc'")
+			if err := validateInput(username, password, authURL); err != nil {
+				return err
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			var loginFacade interface {
-				Login(context.Context, *models.AuthRequest) (string, error)
-			}
+			p := protocol.GetProtocolFromURL(authURL)
 
-			var config *configs.ClientConfig
-
-			// Создание фасада в зависимости от протокола
-			switch protocol {
-			case models.ProtocolTypeHTTP, models.ProtocolTypeHTTPS:
-				config, err = configs.NewClientConfig(
-					configs.WithHTTPClient(authURL),
-					configs.WithDB("gophkeeper_client.db"),
-				)
-				if err != nil {
-					return fmt.Errorf("не удалось подключиться к HTTP серверу")
-				}
-
-			case models.ProtocolTypeGRPC:
-				config, err = configs.NewClientConfig(
-					configs.WithGRPCClient(authURL),
-					configs.WithDB("gophkeeper_client.db"),
-				)
-				if err != nil {
-					return fmt.Errorf("не удалось подключиться к gRPC серверу")
-				}
-				if config.GRPCClient == nil {
-					return fmt.Errorf("подключение к gRPC серверу отсутствует")
-				}
-			}
-
-			// Создаем все необходимые таблицы
-			if err := createAllTables(config.DB); err != nil {
-				return fmt.Errorf("внутренняя ошибка при создании таблиц: %w", err)
-			}
-
-			// Создаем фасад
-			switch protocol {
-			case models.ProtocolTypeHTTP, models.ProtocolTypeHTTPS:
-				loginFacade = facades.NewLoginHTTPFacade(config.HTTPClient)
-			case models.ProtocolTypeGRPC:
-				grpcClient := pb.NewAuthServiceClient(config.GRPCClient)
-				loginFacade = facades.NewLoginGRPCFacade(grpcClient)
-			}
-
-			req := &models.AuthRequest{
-				Username: username,
-				Password: password,
-			}
-
-			token, err := loginFacade.Login(ctx, req)
+			cfg, err := prepareConfig(p, authURL, dbPath)
 			if err != nil {
-				return fmt.Errorf("не удалось выполнить аутентификацию пользователя")
+				return fmt.Errorf("не удалось подготовить конфигурацию клиента: %w", err)
+			}
+
+			if err := createAllTables(cfg.DB); err != nil {
+				return fmt.Errorf("не удалось создать таблицы базы данных: %w", err)
+			}
+
+			req := models.AuthRequest{Username: username, Password: password}
+
+			var token string
+			switch p {
+			case protocol.HTTP, protocol.HTTPS:
+				token, err = client.LoginUserHTTP(ctx, cfg.HTTPClient, &req)
+			case protocol.GRPC:
+				grpcClient := pb.NewAuthServiceClient(cfg.GRPCClient)
+				token, err = client.LoginUserGRPC(ctx, grpcClient, &req)
+			default:
+				return fmt.Errorf("неизвестный протокол: %s", p)
+			}
+
+			if err != nil {
+				return fmt.Errorf("не удалось выполнить аутентификацию пользователя: %w", err)
 			}
 
 			fmt.Println(token)
@@ -266,10 +134,9 @@ func RegisterLoginCommand(root *cobra.Command) {
 		},
 	}
 
-	cmd.Flags().StringVar(&username, "username", "", "Имя пользователя (обязательный параметр)")
-	cmd.Flags().StringVar(&password, "password", "", "Пароль (обязательный параметр)")
-	cmd.Flags().StringVar(&authURL, "auth-url", "", "URI сервера аутентификации и авторизации (обязательный параметр)")
-	cmd.Flags().StringVar(&protocol, "protocol", "http", "Протокол для связи с сервером: 'http' или 'grpc'")
+	cmd.Flags().StringVar(&username, "username", "", "Имя пользователя (обязательно)")
+	cmd.Flags().StringVar(&password, "password", "", "Пароль (обязательно)")
+	cmd.Flags().StringVar(&authURL, "auth-url", "", "URI сервера аутентификации (обязательно)")
 
 	_ = cmd.MarkFlagRequired("username")
 	_ = cmd.MarkFlagRequired("password")
@@ -278,96 +145,104 @@ func RegisterLoginCommand(root *cobra.Command) {
 	root.AddCommand(cmd)
 }
 
-// createAllTables создаёт все необходимые таблицы в базе данных клиента.
-// Возвращает ошибку, если создание какой-либо таблицы не удалось.
-func createAllTables(db *sqlx.DB) error {
-	if err := createSecretBinaryClientTable(db); err != nil {
-		return fmt.Errorf("ошибка создания таблицы secret_binary_client: %w", err)
+func validateInput(username, password, authURL string) error {
+	if username == "" {
+		return fmt.Errorf("имя пользователя не может быть пустым")
 	}
-	if err := createSecretTextClientTable(db); err != nil {
-		return fmt.Errorf("ошибка создания таблицы secret_text_client: %w", err)
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9]+$`, username)
+	if err != nil || !matched {
+		return fmt.Errorf("имя пользователя должно содержать только буквы и цифры")
 	}
-	if err := createSecretUsernamePasswordClientTable(db); err != nil {
-		return fmt.Errorf("ошибка создания таблицы secret_username_password_client: %w", err)
+	if len(password) < 6 {
+		return fmt.Errorf("пароль должен содержать не менее 6 символов")
 	}
-	if err := createSecretBankCardClientTable(db); err != nil {
-		return fmt.Errorf("ошибка создания таблицы secret_bank_card_client: %w", err)
+	if authURL == "" {
+		return fmt.Errorf("адрес сервера не может быть пустым")
 	}
 	return nil
 }
 
-// createSecretBinaryClientTable удаляет, если существует, и создает таблицу для SecretBinaryClient
-func createSecretBinaryClientTable(db *sqlx.DB) error {
-	dropQuery := `DROP TABLE IF EXISTS secret_binary_client;`
-	createQuery := `
-	CREATE TABLE secret_binary_client (
-		secret_name TEXT PRIMARY KEY,
-		data BYTEA NOT NULL,
-		meta TEXT NULL,
-		updated_at TIMESTAMP NOT NULL
-	);`
+func prepareConfig(p, authURL, dbPath string) (*configs.ClientConfig, error) {
+	switch p {
+	case protocol.HTTP, protocol.HTTPS:
+		return configs.NewClientConfig(
+			configs.WithClientConfigHTTPClient(authURL),
+			configs.WithClientConfigDB(dbPath),
+		)
+	case protocol.GRPC:
+		return configs.NewClientConfig(
+			configs.WithClientConfigGRPCClient(authURL),
+			configs.WithClientConfigDB(dbPath),
+		)
+	default:
+		return nil, fmt.Errorf("неизвестный протокол: %s", p)
+	}
+}
 
-	if _, err := db.Exec(dropQuery); err != nil {
+func createAllTables(db *sqlx.DB) error {
+	if err := createSecretBinaryRequestTable(db); err != nil {
 		return err
 	}
-	_, err := db.Exec(createQuery)
+	if err := createSecretTextRequestTable(db); err != nil {
+		return err
+	}
+	if err := createSecretUsernamePasswordRequestTable(db); err != nil {
+		return err
+	}
+	if err := createSecretBankCardRequestTable(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+func createSecretBinaryRequestTable(db *sqlx.DB) error {
+	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_binary_request;`)
+	_, err := db.Exec(`
+		CREATE TABLE secret_binary_request (
+			secret_name TEXT PRIMARY KEY,
+			data BYTEA NOT NULL,
+			meta TEXT
+		);
+	`)
 	return err
 }
 
-// createSecretTextClientTable удаляет и создает таблицу для SecretTextClient
-func createSecretTextClientTable(db *sqlx.DB) error {
-	dropQuery := `DROP TABLE IF EXISTS secret_text_client;`
-	createQuery := `
-	CREATE TABLE secret_text_client (
-		secret_name TEXT PRIMARY KEY,
-		content TEXT NOT NULL,
-		meta TEXT NULL,
-		updated_at TIMESTAMP NOT NULL
-	);`
-
-	if _, err := db.Exec(dropQuery); err != nil {
-		return err
-	}
-	_, err := db.Exec(createQuery)
+func createSecretTextRequestTable(db *sqlx.DB) error {
+	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_text_request;`)
+	_, err := db.Exec(`
+		CREATE TABLE secret_text_request (
+			secret_name TEXT PRIMARY KEY,
+			content TEXT NOT NULL,
+			meta TEXT
+		);
+	`)
 	return err
 }
 
-// createSecretUsernamePasswordClientTable удаляет и создает таблицу для SecretUsernamePasswordClient
-func createSecretUsernamePasswordClientTable(db *sqlx.DB) error {
-	dropQuery := `DROP TABLE IF EXISTS secret_username_password_client;`
-	createQuery := `
-	CREATE TABLE secret_username_password_client (
-		secret_name TEXT PRIMARY KEY,
-		username TEXT NOT NULL,
-		password TEXT NOT NULL,
-		meta TEXT NULL,
-		updated_at TIMESTAMP NOT NULL
-	);`
-
-	if _, err := db.Exec(dropQuery); err != nil {
-		return err
-	}
-	_, err := db.Exec(createQuery)
+func createSecretUsernamePasswordRequestTable(db *sqlx.DB) error {
+	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_username_password_request;`)
+	_, err := db.Exec(`
+		CREATE TABLE secret_username_password_request (
+			secret_name TEXT PRIMARY KEY,
+			username TEXT NOT NULL,
+			password TEXT NOT NULL,
+			meta TEXT
+		);
+	`)
 	return err
 }
 
-// createSecretBankCardClientTable удаляет и создает таблицу для SecretBankCardClient
-func createSecretBankCardClientTable(db *sqlx.DB) error {
-	dropQuery := `DROP TABLE IF EXISTS secret_bank_card_client;`
-	createQuery := `
-	CREATE TABLE secret_bank_card_client (
-		secret_name TEXT PRIMARY KEY,
-		number TEXT NOT NULL,
-		owner TEXT NULL,
-		exp TEXT NOT NULL,
-		cvv TEXT NOT NULL,
-		meta TEXT NULL,
-		updated_at TIMESTAMP NOT NULL
-	);`
-
-	if _, err := db.Exec(dropQuery); err != nil {
-		return err
-	}
-	_, err := db.Exec(createQuery)
+func createSecretBankCardRequestTable(db *sqlx.DB) error {
+	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_bank_card_request;`)
+	_, err := db.Exec(`
+		CREATE TABLE secret_bank_card_request (
+			secret_name TEXT PRIMARY KEY,
+			number TEXT NOT NULL,
+			owner TEXT,
+			exp TEXT NOT NULL,
+			cvv TEXT NOT NULL,
+			meta TEXT
+		);
+	`)
 	return err
 }

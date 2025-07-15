@@ -48,88 +48,81 @@ GophKeeper — это кроссплатформенная клиент-серв
 .
 ├── api
 │   └── grpc
-│       ├── auth.proto                      # Протокол для сервиса аутентификации и авторизации
-│       ├── secret_bank_card.proto          # Протокол для данных секретной банковской карты и сервисов
-│       ├── secret_binary.proto             # Протокол для бинарных секретов и сервисов
-│       ├── secret_text.proto               # Протокол для текстовых секретов и сервисов
-│       └── secret_username_password.proto # Протокол для секретов с логином и паролем и сервисов
+│       ├── auth.proto                      # gRPC протокол для аутентификации
+│       ├── secret_bank_card.proto          # gRPC протокол для секретов банковских карт
+│       ├── secret_binary.proto             # gRPC протокол для бинарных секретов
+│       ├── secret_text.proto               # gRPC протокол для текстовых секретов
+│       └── secret_username_password.proto # gRPC протокол для секретов с логином и паролем
 ├── builds
 │   ├── gophkeeper-client-linux-amd64      # Скомпилированный клиент для Linux amd64
 │   ├── gophkeeper-client-macos-amd64      # Скомпилированный клиент для macOS amd64
 │   ├── gophkeeper-client-windows-amd64.exe # Скомпилированный клиент для Windows amd64
-│   └── README.md                          # Документация или заметки в папке сборок
+│   └── README.md                          # Документация к сборкам
 ├── cmd
 │   └── client
 │       ├── app
 │       │   ├── commands
-│       │   │   ├── add_secret_bank_card.go       # Команда CLI для добавления секрета банковской карты
-│       │   │   ├── add_secret_binary.go          # Команда CLI для добавления бинарного секрета
-│       │   │   ├── add_secret_text.go            # Команда CLI для добавления текстового секрета
-│       │   │   ├── add_secret_username_password.go # Команда CLI для добавления секрета с логином и паролем
-│       │   │   ├── auth.go                        # Команды CLI для аутентификации
-│       │   │   ├── flags
-│       │   │   │   ├── meta.go                    # Определение флагов метаданных для CLI
-│       │   │   │   └── meta_test.go               # Тесты для флагов метаданных
-│       │   │   ├── list.go                        # Команда CLI для вывода списка секретов
-│       │   │   └── version.go                     # Команда CLI для отображения версии приложения
-│       │   ├── root.go                            # Основная настройка корневой команды CLI
-│       │   └── root_test.go                       # Тесты для корневой команды CLI
-│       └── main.go                                # Точка входа в клиентское приложение
-├── go.mod                                      # Файл описания модуля Go
-├── go.sum                                      # Контрольные суммы зависимостей модуля Go
+│       │   │   ├── add_secret_bank_card.go       # CLI команда: добавить секрет банковской карты
+│       │   │   ├── add_secret_binary.go          # CLI команда: добавить бинарный секрет
+│       │   │   ├── add_secret_text.go            # CLI команда: добавить текстовый секрет
+│       │   │   ├── add_secret_username_password.go # CLI команда: добавить секрет с логином и паролем
+│       │   │   ├── auth.go                        # CLI команда: аутентификация пользователя
+│       │   │   ├── list.go                        # CLI команда: вывод списка секретов
+│       │   │   ├── sync.go                        # CLI команда: синхронизация с сервером
+│       │   │   └── version.go                     # CLI команда: версия клиента
+│       │   ├── root.go                            # Основной корневой файл CLI приложения
+│       │   └── root_test.go                       # Тесты для root.go
+│       └── main.go                                # Точка входа клиента
+├── go.mod                                      # Описание зависимостей модуля Go
+├── go.sum                                      # Контрольные суммы зависимостей
 ├── internal
+│   ├── client
+│   │   ├── auth.go                              # Клиентская логика аутентификации
+│   │   ├── auth_test.go                         # Тесты для auth.go
+│   │   ├── secret_bank_card.go                  # Клиентская логика секретов банковских карт
+│   │   ├── secret_bank_card_test.go             # Тесты для secret_bank_card.go
+│   │   ├── secret_binary.go                      # Клиентская логика бинарных секретов
+│   │   ├── secret_binary_test.go                 # Тесты для secret_binary.go
+│   │   ├── secret_text.go                        # Клиентская логика текстовых секретов
+│   │   ├── secret_text_test.go                   # Тесты для secret_text.go
+│   │   ├── secret_username_password.go          # Клиентская логика секретов с логином и паролем
+│   │   └── secret_username_password_test.go     # Тесты для secret_username_password.go
 │   ├── configs
-│   │   ├── client.go                            # Загрузка и обработка конфигураций клиента
+│   │   ├── client.go                            # Загрузка и обработка клиентских конфигураций
 │   │   ├── clients
 │   │   │   ├── grpc.go                         # Инициализация и управление gRPC клиентом
-│   │   │   ├── grpc_test.go                    # Тесты для gRPC клиента
+│   │   │   ├── grpc_test.go                    # Тесты для grpc.go
 │   │   │   ├── http.go                         # Инициализация и управление HTTP клиентом
-│   │   │   └── http_test.go                    # Тесты для HTTP клиента
+│   │   │   └── http_test.go                    # Тесты для http.go
 │   │   ├── client_test.go                       # Тесты конфигураций клиента
 │   │   └── db
-│   │       ├── db.go                            # Подключение к базе данных и базовые операции
-│   │       └── db_test.go                       # Тесты слоя базы данных
-│   ├── facades
-│   │   ├── auth.go                             # Фасад для бизнес-логики аутентификации
-│   │   ├── auth_test.go                        # Тесты фасада аутентификации
-│   │   ├── secret_bank_card.go                 # Фасад для секретов банковских карт
-│   │   ├── secret_bank_card_test.go            # Тесты фасада банковских карт
-│   │   ├── secret_binary.go                     # Фасад для бинарных секретов
-│   │   ├── secret_binary_test.go                # Тесты фасада бинарных секретов
-│   │   ├── secret_text.go                       # Фасад для текстовых секретов
-│   │   ├── secret_text_test.go                  # Тесты фасада текстовых секретов
-│   │   ├── secret_username_password.go          # Фасад для секретов с логином и паролем
-│   │   └── secret_username_password_test.go     # Тесты фасада логина и пароля
-│   ├── models
-│   │   ├── auth.go                             # Модели данных, связанные с аутентификацией
-│   │   ├── protocol_type.go                     # Определение типов поддерживаемых протоколов
-│   │   ├── secret_bank_card.go                  # Модель данных секрета банковской карты
-│   │   ├── secret_binary.go                      # Модель данных бинарного секрета
-│   │   ├── secret_text.go                        # Модель данных текстового секрета
-│   │   ├── secret_type.go                        # Определение типов секретов
-│   │   └── secret_username_password.go          # Модель данных секрета с логином и паролем
-│   └── repositories
-│       ├── secret_bank_card.go                   # Репозиторий для операций с секретами банковских карт
-│       ├── secret_bank_card_test.go              # Тесты репозитория банковских карт
-│       ├── secret_binary.go                       # Репозиторий для бинарных секретов
-│       ├── secret_binary_test.go                  # Тесты репозитория бинарных секретов
-│       ├── secret_text.go                         # Репозиторий для текстовых секретов
-│       ├── secret_text_test.go                    # Тесты репозитория текстовых секретов
-│       ├── secret_username_password.go           # Репозиторий для секретов с логином и паролем
-│       └── secret_username_password_test.go      # Тесты репозитория логина и пароля
-├── Makefile                                      # Файл сборки с определением команд (build, test и др.)
-└── pkg
-    └── grpc
-        ├── auth_grpc.pb.go                       # Сгенерированный gRPC код клиента/сервера для аутентификации
-        ├── auth.pb.go                            # Сгенерированные protobuf структуры для аутентификации
-        ├── secret_bank_card_grpc.pb.go           # Сгенерированный gRPC код клиента/сервера для банковских карт
-        ├── secret_bank_card.pb.go                 # Сгенерированные protobuf структуры для банковских карт
-        ├── secret_binary_grpc.pb.go                # Сгенерированный gRPC код клиента/сервера для бинарных секретов
-        ├── secret_binary.pb.go                      # Сгенерированные protobuf структуры для бинарных секретов
-        ├── secret_text_grpc.pb.go                  # Сгенерированный gRPC код клиента/сервера для текстовых секретов
-        ├── secret_text.pb.go                        # Сгенерированные protobuf структуры для текстовых секретов
-        ├── secret_username_password_grpc.pb.go     # Сгенерированный gRPC код клиента/сервера для логина/пароля
-        └── secret_username_password.pb.go           # Сгенерированные protobuf структуры для логина/пароля
+│   │       ├── db.go                            # Подключение к базе данных и операции с ней
+│   │       └── db_test.go                       # Тесты для db.go
+│   │   └── protocol
+│   │       ├── protocol.go                      # Определение протоколов и их обработка
+│   │       └── protocol_test.go                 # Тесты для protocol.go
+│   └── models
+│       ├── auth.go                             # Модели данных аутентификации
+│       ├── secret_bank_card.go                  # Модель секрета банковской карты
+│       ├── secret_binary.go                      # Модель бинарного секрета
+│       ├── secret_text.go                        # Модель текстового секрета
+│       ├── secret_type.go                        # Определение типов секретов
+│       └── secret_username_password.go          # Модель секрета с логином и паролем
+├── Makefile                                      # Скрипты сборки, тестирования и прочее
+├── pkg
+│   └── grpc
+│       ├── auth_grpc.pb.go                       # Сгенерированный gRPC код для auth сервиса
+│       ├── auth.pb.go                            # Сгенерированные protobuf структуры для auth
+│       ├── secret_bank_card_grpc.pb.go           # Сгенерированный gRPC код для секретов банковских карт
+│       ├── secret_bank_card.pb.go                 # Сгенерированные protobuf структуры для секретов банковских карт
+│       ├── secret_binary_grpc.pb.go                # Сгенерированный gRPC код для бинарных секретов
+│       ├── secret_binary.pb.go                      # Сгенерированные protobuf структуры для бинарных секретов
+│       ├── secret_text_grpc.pb.go                  # Сгенерированный gRPC код для текстовых секретов
+│       ├── secret_text.pb.go                        # Сгенерированные protobuf структуры для текстовых секретов
+│       ├── secret_username_password_grpc.pb.go     # Сгенерированный gRPC код для секретов с логином и паролем
+│       └── secret_username_password.pb.go           # Сгенерированные protobuf структуры для секретов с логином и паролем
+└── README.md                                    # Основная документация проекта
+
 ```
 
 ---

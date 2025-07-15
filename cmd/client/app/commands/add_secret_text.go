@@ -2,24 +2,16 @@ package commands
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/flags"
+	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/configs"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
-	"github.com/sbilibin2017/gophkeeper/internal/repositories"
+
 	"github.com/spf13/cobra"
 )
 
-// RegisterAddSecretTextCommand регистрирует команду add-text-secret для добавления
-// текстового секрета пользователя.
-//
-// Параметры команды:
-//
-//	--secret-name (обязательный) название секрета
-//	--content     (обязательный) содержимое секрета
-//	--meta        (необязательный) дополнительные данные в формате JSON
 func RegisterAddSecretTextCommand(root *cobra.Command) {
 	var secretName string
 	var content string
@@ -29,37 +21,46 @@ func RegisterAddSecretTextCommand(root *cobra.Command) {
 		Use:   "add-secret-text",
 		Short: "Добавить секрет: текстовый",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			config, err := configs.NewClientConfig(
-				configs.WithDB("gophkeeper.db"),
-			)
-			if err != nil {
-				return err
+			if secretName == "" {
+				return errors.New("ошибка: параметр --secret-name обязателен")
+			}
+			if content == "" {
+				return errors.New("ошибка: параметр --content обязателен")
 			}
 
-			metaJSON, err := flags.PrepareMetaJSON(meta)
+			cfg, err := configs.NewClientConfig(
+				configs.WithClientConfigDB("gophkeeper.db"),
+			)
 			if err != nil {
-				return fmt.Errorf("не удалось распарсить meta")
+				return errors.New("ошибка: не удалось инициализировать конфигурацию клиента")
+			}
+
+			metaJSON, err := configs.PrepareMetaJSON(meta)
+			if err != nil {
+				return errors.New("ошибка: неверный формат параметра --meta")
 			}
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			repo := repositories.NewSecretTextClientSaveRepository(config.DB)
-
-			secret := models.SecretTextClient{
+			secret := models.SecretTextSaveRequest{
 				SecretName: secretName,
 				Content:    content,
 				Meta:       metaJSON,
-				UpdatedAt:  time.Now(),
 			}
 
-			return repo.Save(ctx, secret)
+			err = client.SaveSecretTextRequest(ctx, cfg.DB, secret)
+			if err != nil {
+				return errors.New("ошибка: не удалось сохранить данные в базу")
+			}
+
+			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&secretName, "secret-name", "", "Название секрета (обязательный параметр)")
-	cmd.Flags().StringVar(&content, "content", "", "Содержимое секрета (обязательный параметр)")
-	cmd.Flags().StringVar(&meta, "meta", "", "Дополнительные данные в формате JSON (необязательно)")
+	cmd.Flags().StringVar(&secretName, "secret-name", "", "Имя секрета (обязательно)")
+	cmd.Flags().StringVar(&content, "content", "", "Содержимое секрета (обязательно)")
+	cmd.Flags().StringVar(&meta, "meta", "", "Доп. метаданные JSON (необязательно)")
 
 	_ = cmd.MarkFlagRequired("secret-name")
 	_ = cmd.MarkFlagRequired("content")

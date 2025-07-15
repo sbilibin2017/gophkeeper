@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,7 +17,7 @@ func TestNewClientConfig(t *testing.T) {
 	assert.Nil(t, cfg.GRPCClient)
 }
 
-func TestWithHTTPClient(t *testing.T) {
+func TestWithClientConfigHTTPClient(t *testing.T) {
 	tests := []struct {
 		name    string
 		baseURL string
@@ -28,7 +29,7 @@ func TestWithHTTPClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg, err := NewClientConfig(WithHTTPClient(tt.baseURL))
+			cfg, err := NewClientConfig(WithClientConfigHTTPClient(tt.baseURL))
 			require.NoError(t, err)
 			if tt.wantNil {
 				assert.Nil(t, cfg.HTTPClient)
@@ -40,7 +41,7 @@ func TestWithHTTPClient(t *testing.T) {
 	}
 }
 
-func TestWithDB(t *testing.T) {
+func TestWithClientConfigDB(t *testing.T) {
 	tests := []struct {
 		name      string
 		dsns      []string
@@ -55,7 +56,7 @@ func TestWithDB(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &ClientConfig{}
-			err := WithDB(tt.dsns...)(cfg)
+			err := WithClientConfigDB(tt.dsns...)(cfg)
 			if tt.wantError {
 				assert.Error(t, err)
 			} else {
@@ -71,7 +72,7 @@ func TestWithDB(t *testing.T) {
 	}
 }
 
-func TestWithGRPCClient(t *testing.T) {
+func TestWithClientConfigGRPCClient(t *testing.T) {
 	tests := []struct {
 		name       string
 		addrs      []string
@@ -85,7 +86,7 @@ func TestWithGRPCClient(t *testing.T) {
 			wantClient: false,
 		},
 		{
-			name:       "invalid address", // формат адреса неверен, тут возможна ошибка
+			name:       "invalid address",
 			addrs:      []string{"%$@#@!"},
 			wantErr:    true,
 			wantClient: false,
@@ -93,7 +94,7 @@ func TestWithGRPCClient(t *testing.T) {
 		{
 			name:       "valid address with no server",
 			addrs:      []string{"localhost:50051"},
-			wantErr:    false, // не будет ошибки — соединение ленивое
+			wantErr:    false,
 			wantClient: true,
 		},
 	}
@@ -101,7 +102,7 @@ func TestWithGRPCClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &ClientConfig{}
-			err := WithGRPCClient(tt.addrs...)(cfg)
+			err := WithClientConfigGRPCClient(tt.addrs...)(cfg)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -113,6 +114,70 @@ func TestWithGRPCClient(t *testing.T) {
 				assert.NotNil(t, cfg.GRPCClient)
 			} else {
 				assert.Nil(t, cfg.GRPCClient)
+			}
+		})
+	}
+}
+
+func TestPrepareMetaJSON(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantNil    bool
+		wantString string
+		wantErr    bool
+	}{
+		{
+			name:    "empty string returns nil",
+			input:   "",
+			wantNil: true,
+			wantErr: false,
+		},
+		{
+			name:       "valid JSON returns normalized string",
+			input:      `{"key1":"value1","key2":"value2"}`,
+			wantNil:    false,
+			wantString: `{"key1":"value1","key2":"value2"}`,
+			wantErr:    false,
+		},
+		{
+			name:    "invalid JSON returns error",
+			input:   `{"key1":value1"}`,
+			wantNil: true,
+			wantErr: true,
+		},
+		{
+			name:       "valid JSON with unordered keys",
+			input:      `{"key2":"value2","key1":"value1"}`,
+			wantNil:    false,
+			wantString: `{"key1":"value1","key2":"value2"}`,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := PrepareMetaJSON(tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+
+			assert.NoError(t, err)
+
+			if tt.wantNil {
+				assert.Nil(t, got)
+			} else {
+				assert.NotNil(t, got)
+
+				var gotMap, wantMap map[string]string
+				err1 := json.Unmarshal([]byte(*got), &gotMap)
+				err2 := json.Unmarshal([]byte(tt.wantString), &wantMap)
+				assert.NoError(t, err1)
+				assert.NoError(t, err2)
+				assert.Equal(t, wantMap, gotMap)
 			}
 		})
 	}
