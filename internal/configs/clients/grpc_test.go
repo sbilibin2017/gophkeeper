@@ -3,7 +3,6 @@ package clients
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -86,7 +85,7 @@ func TestNewGRPCClient(t *testing.T) {
 	})
 
 	t.Run("With custom transport credentials", func(t *testing.T) {
-		creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
+		creds := credentials.NewTLS(nil) // nil config = default TLS config
 		conn, err := NewGRPCClient("localhost:50051",
 			WithGRPCTransportCredentials(creds),
 		)

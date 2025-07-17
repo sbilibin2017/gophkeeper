@@ -45,11 +45,48 @@ func generateTestCACert(t *testing.T, path string) {
 	require.NoError(t, pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}))
 }
 
+func generateTestClientCertAndKey(t *testing.T, certPath, keyPath string) {
+	// Генерация ключа клиента
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+
+	// Простая заготовка сертификата (self-signed)
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			Organization: []string{"Test Client"},
+		},
+		NotBefore:   time.Now(),
+		NotAfter:    time.Now().Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	}
+
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	// Запись сертификата
+	certOut, err := os.Create(certPath)
+	require.NoError(t, err)
+	defer certOut.Close()
+	require.NoError(t, pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}))
+
+	// Запись ключа
+	keyOut, err := os.Create(keyPath)
+	require.NoError(t, err)
+	defer keyOut.Close()
+	privBytes := x509.MarshalPKCS1PrivateKey(priv)
+	require.NoError(t, pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes}))
+}
+
 func TestNewHTTPClient(t *testing.T) {
 	tmpDir := t.TempDir()
 	certPath := filepath.Join(tmpDir, "ca.crt")
+	clientCertPath := filepath.Join(tmpDir, "client.crt")
+	clientKeyPath := filepath.Join(tmpDir, "client.key")
 
 	generateTestCACert(t, certPath)
+	generateTestClientCertAndKey(t, clientCertPath, clientKeyPath)
 
 	tests := []struct {
 		name        string
@@ -99,23 +136,23 @@ func TestNewHTTPClient(t *testing.T) {
 			},
 		},
 		{
-			name:    "Valid TLS cert",
+			name:    "Valid client TLS cert",
 			baseURL: "https://localhost",
 			options: []HTTPClientOption{
-				WithHTTPTLSServerCert(certPath),
+				WithHTTPTLSClientCert(clientCertPath, clientKeyPath),
 			},
 			assertFn: func(t *testing.T, c *resty.Client) {
 				tlsCfg := c.GetClient().Transport.(*http.Transport).TLSClientConfig
 				assert.NotNil(t, tlsCfg)
 				assert.IsType(t, &tls.Config{}, tlsCfg)
-				assert.NotNil(t, tlsCfg.RootCAs)
+				assert.NotEmpty(t, tlsCfg.Certificates)
 			},
 		},
 		{
-			name:    "Invalid TLS cert path",
+			name:    "Invalid client TLS cert path",
 			baseURL: "https://localhost",
 			options: []HTTPClientOption{
-				WithHTTPTLSServerCert("nonexistent.crt"),
+				WithHTTPTLSClientCert("nonexistent.crt", "nonexistent.key"),
 			},
 			expectError: true,
 		},

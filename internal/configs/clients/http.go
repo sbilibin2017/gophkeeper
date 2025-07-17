@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -13,24 +12,26 @@ import (
 // HTTPClientOption defines a function type for configuring a Resty client.
 type HTTPClientOption func(*resty.Client) error
 
-// WithHTTPTLSServerCert добавляет доверенный серверный сертификат (public CA) для TLS.
-// certFile — путь к публичному сертификату сервера.
-func WithHTTPTLSServerCert(certFile string) HTTPClientOption {
+// WithHTTPTLSClientCert добавляет клиентский TLS сертификат и ключ для аутентификации.
+// certFile — путь к файлу сертификата клиента.
+// keyFile — путь к файлу приватного ключа клиента.
+func WithHTTPTLSClientCert(certFile, keyFile string) HTTPClientOption {
 	return func(client *resty.Client) error {
-		// Читаем сертификат сервера
-		caCert, err := os.ReadFile(certFile)
+		// Загружаем клиентский сертификат и ключ
+		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
-			return fmt.Errorf("failed to read server cert file: %w", err)
+			return fmt.Errorf("failed to load client certificate/key: %w", err)
 		}
 
-		// Создаем новый пул корневых сертификатов и добавляем туда серверный сертификат
-		caPool := x509.NewCertPool()
-		if !caPool.AppendCertsFromPEM(caCert) {
-			return fmt.Errorf("failed to append server cert to pool")
+		// Загружаем системный пул корневых сертификатов
+		rootCAs, err := x509.SystemCertPool()
+		if err != nil || rootCAs == nil {
+			rootCAs = x509.NewCertPool()
 		}
 
 		tlsConfig := &tls.Config{
-			RootCAs: caPool,
+			Certificates: []tls.Certificate{cert},
+			RootCAs:      rootCAs,
 		}
 
 		client.SetTLSClientConfig(tlsConfig)
@@ -85,12 +86,12 @@ func WithHTTPRetryMaxWaitTime(d time.Duration) HTTPClientOption {
 func NewHTTPClient(baseURL string, opts ...HTTPClientOption) (*resty.Client, error) {
 	client := resty.New().SetBaseURL(baseURL)
 
-	// Default values
+	// Default retry settings
 	client.SetRetryCount(3)
 	client.SetRetryWaitTime(500 * time.Millisecond)
 	client.SetRetryMaxWaitTime(2 * time.Second)
 
-	// Apply custom options which can override defaults
+	// Apply user options
 	for _, opt := range opts {
 		if err := opt(client); err != nil {
 			return nil, err
