@@ -8,6 +8,15 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 )
 
+// NewConfig creates a new ClientConfig based on the given authentication URL
+// and optional TLS client certificate and key files.
+//
+// The function determines the scheme from the authURL (HTTP, HTTPS, or gRPC)
+// and configures the client accordingly:
+// - For HTTP/HTTPS, it configures an HTTP client with optional TLS certificates.
+// - For gRPC, it configures a gRPC client with optional TLS certificates.
+//
+// Returns an error if the URL scheme is unsupported or configuration fails.
 func NewConfig(
 	authURL string,
 	tlsClientCert string,
