@@ -63,6 +63,7 @@ func RegisterLoginCommand(root *cobra.Command) {
 		password      string
 		authURL       string
 		tlsClientCert string
+		tlsClientKey  string
 	)
 
 	cmd := &cobra.Command{
@@ -76,7 +77,7 @@ the specified auth service endpoint using HTTP or gRPC protocols.
 
 Upon successful authentication, an authentication token will be printed.`,
 		Example: `  
-  gophkeeper login --username bob --password 'S3cr3t!' --auth-url https://auth.example.com --tls-client-cert /path/to/cert.pem`,
+  gophkeeper login --username bob --password 'S3cr3t!' --auth-url https://auth.example.com --tls-client-cert /path/to/cert.pem --tls-client-key /path/to/key.pem`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -87,7 +88,7 @@ Upon successful authentication, an authentication token will be printed.`,
 				return err
 			}
 
-			return runAuth(cmd, ctx, username, password, authURL, tlsClientCert, "")
+			return runAuth(cmd, ctx, username, password, authURL, tlsClientCert, tlsClientKey)
 		},
 	}
 
@@ -95,6 +96,7 @@ Upon successful authentication, an authentication token will be printed.`,
 	cmd.Flags().StringVar(&password, "password", "", "Password for authentication")
 	cmd.Flags().StringVar(&authURL, "auth-url", "", "Authentication service URL")
 	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file (optional)")
+	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS key file (optional)")
 
 	root.AddCommand(cmd)
 }
