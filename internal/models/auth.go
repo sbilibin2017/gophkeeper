@@ -6,11 +6,6 @@ type RegisterRequest struct {
 	Password string `json:"password"`
 }
 
-// RegisterResponse mirrors the gRPC RegisterResponse message.
-type RegisterResponse struct {
-	Token string `json:"token"`
-}
-
 // LoginRequest mirrors the gRPC LoginRequest message.
 type LoginRequest struct {
 	Username string `json:"username"`
