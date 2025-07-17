@@ -40,19 +40,17 @@ creates necessary database tables, and sends an authentication request to
 the specified auth service endpoint using HTTP or gRPC protocols.
 
 Upon successful authentication, an authentication token will be printed.`,
-		Example: `  # Authenticate user via HTTP
-  gophkeeper login --username alice --password 'P@ssw0rd123' --auth-url https://auth.example.com
-
+		Example: `  
   # Authenticate user with TLS client certificate for secure communication
   gophkeeper login --username bob --password 'S3cr3t!' --auth-url https://auth.example.com --tls-client-cert /path/to/cert.pem`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
 			// Validate username and password for login
-			if err := client.ValidateUsernameLogin(username); err != nil {
+			if err := client.ValidateLoginUsername(username); err != nil {
 				return fmt.Errorf("invalid username: %w", err)
 			}
-			if err := client.ValidatePasswordLogin(password); err != nil {
+			if err := client.ValidateLoginPassword(password); err != nil {
 				return fmt.Errorf("invalid password: %w", err)
 			}
 

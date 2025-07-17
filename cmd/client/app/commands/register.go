@@ -39,9 +39,7 @@ sets up the client configuration including HTTP or gRPC clients,
 creates necessary database tables, and sends a registration request to the auth service.
 
 Upon successful registration, an authentication token will be printed.`,
-		Example: `  # Register a new user via HTTP
-  gophkeeper register --username alice --password 'P@ssw0rd123' --auth-url https://auth.example.com
-
+		Example: `
   # Register a new user with TLS client cert and key for secure communication
   gophkeeper register --username bob --password 'S3cr3t!' --auth-url https://auth.example.com --tls-client-cert /path/to/cert.pem --tls-client-key /path/to/key.pem`,
 		RunE: func(cmd *cobra.Command, args []string) error {

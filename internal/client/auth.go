@@ -116,20 +116,20 @@ func ValidateRegisterPassword(password string) error {
 	return nil
 }
 
-// ValidateUsernameLogin checks that the username is not empty for login.
+// ValidateLoginUsername checks that the username is not empty for login.
 //
 // Returns an error if username is empty, nil otherwise.
-func ValidateUsernameLogin(username string) error {
+func ValidateLoginUsername(username string) error {
 	if username == "" {
 		return errors.New("username must not be empty")
 	}
 	return nil
 }
 
-// ValidatePasswordLogin checks that the password is not empty for login.
+// ValidateLoginPassword checks that the password is not empty for login.
 //
 // Returns an error if password is empty, nil otherwise.
-func ValidatePasswordLogin(password string) error {
+func ValidateLoginPassword(password string) error {
 	if password == "" {
 		return errors.New("password must not be empty")
 	}

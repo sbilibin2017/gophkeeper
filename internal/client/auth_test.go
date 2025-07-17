@@ -185,7 +185,7 @@ func TestValidateUsernameLogin(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateUsernameLogin(tt.username)
+			err := ValidateLoginUsername(tt.username)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -208,7 +208,7 @@ func TestValidatePasswordLogin(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidatePasswordLogin(tt.password)
+			err := ValidateLoginPassword(tt.password)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
