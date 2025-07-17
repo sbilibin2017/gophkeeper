@@ -60,7 +60,7 @@ func TestNewClientConfig(t *testing.T) {
 	t.Run("With DB connection", func(t *testing.T) {
 		// Используем SQLite in-memory БД
 		cfg, err := NewClientConfig(
-			WithClientConfigDB("sqlite", "file::memory:?cache=shared"),
+			WithClientConfigDB("file::memory:?cache=shared"),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, cfg.DB)
@@ -71,7 +71,7 @@ func TestNewClientConfig(t *testing.T) {
 
 	t.Run("With empty DB dsn", func(t *testing.T) {
 		cfg, err := NewClientConfig(
-			WithClientConfigDB("sqlite", ""),
+			WithClientConfigDB(""),
 		)
 		require.NoError(t, err)
 		assert.Nil(t, cfg.DB)
