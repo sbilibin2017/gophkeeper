@@ -19,7 +19,6 @@ func RegisterAddBankCardCommand(root *cobra.Command) {
 		exp        string
 		cvv        string
 		meta       string
-		token      string
 	)
 
 	cmd := &cobra.Command{
@@ -60,14 +59,12 @@ func RegisterAddBankCardCommand(root *cobra.Command) {
 	cmd.Flags().StringVar(&exp, "exp", "", "Bank card expiration date")
 	cmd.Flags().StringVar(&cvv, "cvv", "", "Bank card CVV code")
 	cmd.Flags().StringVar(&meta, "meta", "", "Optional metadata")
-	cmd.Flags().StringVar(&token, "token", "", "Authentication token")
 
 	_ = cmd.MarkFlagRequired("secret-name")
 	_ = cmd.MarkFlagRequired("number")
 	_ = cmd.MarkFlagRequired("owner")
 	_ = cmd.MarkFlagRequired("exp")
 	_ = cmd.MarkFlagRequired("cvv")
-	_ = cmd.MarkFlagRequired("token")
 
 	root.AddCommand(cmd)
 }
@@ -79,7 +76,6 @@ func RegisterAddBinaryCommand(root *cobra.Command) {
 		secretName string
 		dataPath   string
 		meta       string
-		token      string
 	)
 
 	cmd := &cobra.Command{
@@ -119,11 +115,9 @@ func RegisterAddBinaryCommand(root *cobra.Command) {
 	cmd.Flags().StringVar(&secretName, "secret-name", "", "Secret name")
 	cmd.Flags().StringVar(&dataPath, "data-path", "", "Path to binary data file")
 	cmd.Flags().StringVar(&meta, "meta", "", "Optional metadata")
-	cmd.Flags().StringVar(&token, "token", "", "Authentication token")
 
 	_ = cmd.MarkFlagRequired("secret-name")
 	_ = cmd.MarkFlagRequired("data-path")
-	_ = cmd.MarkFlagRequired("token")
 
 	root.AddCommand(cmd)
 }
@@ -135,7 +129,6 @@ func RegisterAddTextCommand(root *cobra.Command) {
 		secretName string
 		content    string
 		meta       string
-		token      string
 	)
 
 	cmd := &cobra.Command{
@@ -170,11 +163,9 @@ func RegisterAddTextCommand(root *cobra.Command) {
 	cmd.Flags().StringVar(&secretName, "secret-name", "", "Secret name")
 	cmd.Flags().StringVar(&content, "content", "", "Text content")
 	cmd.Flags().StringVar(&meta, "meta", "", "Optional metadata")
-	cmd.Flags().StringVar(&token, "token", "", "Authentication token")
 
 	_ = cmd.MarkFlagRequired("secret-name")
 	_ = cmd.MarkFlagRequired("content")
-	_ = cmd.MarkFlagRequired("token")
 
 	root.AddCommand(cmd)
 }
@@ -187,7 +178,6 @@ func RegisterAddUsernamePasswordCommand(root *cobra.Command) {
 		user       string
 		pass       string
 		meta       string
-		token      string
 	)
 
 	cmd := &cobra.Command{
@@ -224,12 +214,10 @@ func RegisterAddUsernamePasswordCommand(root *cobra.Command) {
 	cmd.Flags().StringVar(&user, "user", "", "Username for username-password secret")
 	cmd.Flags().StringVar(&pass, "pass", "", "Password for username-password secret")
 	cmd.Flags().StringVar(&meta, "meta", "", "Optional metadata")
-	cmd.Flags().StringVar(&token, "token", "", "Authentication token")
 
 	_ = cmd.MarkFlagRequired("secret-name")
 	_ = cmd.MarkFlagRequired("user")
 	_ = cmd.MarkFlagRequired("pass")
-	_ = cmd.MarkFlagRequired("token")
 
 	root.AddCommand(cmd)
 }
