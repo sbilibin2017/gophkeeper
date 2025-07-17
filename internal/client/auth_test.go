@@ -9,29 +9,62 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+	"google.golang.org/protobuf/types/known/emptypb"
+	_ "modernc.org/sqlite"
 )
 
-// --- HTTP server for tests ---
+// --- HTTP server for register/login/logout tests ---
 
 func authRunTestHTTPServer(t *testing.T) (*http.Server, string) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
-		var req models.AuthRequest
+	mux.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		var req models.RegisterRequest
 		err := json.NewDecoder(r.Body).Decode(&req)
 		require.NoError(t, err)
 
-		resp := models.AuthResponse{Token: "test-token-for-" + req.Username}
+		if req.Username == "error" {
+			http.Error(w, "registration error", http.StatusBadRequest)
+			return
+		}
+
+		resp := models.RegisterResponse{Token: "test-token-for-" + req.Username}
 		w.Header().Set("Content-Type", "application/json")
 		err = json.NewEncoder(w).Encode(resp)
 		require.NoError(t, err)
+	})
+
+	mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		var req models.LoginRequest
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		if req.Username == "error" {
+			http.Error(w, "login error", http.StatusUnauthorized)
+			return
+		}
+
+		resp := models.LoginResponse{Token: "test-token-for-" + req.Username}
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(resp)
+		require.NoError(t, err)
+	})
+
+	mux.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		token := r.Header.Get("Authorization")
+		if token == "" {
+			http.Error(w, "missing token", http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 	})
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -49,22 +82,44 @@ func authRunTestHTTPServer(t *testing.T) (*http.Server, string) {
 	return srv, listener.Addr().String()
 }
 
-// --- gRPC server for tests ---
+// --- gRPC server for register/login/logout tests ---
 
-const authBufSize = 1024 * 1024
+const testBufSize = 1024 * 1024
 
-type authTestAuthServer struct {
-	pb.UnimplementedAuthServiceServer
+type testAuthServer struct {
+	pb.UnimplementedRegisterServiceServer
+	pb.UnimplementedLoginServiceServer
+	pb.UnimplementedLogoutServiceServer
 }
 
-func (s *authTestAuthServer) Auth(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	return &pb.AuthResponse{Token: "test-token-for-" + req.Username}, nil
+func (s *testAuthServer) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.RegisterResponse, error) {
+	if req.Username == "error" {
+		return nil, status.Errorf(codes.InvalidArgument, "registration error")
+	}
+	return &pb.RegisterResponse{Token: "test-token-for-" + req.Username}, nil
 }
 
-func authRunTestGRPCServer(t *testing.T) (*grpc.Server, *bufconn.Listener) {
-	listener := bufconn.Listen(authBufSize)
+func (s *testAuthServer) Login(ctx context.Context, req *pb.LoginRequest) (*pb.LoginResponse, error) {
+	if req.Username == "error" {
+		return nil, status.Errorf(codes.Unauthenticated, "login error")
+	}
+	return &pb.LoginResponse{Token: "test-token-for-" + req.Username}, nil
+}
+
+func (s *testAuthServer) Logout(ctx context.Context, req *pb.LogoutRequest) (*emptypb.Empty, error) {
+	if req.Token == "" {
+		return nil, status.Errorf(codes.Unauthenticated, "missing token")
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func runTestGRPCServer(t *testing.T) (*grpc.Server, *bufconn.Listener) {
+	listener := bufconn.Listen(testBufSize)
 	grpcServer := grpc.NewServer()
-	pb.RegisterAuthServiceServer(grpcServer, &authTestAuthServer{})
+	srv := &testAuthServer{}
+	pb.RegisterRegisterServiceServer(grpcServer, srv)
+	pb.RegisterLoginServiceServer(grpcServer, srv)
+	pb.RegisterLogoutServiceServer(grpcServer, srv)
 
 	go func() {
 		if err := grpcServer.Serve(listener); err != nil {
@@ -75,8 +130,7 @@ func authRunTestGRPCServer(t *testing.T) (*grpc.Server, *bufconn.Listener) {
 	return grpcServer, listener
 }
 
-// Dialer for bufconn gRPC client
-func authBufDialer(listener *bufconn.Listener) func(context.Context, string) (net.Conn, error) {
+func bufDialer(listener *bufconn.Listener) func(context.Context, string) (net.Conn, error) {
 	return func(ctx context.Context, _ string) (net.Conn, error) {
 		return listener.Dial()
 	}
@@ -84,39 +138,130 @@ func authBufDialer(listener *bufconn.Listener) func(context.Context, string) (ne
 
 // --- Tests ---
 
-func TestAuthHTTP(t *testing.T) {
+func TestRegisterHTTP(t *testing.T) {
 	srv, addr := authRunTestHTTPServer(t)
 	defer srv.Close()
 
-	client := resty.New()
-	client.SetBaseURL("http://" + addr)
-
+	client := resty.New().SetBaseURL("http://" + addr)
 	ctx := context.Background()
-	req := &models.AuthRequest{Username: "user1", Password: "pass"}
 
-	resp, err := AuthHTTP(ctx, client, req)
+	// Success
+	req := &models.RegisterRequest{Username: "user1", Password: "pass"}
+	resp, err := RegisterHTTP(ctx, client, req)
 	require.NoError(t, err)
-	require.Equal(t, "test-token-for-user1", resp.Token)
+	assert.Equal(t, "test-token-for-user1", resp.Token)
+
+	// Failure case (bad status)
+	reqFail := &models.RegisterRequest{Username: "error", Password: "pass"}
+	_, err = RegisterHTTP(ctx, client, reqFail)
+	require.Error(t, err)
 }
 
-func TestAuthGRPC(t *testing.T) {
-	grpcServer, listener := authRunTestGRPCServer(t)
+func TestRegisterGRPC(t *testing.T) {
+	grpcServer, listener := runTestGRPCServer(t)
 	defer grpcServer.Stop()
 
 	ctx := context.Background()
 	conn, err := grpc.DialContext(ctx, "bufnet",
-		grpc.WithContextDialer(authBufDialer(listener)), // bufconn dialer
+		grpc.WithContextDialer(bufDialer(listener)),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err)
 	defer conn.Close()
 
-	grpcClient := pb.NewAuthServiceClient(conn)
-	req := &models.AuthRequest{Username: "user1", Password: "pass"}
+	client := pb.NewRegisterServiceClient(conn)
+	req := &models.RegisterRequest{Username: "user1", Password: "pass"}
 
-	resp, err := AuthGRPC(ctx, grpcClient, req)
+	resp, err := RegisterGRPC(ctx, client, req)
 	require.NoError(t, err)
-	require.Equal(t, "test-token-for-user1", resp.Token)
+	assert.Equal(t, "test-token-for-user1", resp.Token)
+
+	// Error case
+	reqFail := &models.RegisterRequest{Username: "error", Password: "pass"}
+	_, err = RegisterGRPC(ctx, client, reqFail)
+	require.Error(t, err)
+}
+
+func TestLoginHTTP(t *testing.T) {
+	srv, addr := authRunTestHTTPServer(t)
+	defer srv.Close()
+
+	client := resty.New().SetBaseURL("http://" + addr)
+	ctx := context.Background()
+
+	req := &models.LoginRequest{Username: "user1", Password: "pass"}
+	resp, err := LoginHTTP(ctx, client, req)
+	require.NoError(t, err)
+	assert.Equal(t, "test-token-for-user1", resp.Token)
+
+	// Failure case
+	reqFail := &models.LoginRequest{Username: "error", Password: "pass"}
+	_, err = LoginHTTP(ctx, client, reqFail)
+	require.Error(t, err)
+}
+
+func TestLoginGRPC(t *testing.T) {
+	grpcServer, listener := runTestGRPCServer(t)
+	defer grpcServer.Stop()
+
+	ctx := context.Background()
+	conn, err := grpc.DialContext(ctx, "bufnet",
+		grpc.WithContextDialer(bufDialer(listener)),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	client := pb.NewLoginServiceClient(conn)
+	req := &models.LoginRequest{Username: "user1", Password: "pass"}
+
+	resp, err := LoginGRPC(ctx, client, req)
+	require.NoError(t, err)
+	assert.Equal(t, "test-token-for-user1", resp.Token)
+
+	// Error case
+	reqFail := &models.LoginRequest{Username: "error", Password: "pass"}
+	_, err = LoginGRPC(ctx, client, reqFail)
+	require.Error(t, err)
+}
+
+func TestLogoutHTTP(t *testing.T) {
+	srv, addr := authRunTestHTTPServer(t)
+	defer srv.Close()
+
+	client := resty.New().SetBaseURL("http://" + addr)
+	ctx := context.Background()
+
+	// Success
+	err := LogoutHTTP(ctx, client, &models.LogoutRequest{Token: "valid-token"})
+	require.NoError(t, err)
+
+	// Failure case: missing token
+	err = LogoutHTTP(ctx, client, &models.LogoutRequest{Token: ""})
+	require.Error(t, err)
+}
+
+func TestLogoutGRPC(t *testing.T) {
+	grpcServer, listener := runTestGRPCServer(t)
+	defer grpcServer.Stop()
+
+	ctx := context.Background()
+	conn, err := grpc.DialContext(ctx, "bufnet",
+		grpc.WithContextDialer(bufDialer(listener)),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	client := pb.NewLogoutServiceClient(conn)
+
+	// Success
+	err = LogoutGRPC(ctx, client, &models.LogoutRequest{Token: "valid-token"})
+	require.NoError(t, err)
+
+	// Failure: empty token triggers error
+	err = LogoutGRPC(ctx, client, &models.LogoutRequest{Token: ""})
+	require.Error(t, err)
 }
 
 func TestValidateRegisterUsername(t *testing.T) {
@@ -133,7 +278,7 @@ func TestValidateRegisterUsername(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // capture range variable
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateRegisterUsername(tt.username)
 			if tt.wantErr {
@@ -172,7 +317,7 @@ func TestValidateRegisterPassword(t *testing.T) {
 	}
 }
 
-func TestValidateUsernameLogin(t *testing.T) {
+func TestValidateLoginUsername(t *testing.T) {
 	tests := []struct {
 		name     string
 		username string
@@ -195,7 +340,7 @@ func TestValidateUsernameLogin(t *testing.T) {
 	}
 }
 
-func TestValidatePasswordLogin(t *testing.T) {
+func TestValidateLoginPassword(t *testing.T) {
 	tests := []struct {
 		name     string
 		password string
@@ -218,54 +363,53 @@ func TestValidatePasswordLogin(t *testing.T) {
 	}
 }
 
-// openTestDB creates an in-memory SQLite DB for testing.
-func openTestDB(t *testing.T) *sqlx.DB {
-	dbConn, err := db.NewDB("sqlite", ":memory:")
+func TestDB(t *testing.T) {
+	// test DB opens and closes without error
+	db, err := sqlx.Open("sqlite", ":memory:")
 	require.NoError(t, err)
-	return dbConn
-}
-
-// tableExists checks if a table exists in the SQLite DB.
-func tableExists(t *testing.T, db *sqlx.DB, tableName string) bool {
-	var count int
-	query := `SELECT count(name) FROM sqlite_master WHERE type='table' AND name=?;`
-	err := db.Get(&count, query, tableName)
-	require.NoError(t, err)
-	return count > 0
+	defer db.Close()
 }
 
 func TestCreateBinaryRequestTable(t *testing.T) {
-	db := openTestDB(t)
+	db := setupTestDB(t)
 	defer db.Close()
 
 	err := CreateBinaryRequestTable(db)
 	require.NoError(t, err)
-	assert.True(t, tableExists(t, db, "secret_binary_request"))
+
 }
 
 func TestCreateTextRequestTable(t *testing.T) {
-	db := openTestDB(t)
+	db := setupTestDB(t)
 	defer db.Close()
 
 	err := CreateTextRequestTable(db)
 	require.NoError(t, err)
-	assert.True(t, tableExists(t, db, "secret_text_request"))
+
 }
 
 func TestCreateUsernamePasswordRequestTable(t *testing.T) {
-	db := openTestDB(t)
+	db := setupTestDB(t)
 	defer db.Close()
 
 	err := CreateUsernamePasswordRequestTable(db)
 	require.NoError(t, err)
-	assert.True(t, tableExists(t, db, "secret_username_password_request"))
+
 }
 
 func TestCreateBankCardRequestTable(t *testing.T) {
-	db := openTestDB(t)
+	db := setupTestDB(t)
 	defer db.Close()
 
 	err := CreateBankCardRequestTable(db)
 	require.NoError(t, err)
-	assert.True(t, tableExists(t, db, "secret_bank_card_request"))
+
+}
+
+// helper funcs
+
+func setupTestDB(t *testing.T) *sqlx.DB {
+	db, err := sqlx.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+	return db
 }

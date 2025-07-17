@@ -4,17 +4,44 @@ package auth;
 
 option go_package = "pkg/grpc";
 
+import "google/protobuf/empty.proto";
 
-message AuthRequest {
-  string username = 1;    
-  string password = 2;    
+// Register messages
+message RegisterRequest {
+  string username = 1;
+  string password = 2;
 }
 
-message AuthResponse {
-  string token = 1; 
+message RegisterResponse {
+  string token = 1;
 }
 
+// Login messages
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
 
-service AuthService {
-  rpc Auth(AuthRequest) returns (AuthResponse);
+message LoginResponse {
+  string token = 1;
+}
+
+// Logout messages
+message LogoutRequest {
+  string token = 1;
+}
+
+// Service for user registration
+service RegisterService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+}
+
+// Service for user login
+service LoginService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+}
+
+// Service for user logout
+service LogoutService {
+  rpc Logout(LogoutRequest) returns (google.protobuf.Empty);
 }

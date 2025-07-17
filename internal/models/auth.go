@@ -1,12 +1,28 @@
 package models
 
-// AuthRequest represents an authentication request with username and password.
-type AuthRequest struct {
-	Username string `json:"username"` // Username for authentication
-	Password string `json:"password"` // Password for authentication
+// RegisterRequest mirrors the gRPC RegisterRequest message.
+type RegisterRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
-// AuthResponse represents an authentication response containing a token.
-type AuthResponse struct {
-	Token string `json:"token"` // JWT or authentication token
+// RegisterResponse mirrors the gRPC RegisterResponse message.
+type RegisterResponse struct {
+	Token string `json:"token"`
+}
+
+// LoginRequest mirrors the gRPC LoginRequest message.
+type LoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// LoginResponse mirrors the gRPC LoginResponse message.
+type LoginResponse struct {
+	Token string `json:"token"`
+}
+
+// LogoutRequest mirrors the gRPC LogoutRequest message.
+type LogoutRequest struct {
+	Token string `json:"token"`
 }

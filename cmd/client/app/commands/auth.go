@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config"
@@ -11,7 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RegisterRegisterCommand registers the "register" command to the root command.
+// RegisterRegisterCommand adds the "register" CLI command to the root command.
+// It registers a new user by username and password with HTTP-first then gRPC fallback logic.
+// The command also creates necessary DB tables before registration.
 func RegisterRegisterCommand(root *cobra.Command) {
 	var (
 		username      string
@@ -24,15 +25,7 @@ func RegisterRegisterCommand(root *cobra.Command) {
 	cmd := &cobra.Command{
 		Use:   "register",
 		Short: "Register a new user",
-		Long: `Register a new user account by providing a username and password.
-
-This command validates the provided credentials according to registration rules,
-sets up the client configuration including HTTP or gRPC clients,
-creates necessary database tables, and sends a registration request to the auth service.
-
-Upon successful registration, an authentication token will be printed.`,
-		Example: `
-  gophkeeper register --username bob --password 'S3cr3t!' --auth-url https://auth.example.com --tls-client-cert /path/to/cert.pem --tls-client-key /path/to/key.pem`,
+		Long:  `Register a new user account by providing a username and password.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -43,20 +36,70 @@ Upon successful registration, an authentication token will be printed.`,
 				return err
 			}
 
-			return runAuth(cmd, ctx, username, password, authURL, tlsClientCert, tlsClientKey)
+			cfg, err := config.NewConfig(authURL, tlsClientCert, tlsClientKey)
+			if err != nil {
+				return fmt.Errorf("failed to create client config: %w", err)
+			}
+
+			if err := client.CreateBinaryRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create binary request table: %w", err)
+			}
+			if err := client.CreateTextRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create text request table: %w", err)
+			}
+			if err := client.CreateUsernamePasswordRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create username-password request table: %w", err)
+			}
+			if err := client.CreateBankCardRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create bank card request table: %w", err)
+			}
+
+			req := &models.RegisterRequest{
+				Username: username,
+				Password: password,
+			}
+
+			if cfg.HTTPClient != nil {
+				resp, err := client.RegisterHTTP(ctx, cfg.HTTPClient, req)
+				if err == nil {
+					cmd.Println(resp.Token)
+					return nil
+				}
+				cmd.Printf("HTTP register failed: %v, trying gRPC fallback...\n", err)
+			}
+
+			if cfg.GRPCClient != nil {
+				registerClient := pb.NewRegisterServiceClient(cfg.GRPCClient)
+				resp, err := client.RegisterGRPC(ctx, registerClient, req)
+				if err != nil {
+					return fmt.Errorf("grpc register failed: %w", err)
+				}
+				cmd.Println(resp.Token)
+				return nil
+			}
+
+			return fmt.Errorf("no HTTP or gRPC client available for register command")
 		},
 	}
 
-	cmd.Flags().StringVar(&username, "username", "", "Username for authentication")
-	cmd.Flags().StringVar(&password, "password", "", "Password for authentication")
+	cmd.Flags().StringVar(&username, "username", "", "Username for registration")
+	cmd.Flags().StringVar(&password, "password", "", "Password for registration")
 	cmd.Flags().StringVar(&authURL, "auth-url", "", "Authentication service URL")
-	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file (optional)")
-	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS key file (optional)")
+	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file")
+	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS key file")
+
+	_ = cmd.MarkFlagRequired("username")
+	_ = cmd.MarkFlagRequired("password")
+	_ = cmd.MarkFlagRequired("auth-url")
+	_ = cmd.MarkFlagRequired("tls-client-cert")
+	_ = cmd.MarkFlagRequired("tls-client-key")
 
 	root.AddCommand(cmd)
 }
 
-// RegisterLoginCommand registers the "login" command to the root cobra command.
+// RegisterLoginCommand adds the "login" CLI command to the root command.
+// It authenticates a user by username and password with HTTP-first then gRPC fallback logic.
+// The command also creates necessary DB tables before login.
 func RegisterLoginCommand(root *cobra.Command) {
 	var (
 		username      string
@@ -69,15 +112,7 @@ func RegisterLoginCommand(root *cobra.Command) {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Authenticate user",
-		Long: `Authenticate a user by providing a username and password.
-
-This command validates the credentials, initializes client configuration,
-creates necessary database tables, and sends an authentication request to
-the specified auth service endpoint using HTTP or gRPC protocols.
-
-Upon successful authentication, an authentication token will be printed.`,
-		Example: `  
-  gophkeeper login --username bob --password 'S3cr3t!' --auth-url https://auth.example.com --tls-client-cert /path/to/cert.pem --tls-client-key /path/to/key.pem`,
+		Long:  `Authenticate user by username and password.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
@@ -88,75 +123,125 @@ Upon successful authentication, an authentication token will be printed.`,
 				return err
 			}
 
-			return runAuth(cmd, ctx, username, password, authURL, tlsClientCert, tlsClientKey)
+			cfg, err := config.NewConfig(authURL, tlsClientCert, tlsClientKey)
+			if err != nil {
+				return fmt.Errorf("failed to create client config: %w", err)
+			}
+
+			if err := client.CreateBinaryRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create binary request table: %w", err)
+			}
+			if err := client.CreateTextRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create text request table: %w", err)
+			}
+			if err := client.CreateUsernamePasswordRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create username-password request table: %w", err)
+			}
+			if err := client.CreateBankCardRequestTable(cfg.DB); err != nil {
+				return fmt.Errorf("failed to create bank card request table: %w", err)
+			}
+
+			req := &models.LoginRequest{
+				Username: username,
+				Password: password,
+			}
+
+			if cfg.HTTPClient != nil {
+				resp, err := client.LoginHTTP(ctx, cfg.HTTPClient, req)
+				if err == nil {
+					cmd.Println(resp.Token)
+					return nil
+				}
+				cmd.Printf("HTTP login failed: %v, trying gRPC fallback...\n", err)
+			}
+
+			if cfg.GRPCClient != nil {
+				loginClient := pb.NewLoginServiceClient(cfg.GRPCClient)
+				resp, err := client.LoginGRPC(ctx, loginClient, req)
+				if err != nil {
+					return fmt.Errorf("grpc login failed: %w", err)
+				}
+				cmd.Println(resp.Token)
+				return nil
+			}
+
+			return fmt.Errorf("no HTTP or gRPC client available for login command")
 		},
 	}
 
-	cmd.Flags().StringVar(&username, "username", "", "Username for authentication")
-	cmd.Flags().StringVar(&password, "password", "", "Password for authentication")
+	cmd.Flags().StringVar(&username, "username", "", "Username for login")
+	cmd.Flags().StringVar(&password, "password", "", "Password for login")
 	cmd.Flags().StringVar(&authURL, "auth-url", "", "Authentication service URL")
-	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file (optional)")
-	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS key file (optional)")
+	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file")
+	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS key file")
+
+	_ = cmd.MarkFlagRequired("username")
+	_ = cmd.MarkFlagRequired("password")
+	_ = cmd.MarkFlagRequired("auth-url")
+	_ = cmd.MarkFlagRequired("tls-client-cert")
+	_ = cmd.MarkFlagRequired("tls-client-key")
 
 	root.AddCommand(cmd)
 }
 
-// runAuth handles shared logic for registration and login commands.
-func runAuth(
-	cmd *cobra.Command,
-	ctx context.Context,
-	username string,
-	password string,
-	authURL string,
-	tlsClientCert string,
-	tlsClientKey string,
-) error {
-	// 1. Setup client config (DB, HTTP/gRPC client)
-	cfg, err := config.NewConfig(authURL, tlsClientCert, tlsClientKey)
-	if err != nil {
-		return fmt.Errorf("failed to create client config: %w", err)
+// RegisterLogoutCommand adds the "logout" CLI command to the root command.
+// It logs out the current user by invalidating the authentication token,
+// with HTTP-first then gRPC fallback logic.
+func RegisterLogoutCommand(root *cobra.Command) {
+	var (
+		token         string
+		authURL       string
+		tlsClientCert string
+		tlsClientKey  string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "logout",
+		Short: "Logout the current user",
+		Long:  `Logout current user by invalidating token.`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			cfg, err := config.NewConfig(authURL, tlsClientCert, tlsClientKey)
+			if err != nil {
+				return fmt.Errorf("failed to create client config: %w", err)
+			}
+
+			req := &models.LogoutRequest{
+				Token: token,
+			}
+
+			if cfg.HTTPClient != nil {
+				if err := client.LogoutHTTP(ctx, cfg.HTTPClient, req); err == nil {
+					cmd.Println("Logout successful")
+					return nil
+				} else {
+					cmd.Printf("HTTP logout failed: %v, trying gRPC fallback...\n", err)
+				}
+			}
+
+			if cfg.GRPCClient != nil {
+				logoutClient := pb.NewLogoutServiceClient(cfg.GRPCClient)
+				if err := client.LogoutGRPC(ctx, logoutClient, req); err != nil {
+					return fmt.Errorf("grpc logout failed: %w", err)
+				}
+				cmd.Println("Logout successful")
+				return nil
+			}
+
+			return fmt.Errorf("no HTTP or gRPC client available for logout command")
+		},
 	}
 
-	// 2. Create required DB tables
-	if err := client.CreateBinaryRequestTable(cfg.DB); err != nil {
-		return fmt.Errorf("failed to create binary request table: %w", err)
-	}
-	if err := client.CreateTextRequestTable(cfg.DB); err != nil {
-		return fmt.Errorf("failed to create text request table: %w", err)
-	}
-	if err := client.CreateUsernamePasswordRequestTable(cfg.DB); err != nil {
-		return fmt.Errorf("failed to create username-password request table: %w", err)
-	}
-	if err := client.CreateBankCardRequestTable(cfg.DB); err != nil {
-		return fmt.Errorf("failed to create bank card request table: %w", err)
-	}
+	cmd.Flags().StringVar(&token, "token", "", "Authentication token")
+	cmd.Flags().StringVar(&authURL, "auth-url", "", "Authentication service URL")
+	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file")
+	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS key file")
 
-	// 3. Build auth request
-	req := &models.AuthRequest{
-		Username: username,
-		Password: password,
-	}
+	_ = cmd.MarkFlagRequired("token")
+	_ = cmd.MarkFlagRequired("auth-url")
+	_ = cmd.MarkFlagRequired("tls-client-cert")
+	_ = cmd.MarkFlagRequired("tls-client-key")
 
-	// 4. Authenticate via HTTP if available
-	if cfg.HTTPClient != nil {
-		resp, err := client.AuthHTTP(ctx, cfg.HTTPClient, req)
-		if err != nil {
-			return fmt.Errorf("http auth failed: %w", err)
-		}
-		cmd.Println(resp.Token)
-		return nil
-	}
-
-	// 5. Authenticate via gRPC if available
-	if cfg.GRPCClient != nil {
-		grpcClient := pb.NewAuthServiceClient(cfg.GRPCClient)
-		resp, err := client.AuthGRPC(ctx, grpcClient, req)
-		if err != nil {
-			return fmt.Errorf("grpc auth failed: %w", err)
-		}
-		cmd.Println(resp.Token)
-		return nil
-	}
-
-	return fmt.Errorf("no HTTP or gRPC client available")
+	root.AddCommand(cmd)
 }

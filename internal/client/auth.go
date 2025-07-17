@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"unicode"
 
 	"github.com/jmoiron/sqlx"
@@ -13,66 +14,146 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// AuthHTTP sends an HTTP authentication request using models.AuthRequest and models.AuthResponse.
-// It posts the request to the "/auth" endpoint.
+// RegisterHTTP sends an HTTP registration request to the server.
 //
-// Returns the AuthResponse containing the authentication token if successful,
-// or an error if the request failed or the status code is not 200.
-func AuthHTTP(
+// It takes a context, a Resty HTTP client, and a RegisterRequest model,
+// and returns a RegisterResponse model or an error.
+func RegisterHTTP(
 	ctx context.Context,
 	client *resty.Client,
-	req *models.AuthRequest,
-) (*models.AuthResponse, error) {
-	resp := &models.AuthResponse{}
+	req *models.RegisterRequest,
+) (*models.RegisterResponse, error) {
+	resp := &models.RegisterResponse{}
 
 	httpResp, err := client.R().
 		SetContext(ctx).
 		SetBody(req).
 		SetResult(resp).
-		Post("/auth")
+		Post("/register")
 	if err != nil {
-		return nil, fmt.Errorf("failed to send HTTP auth request: %w", err)
+		return nil, fmt.Errorf("failed to send HTTP register request: %w", err)
 	}
 
-	if httpResp.StatusCode() != 200 {
-		return nil, fmt.Errorf("auth failed with status %d: %s", httpResp.StatusCode(), httpResp.String())
+	if httpResp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("registration failed with status %d: %s", httpResp.StatusCode(), httpResp.String())
 	}
 
 	return resp, nil
 }
 
-// AuthGRPC calls the Auth method of the gRPC AuthService using protobuf request and response.
-// It converts the models.AuthRequest to protobuf.AuthRequest, calls the service, and then
-// converts the protobuf.AuthResponse back to models.AuthResponse.
+// RegisterGRPC performs user registration using a gRPC client.
 //
-// Returns the AuthResponse containing the authentication token if successful,
-// or an error if the gRPC call failed.
-func AuthGRPC(
+// It takes a context, a gRPC RegisterServiceClient, and a RegisterRequest model,
+// and returns a RegisterResponse or an error.
+func RegisterGRPC(
 	ctx context.Context,
-	client pb.AuthServiceClient,
-	req *models.AuthRequest,
-) (*models.AuthResponse, error) {
-	pbReq := &pb.AuthRequest{
+	client pb.RegisterServiceClient,
+	req *models.RegisterRequest,
+) (*models.RegisterResponse, error) {
+	pbReq := &pb.RegisterRequest{
 		Username: req.Username,
 		Password: req.Password,
 	}
 
-	pbResp, err := client.Auth(ctx, pbReq)
+	pbResp, err := client.Register(ctx, pbReq)
 	if err != nil {
-		return nil, fmt.Errorf("grpc auth call failed: %w", err)
+		return nil, fmt.Errorf("grpc register call failed: %w", err)
 	}
 
-	resp := &models.AuthResponse{
-		Token: pbResp.Token,
+	return &models.RegisterResponse{Token: pbResp.Token}, nil
+}
+
+// LoginHTTP sends an HTTP login request to the server.
+//
+// It takes a context, a Resty HTTP client, and a LoginRequest model,
+// and returns a LoginResponse model or an error.
+func LoginHTTP(
+	ctx context.Context,
+	client *resty.Client,
+	req *models.LoginRequest,
+) (*models.LoginResponse, error) {
+	resp := &models.LoginResponse{}
+
+	httpResp, err := client.R().
+		SetContext(ctx).
+		SetBody(req).
+		SetResult(resp).
+		Post("/login")
+	if err != nil {
+		return nil, fmt.Errorf("failed to send HTTP login request: %w", err)
+	}
+
+	if httpResp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("login failed with status %d: %s", httpResp.StatusCode(), httpResp.String())
 	}
 
 	return resp, nil
 }
 
-// ValidateRegisterUsername checks if the username meets registration requirements:
-// length between 3 and 30 and only letters, digits, or underscore.
+// LoginGRPC performs user login using a gRPC client.
 //
-// Returns an error if validation fails, nil otherwise.
+// It takes a context, a gRPC LoginServiceClient, and a LoginRequest model,
+// and returns a LoginResponse or an error.
+func LoginGRPC(
+	ctx context.Context,
+	client pb.LoginServiceClient,
+	req *models.LoginRequest,
+) (*models.LoginResponse, error) {
+	pbReq := &pb.LoginRequest{
+		Username: req.Username,
+		Password: req.Password,
+	}
+
+	pbResp, err := client.Login(ctx, pbReq)
+	if err != nil {
+		return nil, fmt.Errorf("grpc login call failed: %w", err)
+	}
+
+	return &models.LoginResponse{Token: pbResp.Token}, nil
+}
+
+// LogoutHTTP sends an HTTP logout request.
+//
+// It takes a context, a Resty HTTP client, and a LogoutRequest model.
+// Returns an error if the logout failed.
+func LogoutHTTP(ctx context.Context, client *resty.Client, req *models.LogoutRequest) error {
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Authorization", req.Token).
+		Post("/logout")
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("logout failed: %s", resp.Status())
+	}
+
+	return nil
+}
+
+// LogoutGRPC performs user logout using a gRPC client.
+//
+// It takes a context, a gRPC LogoutServiceClient, and a LogoutRequest model.
+// Returns an error if the logout failed.
+func LogoutGRPC(
+	ctx context.Context,
+	client pb.LogoutServiceClient,
+	req *models.LogoutRequest,
+) error {
+	_, err := client.Logout(ctx, &pb.LogoutRequest{
+		Token: req.Token,
+	})
+	if err != nil {
+		return fmt.Errorf("grpc logout call failed: %w", err)
+	}
+	return nil
+}
+
+// ValidateRegisterUsername validates if the username meets registration criteria.
+//
+// Username must be between 3 and 30 characters and contain only letters, digits, or underscore.
+// Returns an error if validation fails.
 func ValidateRegisterUsername(username string) error {
 	if len(username) < 3 || len(username) > 30 {
 		return errors.New("username must be between 3 and 30 characters")
@@ -85,10 +166,10 @@ func ValidateRegisterUsername(username string) error {
 	return nil
 }
 
-// ValidateRegisterPassword checks if the password meets registration requirements:
-// at least 8 characters including uppercase, lowercase, and digit.
+// ValidateRegisterPassword validates if the password meets registration criteria.
 //
-// Returns an error if validation fails, nil otherwise.
+// Password must be at least 8 characters long and contain at least one uppercase letter,
+// one lowercase letter, and one digit. Returns an error if validation fails.
 func ValidateRegisterPassword(password string) error {
 	if len(password) < 8 {
 		return errors.New("password must be at least 8 characters long")
@@ -116,9 +197,9 @@ func ValidateRegisterPassword(password string) error {
 	return nil
 }
 
-// ValidateLoginUsername checks that the username is not empty for login.
+// ValidateLoginUsername validates that the username is not empty for login.
 //
-// Returns an error if username is empty, nil otherwise.
+// Returns an error if username is empty.
 func ValidateLoginUsername(username string) error {
 	if username == "" {
 		return errors.New("username must not be empty")
@@ -126,9 +207,9 @@ func ValidateLoginUsername(username string) error {
 	return nil
 }
 
-// ValidateLoginPassword checks that the password is not empty for login.
+// ValidateLoginPassword validates that the password is not empty for login.
 //
-// Returns an error if password is empty, nil otherwise.
+// Returns an error if password is empty.
 func ValidateLoginPassword(password string) error {
 	if password == "" {
 		return errors.New("password must not be empty")
@@ -136,10 +217,10 @@ func ValidateLoginPassword(password string) error {
 	return nil
 }
 
-// CreateBinaryRequestTable drops the existing 'secret_binary_request' table if exists,
-// then creates a new table with columns: secret_name (primary key), data (binary), and meta.
+// CreateBinaryRequestTable creates the "secret_binary_request" table in the database.
 //
-// Returns an error if the operation fails.
+// Drops the table if it exists and then creates it with columns secret_name (primary key),
+// data (binary), and meta (text).
 func CreateBinaryRequestTable(db *sqlx.DB) error {
 	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_binary_request;`)
 	_, err := db.Exec(`
@@ -152,10 +233,10 @@ func CreateBinaryRequestTable(db *sqlx.DB) error {
 	return err
 }
 
-// CreateTextRequestTable drops the existing 'secret_text_request' table if exists,
-// then creates a new table with columns: secret_name (primary key), content (text), and meta.
+// CreateTextRequestTable creates the "secret_text_request" table in the database.
 //
-// Returns an error if the operation fails.
+// Drops the table if it exists and then creates it with columns secret_name (primary key),
+// content (text), and meta (text).
 func CreateTextRequestTable(db *sqlx.DB) error {
 	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_text_request;`)
 	_, err := db.Exec(`
@@ -168,10 +249,10 @@ func CreateTextRequestTable(db *sqlx.DB) error {
 	return err
 }
 
-// CreateUsernamePasswordRequestTable drops the existing 'secret_username_password_request' table if exists,
-// then creates a new table with columns: secret_name (primary key), username, password, and meta.
+// CreateUsernamePasswordRequestTable creates the "secret_username_password_request" table in the database.
 //
-// Returns an error if the operation fails.
+// Drops the table if it exists and then creates it with columns secret_name (primary key),
+// username, password, and meta (all text).
 func CreateUsernamePasswordRequestTable(db *sqlx.DB) error {
 	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_username_password_request;`)
 	_, err := db.Exec(`
@@ -185,10 +266,10 @@ func CreateUsernamePasswordRequestTable(db *sqlx.DB) error {
 	return err
 }
 
-// CreateBankCardRequestTable drops the existing 'secret_bank_card_request' table if exists,
-// then creates a new table with columns: secret_name (primary key), number, owner, exp, cvv, and meta.
+// CreateBankCardRequestTable creates the "secret_bank_card_request" table in the database.
 //
-// Returns an error if the operation fails.
+// Drops the table if it exists and then creates it with columns secret_name (primary key),
+// number, owner, exp, cvv, and meta (all text except owner optional).
 func CreateBankCardRequestTable(db *sqlx.DB) error {
 	_, _ = db.Exec(`DROP TABLE IF EXISTS secret_bank_card_request;`)
 	_, err := db.Exec(`
