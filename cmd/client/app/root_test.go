@@ -22,8 +22,9 @@ func TestNewRootCommand(t *testing.T) {
 	}
 
 	expectedCommands := []string{
-		"register",
-		"login",
+		"auth-register",
+		"auth-login",
+		"auth-logout",
 		"add-bank-card",
 		"add-binary-secret",
 		"add-text-secret",
