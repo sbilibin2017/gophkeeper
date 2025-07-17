@@ -1,10 +1,13 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config"
 	"github.com/sbilibin2017/gophkeeper/internal/client"
+	"github.com/sbilibin2017/gophkeeper/internal/configs"
+	"github.com/sbilibin2017/gophkeeper/internal/configs/clients"
+	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/spf13/cobra"
@@ -36,7 +39,7 @@ func RegisterRegisterCommand(root *cobra.Command) {
 				return err
 			}
 
-			cfg, err := config.NewConfig(authURL, tlsClientCert, tlsClientKey)
+			cfg, err := newAuthConfig(authURL, tlsClientCert, tlsClientKey)
 			if err != nil {
 				return fmt.Errorf("failed to create client config: %w", err)
 			}
@@ -123,7 +126,7 @@ func RegisterLoginCommand(root *cobra.Command) {
 				return err
 			}
 
-			cfg, err := config.NewConfig(authURL, tlsClientCert, tlsClientKey)
+			cfg, err := newAuthConfig(authURL, tlsClientCert, tlsClientKey)
 			if err != nil {
 				return fmt.Errorf("failed to create client config: %w", err)
 			}
@@ -202,7 +205,7 @@ func RegisterLogoutCommand(root *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			cfg, err := config.NewConfig(authURL, tlsClientCert, tlsClientKey)
+			cfg, err := newAuthConfig(authURL, tlsClientCert, tlsClientKey)
 			if err != nil {
 				return fmt.Errorf("failed to create client config: %w", err)
 			}
@@ -244,4 +247,46 @@ func RegisterLogoutCommand(root *cobra.Command) {
 	_ = cmd.MarkFlagRequired("tls-client-key")
 
 	root.AddCommand(cmd)
+}
+
+// newConfig creates a new ClientConfig based on the given authentication URL
+// and optional TLS client certificate and key files.
+//
+// The function determines the scheme from the authURL (HTTP, HTTPS, or gRPC)
+// and configures the client accordingly:
+// - For HTTP/HTTPS, it configures an HTTP client with optional TLS certificates.
+// - For gRPC, it configures a gRPC client with optional TLS certificates.
+//
+// Returns an error if the URL scheme is unsupported or configuration fails.
+func newAuthConfig(
+	authURL string,
+	tlsClientCert string,
+	tlsClientKey string,
+) (*configs.ClientConfig, error) {
+	var opts []configs.ClientConfigOpt
+
+	opts = append(opts, configs.WithClientConfigDB())
+
+	schm := scheme.GetSchemeFromURL(authURL)
+
+	switch schm {
+	case scheme.HTTP, scheme.HTTPS:
+		httpOpts := []clients.HTTPClientOption{}
+		if tlsClientCert != "" && tlsClientKey != "" {
+			httpOpts = append(httpOpts, clients.WithHTTPTLSClientCert(tlsClientCert, tlsClientKey))
+		}
+		opts = append(opts, configs.WithClientConfigHTTPClient(authURL, httpOpts...))
+
+	case scheme.GRPC:
+		grpcOpts := []clients.GRPCClientOption{}
+		if tlsClientCert != "" && tlsClientKey != "" {
+			grpcOpts = append(grpcOpts, clients.WithGRPCTLSClientCert(tlsClientCert, tlsClientKey))
+		}
+		opts = append(opts, configs.WithClientConfigGRPCClient(authURL, grpcOpts...))
+
+	default:
+		return nil, errors.New("unsupported scheme: " + schm)
+	}
+
+	return configs.NewClientConfig(opts...)
 }

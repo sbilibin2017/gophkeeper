@@ -20,11 +20,12 @@ as well as synchronizing data with the server.`,
 
 	commands.RegisterRegisterCommand(rootCmd)
 	commands.RegisterLoginCommand(rootCmd)
+	commands.RegisterLogoutCommand(rootCmd)
 
-	commands.RegisterAddBankCardSecretCommand(rootCmd)
-	commands.RegisterAddBinarySecretCommand(rootCmd)
-	commands.RegisterAddTextSecretCommand(rootCmd)
-	commands.RegisterAddUsernamePasswordSecretCommand(rootCmd)
+	commands.RegisterAddBankCardCommand(rootCmd)
+	commands.RegisterAddBinaryCommand(rootCmd)
+	commands.RegisterAddTextCommand(rootCmd)
+	commands.RegisterAddUsernamePasswordCommand(rootCmd)
 
 	commands.RegisterGetSecretCommand(rootCmd)
 	commands.RegisterListSecretsCommand(rootCmd)
