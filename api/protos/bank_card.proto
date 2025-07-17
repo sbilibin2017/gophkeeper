@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package bank_card;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+import "google/protobuf/empty.proto";
+
+// === Bank Card Secret ===
+
+message BankCardAddRequest {
+  string secret_name = 1;
+  string number = 2;
+  string owner = 3;
+  string exp = 4;
+  string cvv = 5;
+  string meta = 6;
+}
+
+message BankCardGetRequest {
+  string secret_name = 1;
+}
+
+message BankCardGetResponse {
+  string secret_name = 1;
+  string secret_owner = 2;
+  string number = 3;
+  string owner = 4;
+  string exp = 5;
+  string cvv = 6;
+  string meta = 7;
+  string updated_at = 8;
+}
+
+message BankCardListResponse {
+  repeated BankCardGetResponse items = 1;
+}
+
+service BankCardAddService {
+  rpc Add(BankCardAddRequest) returns (google.protobuf.Empty);
+}
+
+service BankCardGetService {
+  rpc Get(BankCardGetRequest) returns (BankCardGetResponse);
+}
+
+service BankCardListService {
+  rpc List(google.protobuf.Empty) returns (BankCardListResponse);
+}
