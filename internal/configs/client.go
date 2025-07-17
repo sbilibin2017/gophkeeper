@@ -60,12 +60,9 @@ func WithClientConfigGRPCClient(addr string, grpcOpts ...clients.GRPCClientOptio
 }
 
 // WithClientConfigDB connects to a database using the specified driver and DSN.
-func WithClientConfigDB(dsn string) ClientConfigOpt {
+func WithClientConfigDB() ClientConfigOpt {
 	return func(cfg *ClientConfig) error {
-		if dsn == "" {
-			return nil
-		}
-		conn, err := db.NewDB("sqlite", dsn)
+		conn, err := db.NewDB("sqlite", "client.db")
 		if err != nil {
 			return err
 		}

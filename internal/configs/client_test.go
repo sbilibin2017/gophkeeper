@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"os"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
@@ -36,11 +37,9 @@ func TestNewClientConfig(t *testing.T) {
 	})
 
 	t.Run("With gRPC Client", func(t *testing.T) {
-		// Используем localhost:0, чтобы не ожидать реального сервера, соединение может упасть, но тест проверит ошибку
 		cfg, err := NewClientConfig(
 			WithClientConfigGRPCClient("localhost:0"),
 		)
-		// Ошибка подключения ожидаема, так как сервера нет — проверим, что err != nil и GRPCClient == nil
 		if err != nil {
 			assert.Nil(t, cfg)
 		} else {
@@ -58,23 +57,20 @@ func TestNewClientConfig(t *testing.T) {
 	})
 
 	t.Run("With DB connection", func(t *testing.T) {
-		// Используем SQLite in-memory БД
 		cfg, err := NewClientConfig(
-			WithClientConfigDB("file::memory:?cache=shared"),
+			WithClientConfigDB(),
 		)
 		require.NoError(t, err)
 		require.NotNil(t, cfg.DB)
 		var version string
 		err = cfg.DB.Get(&version, "select sqlite_version()")
 		assert.NoError(t, err)
-	})
 
-	t.Run("With empty DB dsn", func(t *testing.T) {
-		cfg, err := NewClientConfig(
-			WithClientConfigDB(""),
-		)
+		// Удаляем файл после теста
+		err = cfg.DB.Close()
 		require.NoError(t, err)
-		assert.Nil(t, cfg.DB)
+		err = os.Remove("client.db")
+		require.NoError(t, err)
 	})
 
 	t.Run("With DB With Migrations", func(t *testing.T) {
@@ -83,6 +79,10 @@ func TestNewClientConfig(t *testing.T) {
 		)
 		require.NoError(t, err)
 		require.NotNil(t, cfg.DB)
+
+		// Закрываем БД, тут файл не создается
+		err = cfg.DB.Close()
+		require.NoError(t, err)
 	})
 
 	t.Run("With empty DSN With Migrations", func(t *testing.T) {
