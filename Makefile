@@ -1,4 +1,4 @@
-PROTO_SRC = api/grpc
+PROTO_SRC = api/protos
 OUT_DIR = pkg/grpc
 
 PROTO_FILES := $(wildcard $(PROTO_SRC)/*.proto)
