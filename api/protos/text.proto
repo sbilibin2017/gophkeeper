@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package text;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+import "google/protobuf/empty.proto";
+
+// === Text Secret ===
+
+message TextAddRequest {
+  string secret_name = 1;
+  string content = 2;
+  string meta = 3;
+}
+
+message TextGetRequest {
+  string secret_name = 1;
+}
+
+message TextGetResponse {
+  string secret_name = 1;
+  string secret_owner = 2;
+  string content = 3;
+  string meta = 4;
+  string updated_at = 5;
+}
+
+message TextListResponse {
+  repeated TextGetResponse items = 1;
+}
+
+
+message TextDeleteRequest {
+  string secret_name = 1;
+}
+
+// Services
+
+service TextAddService {
+  rpc Add(TextAddRequest) returns (google.protobuf.Empty);
+}
+
+service TextGetService {
+  rpc Get(TextGetRequest) returns (TextGetResponse);
+}
+
+service TextListService {
+  rpc List(google.protobuf.Empty) returns (TextListResponse);
+}
+
+
+service TextDeleteService {
+  rpc Delete(TextDeleteRequest) returns (google.protobuf.Empty);
+}
