@@ -135,44 +135,6 @@ func TestLoginGRPC_Success(t *testing.T) {
 	assert.Equal(t, "dummy-token", resp.Token)
 }
 
-func TestValidateLoginUsername(t *testing.T) {
-	tests := []struct {
-		username string
-		wantErr  bool
-	}{
-		{"user", false},
-		{"", true},
-	}
-
-	for _, tt := range tests {
-		err := ValidateLoginUsername(tt.username)
-		if tt.wantErr {
-			assert.Error(t, err, "username: %q", tt.username)
-		} else {
-			assert.NoError(t, err, "username: %q", tt.username)
-		}
-	}
-}
-
-func TestValidateLoginPassword(t *testing.T) {
-	tests := []struct {
-		password string
-		wantErr  bool
-	}{
-		{"pass", false},
-		{"", true},
-	}
-
-	for _, tt := range tests {
-		err := ValidateLoginPassword(tt.password)
-		if tt.wantErr {
-			assert.Error(t, err, "password: %q", tt.password)
-		} else {
-			assert.NoError(t, err, "password: %q", tt.password)
-		}
-	}
-}
-
 func openTestDB(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open("sqlite", "file::memory:?cache=shared")
 	if err != nil {

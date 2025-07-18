@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -60,26 +59,6 @@ func LoginGRPC(
 	}
 
 	return &models.LoginResponse{Token: pbResp.Token}, nil
-}
-
-// ValidateLoginUsername validates that the username is not empty for login.
-//
-// Returns an error if username is empty.
-func ValidateLoginUsername(username string) error {
-	if username == "" {
-		return errors.New("username must not be empty")
-	}
-	return nil
-}
-
-// ValidateLoginPassword validates that the password is not empty for login.
-//
-// Returns an error if password is empty.
-func ValidateLoginPassword(password string) error {
-	if password == "" {
-		return errors.New("password must not be empty")
-	}
-	return nil
 }
 
 // CreateBinaryRequestTable creates the "secret_binary_request" table in the database.
