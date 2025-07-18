@@ -294,6 +294,50 @@ func (x *BankCardListResponse) GetItems() []*BankCardGetResponse {
 	return nil
 }
 
+type BankCardDeleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BankCardDeleteRequest) Reset() {
+	*x = BankCardDeleteRequest{}
+	mi := &file_bank_card_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BankCardDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BankCardDeleteRequest) ProtoMessage() {}
+
+func (x *BankCardDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_bank_card_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BankCardDeleteRequest.ProtoReflect.Descriptor instead.
+func (*BankCardDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_bank_card_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *BankCardDeleteRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
 var File_bank_card_proto protoreflect.FileDescriptor
 
 const file_bank_card_proto_rawDesc = "" +
@@ -322,13 +366,18 @@ const file_bank_card_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\b \x01(\tR\tupdatedAt\"L\n" +
 	"\x14BankCardListResponse\x124\n" +
-	"\x05items\x18\x01 \x03(\v2\x1e.bank_card.BankCardGetResponseR\x05items2R\n" +
+	"\x05items\x18\x01 \x03(\v2\x1e.bank_card.BankCardGetResponseR\x05items\"8\n" +
+	"\x15BankCardDeleteRequest\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName2R\n" +
 	"\x12BankCardAddService\x12<\n" +
 	"\x03Add\x12\x1d.bank_card.BankCardAddRequest\x1a\x16.google.protobuf.Empty2Z\n" +
 	"\x12BankCardGetService\x12D\n" +
 	"\x03Get\x12\x1d.bank_card.BankCardGetRequest\x1a\x1e.bank_card.BankCardGetResponse2V\n" +
 	"\x13BankCardListService\x12?\n" +
-	"\x04List\x12\x16.google.protobuf.Empty\x1a\x1f.bank_card.BankCardListResponseB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
+	"\x04List\x12\x16.google.protobuf.Empty\x1a\x1f.bank_card.BankCardListResponse2[\n" +
+	"\x15BankCardDeleteService\x12B\n" +
+	"\x06Delete\x12 .bank_card.BankCardDeleteRequest\x1a\x16.google.protobuf.EmptyB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
 	file_bank_card_proto_rawDescOnce sync.Once
@@ -342,24 +391,27 @@ func file_bank_card_proto_rawDescGZIP() []byte {
 	return file_bank_card_proto_rawDescData
 }
 
-var file_bank_card_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_bank_card_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_bank_card_proto_goTypes = []any{
-	(*BankCardAddRequest)(nil),   // 0: bank_card.BankCardAddRequest
-	(*BankCardGetRequest)(nil),   // 1: bank_card.BankCardGetRequest
-	(*BankCardGetResponse)(nil),  // 2: bank_card.BankCardGetResponse
-	(*BankCardListResponse)(nil), // 3: bank_card.BankCardListResponse
-	(*emptypb.Empty)(nil),        // 4: google.protobuf.Empty
+	(*BankCardAddRequest)(nil),    // 0: bank_card.BankCardAddRequest
+	(*BankCardGetRequest)(nil),    // 1: bank_card.BankCardGetRequest
+	(*BankCardGetResponse)(nil),   // 2: bank_card.BankCardGetResponse
+	(*BankCardListResponse)(nil),  // 3: bank_card.BankCardListResponse
+	(*BankCardDeleteRequest)(nil), // 4: bank_card.BankCardDeleteRequest
+	(*emptypb.Empty)(nil),         // 5: google.protobuf.Empty
 }
 var file_bank_card_proto_depIdxs = []int32{
 	2, // 0: bank_card.BankCardListResponse.items:type_name -> bank_card.BankCardGetResponse
 	0, // 1: bank_card.BankCardAddService.Add:input_type -> bank_card.BankCardAddRequest
 	1, // 2: bank_card.BankCardGetService.Get:input_type -> bank_card.BankCardGetRequest
-	4, // 3: bank_card.BankCardListService.List:input_type -> google.protobuf.Empty
-	4, // 4: bank_card.BankCardAddService.Add:output_type -> google.protobuf.Empty
-	2, // 5: bank_card.BankCardGetService.Get:output_type -> bank_card.BankCardGetResponse
-	3, // 6: bank_card.BankCardListService.List:output_type -> bank_card.BankCardListResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	5, // 3: bank_card.BankCardListService.List:input_type -> google.protobuf.Empty
+	4, // 4: bank_card.BankCardDeleteService.Delete:input_type -> bank_card.BankCardDeleteRequest
+	5, // 5: bank_card.BankCardAddService.Add:output_type -> google.protobuf.Empty
+	2, // 6: bank_card.BankCardGetService.Get:output_type -> bank_card.BankCardGetResponse
+	3, // 7: bank_card.BankCardListService.List:output_type -> bank_card.BankCardListResponse
+	5, // 8: bank_card.BankCardDeleteService.Delete:output_type -> google.protobuf.Empty
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -376,9 +428,9 @@ func file_bank_card_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bank_card_proto_rawDesc), len(file_bank_card_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   4,
 		},
 		GoTypes:           file_bank_card_proto_goTypes,
 		DependencyIndexes: file_bank_card_proto_depIdxs,

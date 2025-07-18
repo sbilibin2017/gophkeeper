@@ -324,3 +324,105 @@ var TextListService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "text.proto",
 }
+
+const (
+	TextDeleteService_Delete_FullMethodName = "/text.TextDeleteService/Delete"
+)
+
+// TextDeleteServiceClient is the client API for TextDeleteService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type TextDeleteServiceClient interface {
+	Delete(ctx context.Context, in *TextDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+}
+
+type textDeleteServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewTextDeleteServiceClient(cc grpc.ClientConnInterface) TextDeleteServiceClient {
+	return &textDeleteServiceClient{cc}
+}
+
+func (c *textDeleteServiceClient) Delete(ctx context.Context, in *TextDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, TextDeleteService_Delete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TextDeleteServiceServer is the server API for TextDeleteService service.
+// All implementations must embed UnimplementedTextDeleteServiceServer
+// for forward compatibility.
+type TextDeleteServiceServer interface {
+	Delete(context.Context, *TextDeleteRequest) (*emptypb.Empty, error)
+	mustEmbedUnimplementedTextDeleteServiceServer()
+}
+
+// UnimplementedTextDeleteServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedTextDeleteServiceServer struct{}
+
+func (UnimplementedTextDeleteServiceServer) Delete(context.Context, *TextDeleteRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedTextDeleteServiceServer) mustEmbedUnimplementedTextDeleteServiceServer() {}
+func (UnimplementedTextDeleteServiceServer) testEmbeddedByValue()                           {}
+
+// UnsafeTextDeleteServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TextDeleteServiceServer will
+// result in compilation errors.
+type UnsafeTextDeleteServiceServer interface {
+	mustEmbedUnimplementedTextDeleteServiceServer()
+}
+
+func RegisterTextDeleteServiceServer(s grpc.ServiceRegistrar, srv TextDeleteServiceServer) {
+	// If the following call pancis, it indicates UnimplementedTextDeleteServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&TextDeleteService_ServiceDesc, srv)
+}
+
+func _TextDeleteService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TextDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TextDeleteServiceServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TextDeleteService_Delete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TextDeleteServiceServer).Delete(ctx, req.(*TextDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// TextDeleteService_ServiceDesc is the grpc.ServiceDesc for TextDeleteService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TextDeleteService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "text.TextDeleteService",
+	HandlerType: (*TextDeleteServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Delete",
+			Handler:    _TextDeleteService_Delete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "text.proto",
+}

@@ -246,6 +246,50 @@ func (x *TextListResponse) GetItems() []*TextGetResponse {
 	return nil
 }
 
+type TextDeleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TextDeleteRequest) Reset() {
+	*x = TextDeleteRequest{}
+	mi := &file_text_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TextDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TextDeleteRequest) ProtoMessage() {}
+
+func (x *TextDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_text_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TextDeleteRequest.ProtoReflect.Descriptor instead.
+func (*TextDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_text_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *TextDeleteRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
 var File_text_proto protoreflect.FileDescriptor
 
 const file_text_proto_rawDesc = "" +
@@ -269,13 +313,18 @@ const file_text_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x05 \x01(\tR\tupdatedAt\"?\n" +
 	"\x10TextListResponse\x12+\n" +
-	"\x05items\x18\x01 \x03(\v2\x15.text.TextGetResponseR\x05items2E\n" +
+	"\x05items\x18\x01 \x03(\v2\x15.text.TextGetResponseR\x05items\"4\n" +
+	"\x11TextDeleteRequest\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName2E\n" +
 	"\x0eTextAddService\x123\n" +
 	"\x03Add\x12\x14.text.TextAddRequest\x1a\x16.google.protobuf.Empty2D\n" +
 	"\x0eTextGetService\x122\n" +
 	"\x03Get\x12\x14.text.TextGetRequest\x1a\x15.text.TextGetResponse2I\n" +
 	"\x0fTextListService\x126\n" +
-	"\x04List\x12\x16.google.protobuf.Empty\x1a\x16.text.TextListResponseB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
+	"\x04List\x12\x16.google.protobuf.Empty\x1a\x16.text.TextListResponse2N\n" +
+	"\x11TextDeleteService\x129\n" +
+	"\x06Delete\x12\x17.text.TextDeleteRequest\x1a\x16.google.protobuf.EmptyB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
 	file_text_proto_rawDescOnce sync.Once
@@ -289,24 +338,27 @@ func file_text_proto_rawDescGZIP() []byte {
 	return file_text_proto_rawDescData
 }
 
-var file_text_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_text_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_text_proto_goTypes = []any{
-	(*TextAddRequest)(nil),   // 0: text.TextAddRequest
-	(*TextGetRequest)(nil),   // 1: text.TextGetRequest
-	(*TextGetResponse)(nil),  // 2: text.TextGetResponse
-	(*TextListResponse)(nil), // 3: text.TextListResponse
-	(*emptypb.Empty)(nil),    // 4: google.protobuf.Empty
+	(*TextAddRequest)(nil),    // 0: text.TextAddRequest
+	(*TextGetRequest)(nil),    // 1: text.TextGetRequest
+	(*TextGetResponse)(nil),   // 2: text.TextGetResponse
+	(*TextListResponse)(nil),  // 3: text.TextListResponse
+	(*TextDeleteRequest)(nil), // 4: text.TextDeleteRequest
+	(*emptypb.Empty)(nil),     // 5: google.protobuf.Empty
 }
 var file_text_proto_depIdxs = []int32{
 	2, // 0: text.TextListResponse.items:type_name -> text.TextGetResponse
 	0, // 1: text.TextAddService.Add:input_type -> text.TextAddRequest
 	1, // 2: text.TextGetService.Get:input_type -> text.TextGetRequest
-	4, // 3: text.TextListService.List:input_type -> google.protobuf.Empty
-	4, // 4: text.TextAddService.Add:output_type -> google.protobuf.Empty
-	2, // 5: text.TextGetService.Get:output_type -> text.TextGetResponse
-	3, // 6: text.TextListService.List:output_type -> text.TextListResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	5, // 3: text.TextListService.List:input_type -> google.protobuf.Empty
+	4, // 4: text.TextDeleteService.Delete:input_type -> text.TextDeleteRequest
+	5, // 5: text.TextAddService.Add:output_type -> google.protobuf.Empty
+	2, // 6: text.TextGetService.Get:output_type -> text.TextGetResponse
+	3, // 7: text.TextListService.List:output_type -> text.TextListResponse
+	5, // 8: text.TextDeleteService.Delete:output_type -> google.protobuf.Empty
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -323,9 +375,9 @@ func file_text_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_text_proto_rawDesc), len(file_text_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   4,
 		},
 		GoTypes:           file_text_proto_goTypes,
 		DependencyIndexes: file_text_proto_depIdxs,

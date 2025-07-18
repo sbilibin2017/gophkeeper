@@ -327,3 +327,106 @@ var UsernamePasswordListService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "username_password.proto",
 }
+
+const (
+	UsernamePasswordDeleteService_Delete_FullMethodName = "/username_password.UsernamePasswordDeleteService/Delete"
+)
+
+// UsernamePasswordDeleteServiceClient is the client API for UsernamePasswordDeleteService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type UsernamePasswordDeleteServiceClient interface {
+	Delete(ctx context.Context, in *UsernamePasswordDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+}
+
+type usernamePasswordDeleteServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewUsernamePasswordDeleteServiceClient(cc grpc.ClientConnInterface) UsernamePasswordDeleteServiceClient {
+	return &usernamePasswordDeleteServiceClient{cc}
+}
+
+func (c *usernamePasswordDeleteServiceClient) Delete(ctx context.Context, in *UsernamePasswordDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, UsernamePasswordDeleteService_Delete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// UsernamePasswordDeleteServiceServer is the server API for UsernamePasswordDeleteService service.
+// All implementations must embed UnimplementedUsernamePasswordDeleteServiceServer
+// for forward compatibility.
+type UsernamePasswordDeleteServiceServer interface {
+	Delete(context.Context, *UsernamePasswordDeleteRequest) (*emptypb.Empty, error)
+	mustEmbedUnimplementedUsernamePasswordDeleteServiceServer()
+}
+
+// UnimplementedUsernamePasswordDeleteServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedUsernamePasswordDeleteServiceServer struct{}
+
+func (UnimplementedUsernamePasswordDeleteServiceServer) Delete(context.Context, *UsernamePasswordDeleteRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedUsernamePasswordDeleteServiceServer) mustEmbedUnimplementedUsernamePasswordDeleteServiceServer() {
+}
+func (UnimplementedUsernamePasswordDeleteServiceServer) testEmbeddedByValue() {}
+
+// UnsafeUsernamePasswordDeleteServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to UsernamePasswordDeleteServiceServer will
+// result in compilation errors.
+type UnsafeUsernamePasswordDeleteServiceServer interface {
+	mustEmbedUnimplementedUsernamePasswordDeleteServiceServer()
+}
+
+func RegisterUsernamePasswordDeleteServiceServer(s grpc.ServiceRegistrar, srv UsernamePasswordDeleteServiceServer) {
+	// If the following call pancis, it indicates UnimplementedUsernamePasswordDeleteServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&UsernamePasswordDeleteService_ServiceDesc, srv)
+}
+
+func _UsernamePasswordDeleteService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UsernamePasswordDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UsernamePasswordDeleteServiceServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UsernamePasswordDeleteService_Delete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UsernamePasswordDeleteServiceServer).Delete(ctx, req.(*UsernamePasswordDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// UsernamePasswordDeleteService_ServiceDesc is the grpc.ServiceDesc for UsernamePasswordDeleteService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var UsernamePasswordDeleteService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "username_password.UsernamePasswordDeleteService",
+	HandlerType: (*UsernamePasswordDeleteServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Delete",
+			Handler:    _UsernamePasswordDeleteService_Delete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "username_password.proto",
+}

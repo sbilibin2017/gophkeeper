@@ -324,3 +324,105 @@ var BinaryListService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "binary.proto",
 }
+
+const (
+	BinaryDeleteService_Delete_FullMethodName = "/binary.BinaryDeleteService/Delete"
+)
+
+// BinaryDeleteServiceClient is the client API for BinaryDeleteService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type BinaryDeleteServiceClient interface {
+	Delete(ctx context.Context, in *BinaryDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+}
+
+type binaryDeleteServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewBinaryDeleteServiceClient(cc grpc.ClientConnInterface) BinaryDeleteServiceClient {
+	return &binaryDeleteServiceClient{cc}
+}
+
+func (c *binaryDeleteServiceClient) Delete(ctx context.Context, in *BinaryDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, BinaryDeleteService_Delete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BinaryDeleteServiceServer is the server API for BinaryDeleteService service.
+// All implementations must embed UnimplementedBinaryDeleteServiceServer
+// for forward compatibility.
+type BinaryDeleteServiceServer interface {
+	Delete(context.Context, *BinaryDeleteRequest) (*emptypb.Empty, error)
+	mustEmbedUnimplementedBinaryDeleteServiceServer()
+}
+
+// UnimplementedBinaryDeleteServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedBinaryDeleteServiceServer struct{}
+
+func (UnimplementedBinaryDeleteServiceServer) Delete(context.Context, *BinaryDeleteRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedBinaryDeleteServiceServer) mustEmbedUnimplementedBinaryDeleteServiceServer() {}
+func (UnimplementedBinaryDeleteServiceServer) testEmbeddedByValue()                             {}
+
+// UnsafeBinaryDeleteServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to BinaryDeleteServiceServer will
+// result in compilation errors.
+type UnsafeBinaryDeleteServiceServer interface {
+	mustEmbedUnimplementedBinaryDeleteServiceServer()
+}
+
+func RegisterBinaryDeleteServiceServer(s grpc.ServiceRegistrar, srv BinaryDeleteServiceServer) {
+	// If the following call pancis, it indicates UnimplementedBinaryDeleteServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&BinaryDeleteService_ServiceDesc, srv)
+}
+
+func _BinaryDeleteService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BinaryDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BinaryDeleteServiceServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BinaryDeleteService_Delete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BinaryDeleteServiceServer).Delete(ctx, req.(*BinaryDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// BinaryDeleteService_ServiceDesc is the grpc.ServiceDesc for BinaryDeleteService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var BinaryDeleteService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "binary.BinaryDeleteService",
+	HandlerType: (*BinaryDeleteServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Delete",
+			Handler:    _BinaryDeleteService_Delete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "binary.proto",
+}

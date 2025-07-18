@@ -324,3 +324,105 @@ var BankCardListService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "bank_card.proto",
 }
+
+const (
+	BankCardDeleteService_Delete_FullMethodName = "/bank_card.BankCardDeleteService/Delete"
+)
+
+// BankCardDeleteServiceClient is the client API for BankCardDeleteService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type BankCardDeleteServiceClient interface {
+	Delete(ctx context.Context, in *BankCardDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+}
+
+type bankCardDeleteServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewBankCardDeleteServiceClient(cc grpc.ClientConnInterface) BankCardDeleteServiceClient {
+	return &bankCardDeleteServiceClient{cc}
+}
+
+func (c *bankCardDeleteServiceClient) Delete(ctx context.Context, in *BankCardDeleteRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, BankCardDeleteService_Delete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// BankCardDeleteServiceServer is the server API for BankCardDeleteService service.
+// All implementations must embed UnimplementedBankCardDeleteServiceServer
+// for forward compatibility.
+type BankCardDeleteServiceServer interface {
+	Delete(context.Context, *BankCardDeleteRequest) (*emptypb.Empty, error)
+	mustEmbedUnimplementedBankCardDeleteServiceServer()
+}
+
+// UnimplementedBankCardDeleteServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedBankCardDeleteServiceServer struct{}
+
+func (UnimplementedBankCardDeleteServiceServer) Delete(context.Context, *BankCardDeleteRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedBankCardDeleteServiceServer) mustEmbedUnimplementedBankCardDeleteServiceServer() {}
+func (UnimplementedBankCardDeleteServiceServer) testEmbeddedByValue()                               {}
+
+// UnsafeBankCardDeleteServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to BankCardDeleteServiceServer will
+// result in compilation errors.
+type UnsafeBankCardDeleteServiceServer interface {
+	mustEmbedUnimplementedBankCardDeleteServiceServer()
+}
+
+func RegisterBankCardDeleteServiceServer(s grpc.ServiceRegistrar, srv BankCardDeleteServiceServer) {
+	// If the following call pancis, it indicates UnimplementedBankCardDeleteServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&BankCardDeleteService_ServiceDesc, srv)
+}
+
+func _BankCardDeleteService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BankCardDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(BankCardDeleteServiceServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: BankCardDeleteService_Delete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(BankCardDeleteServiceServer).Delete(ctx, req.(*BankCardDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// BankCardDeleteService_ServiceDesc is the grpc.ServiceDesc for BankCardDeleteService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var BankCardDeleteService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "bank_card.BankCardDeleteService",
+	HandlerType: (*BankCardDeleteServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Delete",
+			Handler:    _BankCardDeleteService_Delete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "bank_card.proto",
+}

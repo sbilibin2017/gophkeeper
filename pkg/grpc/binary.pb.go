@@ -246,6 +246,50 @@ func (x *BinaryListResponse) GetItems() []*BinaryGetResponse {
 	return nil
 }
 
+type BinaryDeleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BinaryDeleteRequest) Reset() {
+	*x = BinaryDeleteRequest{}
+	mi := &file_binary_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BinaryDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BinaryDeleteRequest) ProtoMessage() {}
+
+func (x *BinaryDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_binary_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BinaryDeleteRequest.ProtoReflect.Descriptor instead.
+func (*BinaryDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_binary_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *BinaryDeleteRequest) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
 var File_binary_proto protoreflect.FileDescriptor
 
 const file_binary_proto_rawDesc = "" +
@@ -268,13 +312,18 @@ const file_binary_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x05 \x01(\tR\tupdatedAt\"E\n" +
 	"\x12BinaryListResponse\x12/\n" +
-	"\x05items\x18\x01 \x03(\v2\x19.binary.BinaryGetResponseR\x05items2K\n" +
+	"\x05items\x18\x01 \x03(\v2\x19.binary.BinaryGetResponseR\x05items\"6\n" +
+	"\x13BinaryDeleteRequest\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName2K\n" +
 	"\x10BinaryAddService\x127\n" +
 	"\x03Add\x12\x18.binary.BinaryAddRequest\x1a\x16.google.protobuf.Empty2N\n" +
 	"\x10BinaryGetService\x12:\n" +
 	"\x03Get\x12\x18.binary.BinaryGetRequest\x1a\x19.binary.BinaryGetResponse2O\n" +
 	"\x11BinaryListService\x12:\n" +
-	"\x04List\x12\x16.google.protobuf.Empty\x1a\x1a.binary.BinaryListResponseB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
+	"\x04List\x12\x16.google.protobuf.Empty\x1a\x1a.binary.BinaryListResponse2T\n" +
+	"\x13BinaryDeleteService\x12=\n" +
+	"\x06Delete\x12\x1b.binary.BinaryDeleteRequest\x1a\x16.google.protobuf.EmptyB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
 	file_binary_proto_rawDescOnce sync.Once
@@ -288,24 +337,27 @@ func file_binary_proto_rawDescGZIP() []byte {
 	return file_binary_proto_rawDescData
 }
 
-var file_binary_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_binary_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_binary_proto_goTypes = []any{
-	(*BinaryAddRequest)(nil),   // 0: binary.BinaryAddRequest
-	(*BinaryGetRequest)(nil),   // 1: binary.BinaryGetRequest
-	(*BinaryGetResponse)(nil),  // 2: binary.BinaryGetResponse
-	(*BinaryListResponse)(nil), // 3: binary.BinaryListResponse
-	(*emptypb.Empty)(nil),      // 4: google.protobuf.Empty
+	(*BinaryAddRequest)(nil),    // 0: binary.BinaryAddRequest
+	(*BinaryGetRequest)(nil),    // 1: binary.BinaryGetRequest
+	(*BinaryGetResponse)(nil),   // 2: binary.BinaryGetResponse
+	(*BinaryListResponse)(nil),  // 3: binary.BinaryListResponse
+	(*BinaryDeleteRequest)(nil), // 4: binary.BinaryDeleteRequest
+	(*emptypb.Empty)(nil),       // 5: google.protobuf.Empty
 }
 var file_binary_proto_depIdxs = []int32{
 	2, // 0: binary.BinaryListResponse.items:type_name -> binary.BinaryGetResponse
 	0, // 1: binary.BinaryAddService.Add:input_type -> binary.BinaryAddRequest
 	1, // 2: binary.BinaryGetService.Get:input_type -> binary.BinaryGetRequest
-	4, // 3: binary.BinaryListService.List:input_type -> google.protobuf.Empty
-	4, // 4: binary.BinaryAddService.Add:output_type -> google.protobuf.Empty
-	2, // 5: binary.BinaryGetService.Get:output_type -> binary.BinaryGetResponse
-	3, // 6: binary.BinaryListService.List:output_type -> binary.BinaryListResponse
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	5, // 3: binary.BinaryListService.List:input_type -> google.protobuf.Empty
+	4, // 4: binary.BinaryDeleteService.Delete:input_type -> binary.BinaryDeleteRequest
+	5, // 5: binary.BinaryAddService.Add:output_type -> google.protobuf.Empty
+	2, // 6: binary.BinaryGetService.Get:output_type -> binary.BinaryGetResponse
+	3, // 7: binary.BinaryListService.List:output_type -> binary.BinaryListResponse
+	5, // 8: binary.BinaryDeleteService.Delete:output_type -> google.protobuf.Empty
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -322,9 +374,9 @@ func file_binary_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_binary_proto_rawDesc), len(file_binary_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
-			NumServices:   3,
+			NumServices:   4,
 		},
 		GoTypes:           file_binary_proto_goTypes,
 		DependencyIndexes: file_binary_proto_depIdxs,
