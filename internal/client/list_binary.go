@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
@@ -33,8 +34,10 @@ func ListBinaryHTTP(
 	ctx context.Context,
 	client *resty.Client,
 	token string,
-) ([]*models.BinaryAddRequest, error) {
-	var respBody models.BinaryListResponse
+) ([]*models.BinaryResponse, error) {
+	var respBody struct {
+		Items []models.BinaryResponse `json:"items"`
+	}
 
 	httpResp, err := client.R().
 		SetContext(ctx).
@@ -49,14 +52,9 @@ func ListBinaryHTTP(
 		return nil, fmt.Errorf("failed to list binary secrets, status %d: %s", httpResp.StatusCode(), httpResp.String())
 	}
 
-	var results []*models.BinaryAddRequest
-	for _, item := range respBody.Items {
-		result := &models.BinaryAddRequest{
-			SecretName: item.SecretName,
-			Data:       item.Data,
-			Meta:       item.Meta,
-		}
-		results = append(results, result)
+	results := make([]*models.BinaryResponse, 0, len(respBody.Items))
+	for i := range respBody.Items {
+		results = append(results, &respBody.Items[i])
 	}
 
 	return results, nil
@@ -67,7 +65,7 @@ func ListBinaryGRPC(
 	ctx context.Context,
 	client pb.BinaryListServiceClient,
 	token string,
-) ([]*models.BinaryAddRequest, error) {
+) ([]*models.BinaryResponse, error) {
 	md := metadata.Pairs("authorization", "Bearer "+token)
 	ctxWithToken := metadata.NewOutgoingContext(ctx, md)
 
@@ -76,17 +74,24 @@ func ListBinaryGRPC(
 		return nil, err
 	}
 
-	var results []*models.BinaryAddRequest
+	var results []*models.BinaryResponse
 	for _, pbItem := range resp.Items {
 		var metaPtr *string
 		if pbItem.Meta != "" {
 			metaPtr = &pbItem.Meta
 		}
 
-		result := &models.BinaryAddRequest{
-			SecretName: pbItem.SecretName,
-			Data:       pbItem.Data,
-			Meta:       metaPtr,
+		updatedAt, err := time.Parse(time.RFC3339, pbItem.UpdatedAt)
+		if err != nil {
+			updatedAt = time.Time{}
+		}
+
+		result := &models.BinaryResponse{
+			SecretName:  pbItem.SecretName,
+			SecretOwner: pbItem.SecretOwner,
+			Data:        pbItem.Data,
+			Meta:        metaPtr,
+			UpdatedAt:   updatedAt,
 		}
 		results = append(results, result)
 	}

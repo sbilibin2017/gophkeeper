@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
@@ -18,7 +19,7 @@ func ListUsernamePasswordLocal(
 	ctx context.Context,
 	db *sqlx.DB,
 ) ([]*models.UsernamePasswordAddRequest, error) {
-	query := `
+	const query = `
 		SELECT secret_name, username, password, meta
 		FROM secret_username_password_request
 		ORDER BY secret_name;
@@ -28,12 +29,12 @@ func ListUsernamePasswordLocal(
 	return results, err
 }
 
-// ListUsernamePasswordHTTP fetches username-password secrets via HTTP and maps them to internal models.
+// ListUsernamePasswordHTTP fetches username-password secrets via HTTP and returns full detailed responses.
 func ListUsernamePasswordHTTP(
 	ctx context.Context,
 	client *resty.Client,
 	token string,
-) ([]*models.UsernamePasswordAddRequest, error) {
+) ([]models.UsernamePasswordResponse, error) {
 	var respBody struct {
 		Items []models.UsernamePasswordResponse `json:"items"`
 	}
@@ -51,29 +52,15 @@ func ListUsernamePasswordHTTP(
 		return nil, fmt.Errorf("failed to list username-password secrets, status %d: %s", httpResp.StatusCode(), httpResp.String())
 	}
 
-	var results []*models.UsernamePasswordAddRequest
-	for _, item := range respBody.Items {
-		var metaPtr *string
-		if item.Meta != nil {
-			metaPtr = item.Meta
-		}
-		results = append(results, &models.UsernamePasswordAddRequest{
-			SecretName: item.SecretName,
-			Username:   item.Username,
-			Password:   item.Password,
-			Meta:       metaPtr,
-		})
-	}
-
-	return results, nil
+	return respBody.Items, nil
 }
 
-// ListUsernamePasswordGRPC fetches username-password secrets via gRPC and maps them to internal models.
+// ListUsernamePasswordGRPC fetches username-password secrets via gRPC and returns full detailed responses.
 func ListUsernamePasswordGRPC(
 	ctx context.Context,
 	client pb.UsernamePasswordListServiceClient,
 	token string,
-) ([]*models.UsernamePasswordAddRequest, error) {
+) ([]models.UsernamePasswordResponse, error) {
 	md := metadata.Pairs("authorization", "Bearer "+token)
 	ctxWithToken := metadata.NewOutgoingContext(ctx, md)
 
@@ -82,17 +69,29 @@ func ListUsernamePasswordGRPC(
 		return nil, err
 	}
 
-	var results []*models.UsernamePasswordAddRequest
+	var results []models.UsernamePasswordResponse
 	for _, item := range resp.Items {
 		var metaPtr *string
 		if item.Meta != "" {
 			metaPtr = &item.Meta
 		}
-		results = append(results, &models.UsernamePasswordAddRequest{
-			SecretName: item.SecretName,
-			Username:   item.Username,
-			Password:   item.Password,
-			Meta:       metaPtr,
+
+		// Parse UpdatedAt string to time.Time
+		var updatedAt time.Time
+		if item.UpdatedAt != "" {
+			updatedAt, err = time.Parse(time.RFC3339, item.UpdatedAt)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse UpdatedAt: %w", err)
+			}
+		}
+
+		results = append(results, models.UsernamePasswordResponse{
+			SecretName:  item.SecretName,
+			SecretOwner: item.SecretOwner,
+			Username:    item.Username,
+			Password:    item.Password,
+			Meta:        metaPtr,
+			UpdatedAt:   updatedAt,
 		})
 	}
 

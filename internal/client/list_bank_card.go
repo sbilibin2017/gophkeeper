@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
@@ -33,8 +34,10 @@ func ListBankCardsHTTP(
 	ctx context.Context,
 	client *resty.Client,
 	token string,
-) ([]*models.BankCardAddRequest, error) {
-	var respBody []*models.BankCardAddRequest
+) ([]*models.BankCardResponse, error) {
+	var respBody struct {
+		Items []models.BankCardResponse `json:"items"`
+	}
 
 	httpResp, err := client.R().
 		SetContext(ctx).
@@ -49,7 +52,13 @@ func ListBankCardsHTTP(
 		return nil, fmt.Errorf("failed to list bank cards, status %d: %s", httpResp.StatusCode(), httpResp.String())
 	}
 
-	return respBody, nil
+	// Convert to slice of pointers
+	results := make([]*models.BankCardResponse, 0, len(respBody.Items))
+	for i := range respBody.Items {
+		results = append(results, &respBody.Items[i])
+	}
+
+	return results, nil
 }
 
 // ListBankCardsGRPC uses gRPC to fetch bank cards from remote and convert them to local models.
@@ -57,7 +66,7 @@ func ListBankCardsGRPC(
 	ctx context.Context,
 	client pb.BankCardListServiceClient,
 	token string,
-) ([]*models.BankCardAddRequest, error) {
+) ([]*models.BankCardResponse, error) {
 
 	md := metadata.Pairs("authorization", "Bearer "+token)
 	ctxWithToken := metadata.NewOutgoingContext(ctx, md)
@@ -67,22 +76,29 @@ func ListBankCardsGRPC(
 		return nil, err
 	}
 
-	var results []*models.BankCardAddRequest
+	var results []*models.BankCardResponse
 	for _, pbItem := range resp.Items {
 		var metaPtr *string
 		if pbItem.Meta != "" {
 			metaPtr = &pbItem.Meta
 		}
 
-		modelItem := &models.BankCardAddRequest{
-			SecretName: pbItem.SecretName,
-			Number:     pbItem.Number,
-			Owner:      pbItem.Owner,
-			Exp:        pbItem.Exp,
-			CVV:        pbItem.Cvv,
-			Meta:       metaPtr,
+		updatedAt, err := time.Parse(time.RFC3339, pbItem.UpdatedAt)
+		if err != nil {
+			updatedAt = time.Time{}
 		}
-		results = append(results, modelItem)
+
+		result := &models.BankCardResponse{
+			SecretName:  pbItem.SecretName,
+			SecretOwner: pbItem.SecretOwner,
+			Number:      pbItem.Number,
+			Owner:       pbItem.Owner,
+			Exp:         pbItem.Exp,
+			CVV:         pbItem.Cvv,
+			Meta:        metaPtr,
+			UpdatedAt:   updatedAt,
+		}
+		results = append(results, result)
 	}
 
 	return results, nil

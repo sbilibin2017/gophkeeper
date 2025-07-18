@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
@@ -28,12 +29,12 @@ func ListTextLocal(
 	return results, err
 }
 
-// ListTextHTTP fetches text secrets via HTTP and maps them to internal models.
+// ListTextHTTP fetches text secrets via HTTP and returns full detailed responses.
 func ListTextHTTP(
 	ctx context.Context,
 	client *resty.Client,
 	token string,
-) ([]*models.TextAddRequest, error) {
+) ([]models.TextResponse, error) {
 	var respBody struct {
 		Items []models.TextResponse `json:"items"`
 	}
@@ -51,24 +52,15 @@ func ListTextHTTP(
 		return nil, fmt.Errorf("failed to list text secrets, status %d: %s", httpResp.StatusCode(), httpResp.String())
 	}
 
-	var results []*models.TextAddRequest
-	for _, item := range respBody.Items {
-		results = append(results, &models.TextAddRequest{
-			SecretName: item.SecretName,
-			Content:    item.Content,
-			Meta:       item.Meta,
-		})
-	}
-
-	return results, nil
+	return respBody.Items, nil
 }
 
-// ListTextGRPC fetches text secrets via gRPC and maps them to internal models.
+// ListTextGRPC fetches text secrets via gRPC and returns full detailed responses.
 func ListTextGRPC(
 	ctx context.Context,
 	client pb.TextListServiceClient,
 	token string,
-) ([]*models.TextAddRequest, error) {
+) ([]models.TextResponse, error) {
 	md := metadata.Pairs("authorization", "Bearer "+token)
 	ctxWithToken := metadata.NewOutgoingContext(ctx, md)
 
@@ -77,16 +69,28 @@ func ListTextGRPC(
 		return nil, err
 	}
 
-	var results []*models.TextAddRequest
+	var results []models.TextResponse
 	for _, item := range resp.Items {
 		var metaPtr *string
 		if item.Meta != "" {
 			metaPtr = &item.Meta
 		}
-		results = append(results, &models.TextAddRequest{
-			SecretName: item.SecretName,
-			Content:    item.Content,
-			Meta:       metaPtr,
+
+		// Parse UpdatedAt string to time.Time
+		var updatedAt time.Time
+		if item.UpdatedAt != "" {
+			updatedAt, err = time.Parse(time.RFC3339, item.UpdatedAt)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse UpdatedAt: %w", err)
+			}
+		}
+
+		results = append(results, models.TextResponse{
+			SecretName:  item.SecretName,
+			SecretOwner: item.SecretOwner,
+			Content:     item.Content,
+			Meta:        metaPtr,
+			UpdatedAt:   updatedAt,
 		})
 	}
 
