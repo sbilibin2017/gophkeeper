@@ -4,12 +4,12 @@ import "time"
 
 // BankCardAddRequest represents a request to add a bank card secret.
 type BankCardAddRequest struct {
-	SecretName string  `json:"secret_name"`    // Secret name
-	Number     string  `json:"number"`         // Card number
-	Owner      string  `json:"owner"`          // Name on the card
-	Exp        string  `json:"exp"`            // Expiration date (MM/YY)
-	CVV        string  `json:"cvv"`            // Card CVV code
-	Meta       *string `json:"meta,omitempty"` // Optional metadata
+	SecretName string  `json:"secret_name" db:"secret_name"` // Secret name
+	Number     string  `json:"number" db:"number"`           // Card number
+	Owner      string  `json:"owner" db:"owner"`             // Name on the card
+	Exp        string  `json:"exp" db:"exp"`                 // Expiration date (MM/YY)
+	CVV        string  `json:"cvv" db:"cvv"`                 // Card CVV code
+	Meta       *string `json:"meta,omitempty" db:"meta"`     // Optional metadata
 }
 
 // BankCardGetRequest represents a request to retrieve a bank card secret by name.
@@ -27,9 +27,4 @@ type BankCardResponse struct {
 	CVV         string    `json:"cvv"`            // Card CVV code
 	Meta        *string   `json:"meta,omitempty"` // Optional metadata
 	UpdatedAt   time.Time `json:"updated_at"`     // Last modification timestamp
-}
-
-// BankCardListResponse contains a list of all bank card secrets.
-type BankCardListResponse struct {
-	Items []BankCardResponse `json:"items"` // List of bank card secrets
 }

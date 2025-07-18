@@ -4,9 +4,9 @@ import "time"
 
 // TextAddRequest represents a request to add a plain text secret.
 type TextAddRequest struct {
-	SecretName string  `json:"secret_name"`    // Secret name
-	Content    string  `json:"content"`        // Plain text content
-	Meta       *string `json:"meta,omitempty"` // Optional metadata
+	SecretName string  `json:"secret_name" db:"secret_name"` // Secret name
+	Content    string  `json:"content" db:"content"`         // Plain text content
+	Meta       *string `json:"meta,omitempty" db:"meta"`     // Optional metadata
 }
 
 // TextGetRequest represents a request to retrieve a text secret by name.
@@ -21,9 +21,4 @@ type TextResponse struct {
 	Content     string    `json:"content"`        // Plain text content
 	Meta        *string   `json:"meta,omitempty"` // Optional metadata
 	UpdatedAt   time.Time `json:"updated_at"`     // Last modification timestamp
-}
-
-// TextListResponse contains a list of all text secrets.
-type TextListResponse struct {
-	Items []TextResponse `json:"items"` // List of text secrets
 }
