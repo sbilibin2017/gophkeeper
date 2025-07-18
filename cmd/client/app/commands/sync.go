@@ -2,14 +2,12 @@ package commands
 
 import (
 	"bufio"
-	"fmt"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config"
 	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
-
 	"github.com/sbilibin2017/gophkeeper/internal/validation"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/spf13/cobra"
@@ -32,7 +30,7 @@ func RegisterSyncCommand(root *cobra.Command) {
 			ctx := cmd.Context()
 
 			if err := validation.ValidateResolveStrategy(resolveStrategy); err != nil {
-				return fmt.Errorf("invalid resolve strategy: %w", err)
+				return err
 			}
 
 			cfg, err := config.NewClientConfig(serverURL, tlsClientCert, tlsClientKey)
@@ -40,7 +38,6 @@ func RegisterSyncCommand(root *cobra.Command) {
 				return err
 			}
 
-			// Detect scheme from serverURL
 			protocol := scheme.GetSchemeFromURL(serverURL)
 
 			var httpClient *resty.Client
@@ -53,33 +50,32 @@ func RegisterSyncCommand(root *cobra.Command) {
 			case scheme.HTTP, scheme.HTTPS:
 				httpClient = cfg.HTTPClient
 			default:
-				return fmt.Errorf("unsupported protocol scheme: %s", protocol)
+				return nil // undefined protocol
 			}
 
 			reader := bufio.NewReader(cmd.InOrStdin())
 
-			// --- BankCards ---
+			// --- Sync Bank Cards ---
 			localBankCards, err := client.ListBankCardsLocal(ctx, cfg.DB)
 			if err != nil {
-				return fmt.Errorf("failed to list local bank cards: %w", err)
+				return err
 			}
 
 			for _, localCard := range localBankCards {
 				var serverCard *models.BankCardResponse
 
 				if protocol == scheme.GRPC {
-					bankCardGetClient := pb.NewBankCardGetServiceClient(grpcConn)
-					serverCard, err = client.GetBankCardGRPC(ctx, bankCardGetClient, token, localCard.SecretName)
+					serverCard, err = client.GetBankCardGRPC(ctx, pb.NewBankCardGetServiceClient(grpcConn), token, localCard.SecretName)
 				} else {
 					serverCard, err = client.GetBankCardHTTP(ctx, httpClient, token, localCard.SecretName)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to get bank card '%s' from server: %w", localCard.SecretName, err)
+					return err
 				}
 
 				resolvedCard, err := client.ResolveConflictBankCard(ctx, reader, serverCard, localCard, resolveStrategy)
 				if err != nil {
-					return fmt.Errorf("conflict resolution failed for bank card '%s': %w", localCard.SecretName, err)
+					return err
 				}
 
 				if resolvedCard == nil {
@@ -87,77 +83,81 @@ func RegisterSyncCommand(root *cobra.Command) {
 				}
 
 				if protocol == scheme.GRPC {
-					bankCardAddClient := pb.NewBankCardAddServiceClient(grpcConn)
-					err = client.AddBankCardGRPC(ctx, bankCardAddClient, token, *resolvedCard)
+					err = client.AddBankCardGRPC(ctx, pb.NewBankCardAddServiceClient(grpcConn), token, *resolvedCard)
 				} else {
 					err = client.AddBankCardHTTP(ctx, httpClient, token, *resolvedCard)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to update bank card '%s' on server: %w", resolvedCard.SecretName, err)
+					return err
 				}
 			}
 
-			// --- Binary ---
+			if err := client.DropBankCardRequestTable(ctx, cfg.DB); err != nil {
+				return err
+			}
+
+			// --- Sync Binary ---
 			localBinaries, err := client.ListBinaryLocal(ctx, cfg.DB)
 			if err != nil {
-				return fmt.Errorf("failed to list local binary secrets: %w", err)
+				return err
 			}
 
-			for _, localBinary := range localBinaries {
-				var serverBinary *models.BinaryResponse
+			for _, localBin := range localBinaries {
+				var serverBin *models.BinaryResponse
 
 				if protocol == scheme.GRPC {
-					binaryGetClient := pb.NewBinaryGetServiceClient(grpcConn)
-					serverBinary, err = client.GetBinaryGRPC(ctx, binaryGetClient, token, localBinary.SecretName)
+					serverBin, err = client.GetBinaryGRPC(ctx, pb.NewBinaryGetServiceClient(grpcConn), token, localBin.SecretName)
 				} else {
-					serverBinary, err = client.GetBinaryHTTP(ctx, httpClient, token, localBinary.SecretName)
+					serverBin, err = client.GetBinaryHTTP(ctx, httpClient, token, localBin.SecretName)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to get binary secret '%s' from server: %w", localBinary.SecretName, err)
+					return err
 				}
 
-				resolvedBinary, err := client.ResolveConflictBinary(ctx, reader, serverBinary, localBinary, resolveStrategy)
+				resolvedBin, err := client.ResolveConflictBinary(ctx, reader, serverBin, localBin, resolveStrategy)
 				if err != nil {
-					return fmt.Errorf("conflict resolution failed for binary secret '%s': %w", localBinary.SecretName, err)
+					return err
 				}
 
-				if resolvedBinary == nil {
+				if resolvedBin == nil {
 					continue
 				}
 
 				if protocol == scheme.GRPC {
-					binaryAddClient := pb.NewBinaryAddServiceClient(grpcConn)
-					err = client.AddBinaryGRPC(ctx, binaryAddClient, token, *resolvedBinary)
+					err = client.AddBinaryGRPC(ctx, pb.NewBinaryAddServiceClient(grpcConn), token, *resolvedBin)
 				} else {
-					err = client.AddBinaryHTTP(ctx, httpClient, token, *resolvedBinary)
+					err = client.AddBinaryHTTP(ctx, httpClient, token, *resolvedBin)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to update binary secret '%s' on server: %w", resolvedBinary.SecretName, err)
+					return err
 				}
 			}
 
-			// --- Text ---
+			if err := client.DropBinaryRequestTable(ctx, cfg.DB); err != nil {
+				return err
+			}
+
+			// --- Sync Text ---
 			localTexts, err := client.ListTextLocal(ctx, cfg.DB)
 			if err != nil {
-				return fmt.Errorf("failed to list local text secrets: %w", err)
+				return err
 			}
 
 			for _, localText := range localTexts {
 				var serverText *models.TextResponse
 
 				if protocol == scheme.GRPC {
-					textGetClient := pb.NewTextGetServiceClient(grpcConn)
-					serverText, err = client.GetTextGRPC(ctx, textGetClient, token, localText.SecretName)
+					serverText, err = client.GetTextGRPC(ctx, pb.NewTextGetServiceClient(grpcConn), token, localText.SecretName)
 				} else {
 					serverText, err = client.GetTextHTTP(ctx, httpClient, token, localText.SecretName)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to get text secret '%s' from server: %w", localText.SecretName, err)
+					return err
 				}
 
 				resolvedText, err := client.ResolveConflictText(ctx, reader, serverText, localText, resolveStrategy)
 				if err != nil {
-					return fmt.Errorf("conflict resolution failed for text secret '%s': %w", localText.SecretName, err)
+					return err
 				}
 
 				if resolvedText == nil {
@@ -165,53 +165,58 @@ func RegisterSyncCommand(root *cobra.Command) {
 				}
 
 				if protocol == scheme.GRPC {
-					textAddClient := pb.NewTextAddServiceClient(grpcConn)
-					err = client.AddTextGRPC(ctx, textAddClient, token, *resolvedText)
+					err = client.AddTextGRPC(ctx, pb.NewTextAddServiceClient(grpcConn), token, *resolvedText)
 				} else {
 					err = client.AddTextHTTP(ctx, httpClient, token, *resolvedText)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to update text secret '%s' on server: %w", resolvedText.SecretName, err)
+					return err
 				}
 			}
 
-			// --- UsernamePassword ---
-			localUserPasses, err := client.ListUsernamePasswordLocal(ctx, cfg.DB)
-			if err != nil {
-				return fmt.Errorf("failed to list local username-password secrets: %w", err)
+			if err := client.DropTextRequestTable(ctx, cfg.DB); err != nil {
+				return err
 			}
 
-			for _, localUserPass := range localUserPasses {
-				var serverUserPass *models.UsernamePasswordResponse
+			// --- Sync Username-Password ---
+			localUPs, err := client.ListUsernamePasswordLocal(ctx, cfg.DB)
+			if err != nil {
+				return err
+			}
+
+			for _, localUP := range localUPs {
+				var serverUP *models.UsernamePasswordResponse
 
 				if protocol == scheme.GRPC {
-					upGetClient := pb.NewUsernamePasswordGetServiceClient(grpcConn)
-					serverUserPass, err = client.GetUsernamePasswordGRPC(ctx, upGetClient, token, localUserPass.SecretName)
+					serverUP, err = client.GetUsernamePasswordGRPC(ctx, pb.NewUsernamePasswordGetServiceClient(grpcConn), token, localUP.SecretName)
 				} else {
-					serverUserPass, err = client.GetUsernamePasswordHTTP(ctx, httpClient, token, localUserPass.SecretName)
+					serverUP, err = client.GetUsernamePasswordHTTP(ctx, httpClient, token, localUP.SecretName)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to get username-password secret '%s' from server: %w", localUserPass.SecretName, err)
+					return err
 				}
 
-				resolvedUserPass, err := client.ResolveConflictUsernamePassword(ctx, reader, serverUserPass, localUserPass, resolveStrategy)
+				resolvedUP, err := client.ResolveConflictUsernamePassword(ctx, reader, serverUP, localUP, resolveStrategy)
 				if err != nil {
-					return fmt.Errorf("conflict resolution failed for username-password secret '%s': %w", localUserPass.SecretName, err)
+					return err
 				}
 
-				if resolvedUserPass == nil {
+				if resolvedUP == nil {
 					continue
 				}
 
 				if protocol == scheme.GRPC {
-					upAddClient := pb.NewUsernamePasswordAddServiceClient(grpcConn)
-					err = client.AddUsernamePasswordGRPC(ctx, upAddClient, token, *resolvedUserPass)
+					err = client.AddUsernamePasswordGRPC(ctx, pb.NewUsernamePasswordAddServiceClient(grpcConn), token, *resolvedUP)
 				} else {
-					err = client.AddUsernamePasswordHTTP(ctx, httpClient, token, *resolvedUserPass)
+					err = client.AddUsernamePasswordHTTP(ctx, httpClient, token, *resolvedUP)
 				}
 				if err != nil {
-					return fmt.Errorf("failed to update username-password secret '%s' on server: %w", resolvedUserPass.SecretName, err)
+					return err
 				}
+			}
+
+			if err := client.DropUsernamePasswordRequestTable(ctx, cfg.DB); err != nil {
+				return err
 			}
 
 			return nil

@@ -29,10 +29,9 @@ func RegisterListSecretsCommand(root *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 
-			// Validate secretType only if provided (empty means list all)
 			if secretType != "" {
 				if err := validation.ValidateSecretType(secretType); err != nil {
-					return fmt.Errorf("invalid secret type: %w", err)
+					return err
 				}
 			}
 
@@ -45,7 +44,6 @@ func RegisterListSecretsCommand(root *cobra.Command) {
 
 			var names []string
 
-			// Helper to append secret names from various response types
 			appendNames := func(items interface{}) {
 				switch list := items.(type) {
 				case []*models.BankCardResponse:
@@ -67,28 +65,36 @@ func RegisterListSecretsCommand(root *cobra.Command) {
 				}
 			}
 
-			// Function to list secrets by type using appropriate mode
-			listSecretsByType := func(secretType string) error {
-				switch secretType {
+			for _, t := range []string{
+				models.SecretTypeBankCard,
+				models.SecretTypeBinary,
+				models.SecretTypeText,
+				models.SecretTypeUsernamePassword,
+			} {
+				if secretType != "" && secretType != t {
+					continue
+				}
+
+				switch t {
 				case models.SecretTypeBankCard:
 					switch mode {
 					case scheme.HTTP, scheme.HTTPS:
 						items, err := client.ListBankCardsHTTP(ctx, cfg.HTTPClient, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list bank cards: %v", err)
 						}
 						appendNames(items)
 					case scheme.GRPC:
 						clientGRPC := pb.NewBankCardListServiceClient(cfg.GRPCClient)
 						items, err := client.ListBankCardsGRPC(ctx, clientGRPC, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list bank cards: %v", err)
 						}
 						appendNames(items)
 					default:
 						items, err := client.ListBankCardsLocal(ctx, cfg.DB)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list local bank cards: %v", err)
 						}
 						appendNames(items)
 					}
@@ -98,20 +104,20 @@ func RegisterListSecretsCommand(root *cobra.Command) {
 					case scheme.HTTP, scheme.HTTPS:
 						items, err := client.ListBinaryHTTP(ctx, cfg.HTTPClient, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list binary secrets: %v", err)
 						}
 						appendNames(items)
 					case scheme.GRPC:
 						clientGRPC := pb.NewBinaryListServiceClient(cfg.GRPCClient)
 						items, err := client.ListBinaryGRPC(ctx, clientGRPC, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list binary secrets: %v", err)
 						}
 						appendNames(items)
 					default:
 						items, err := client.ListBinaryLocal(ctx, cfg.DB)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list local binary secrets: %v", err)
 						}
 						appendNames(items)
 					}
@@ -121,20 +127,20 @@ func RegisterListSecretsCommand(root *cobra.Command) {
 					case scheme.HTTP, scheme.HTTPS:
 						items, err := client.ListTextHTTP(ctx, cfg.HTTPClient, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list text secrets: %v", err)
 						}
 						appendNames(items)
 					case scheme.GRPC:
 						clientGRPC := pb.NewTextListServiceClient(cfg.GRPCClient)
 						items, err := client.ListTextGRPC(ctx, clientGRPC, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list text secrets: %v", err)
 						}
 						appendNames(items)
 					default:
 						items, err := client.ListTextLocal(ctx, cfg.DB)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list local text secrets: %v", err)
 						}
 						appendNames(items)
 					}
@@ -144,49 +150,29 @@ func RegisterListSecretsCommand(root *cobra.Command) {
 					case scheme.HTTP, scheme.HTTPS:
 						items, err := client.ListUsernamePasswordHTTP(ctx, cfg.HTTPClient, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list username/password secrets: %v", err)
 						}
 						appendNames(items)
 					case scheme.GRPC:
 						clientGRPC := pb.NewUsernamePasswordListServiceClient(cfg.GRPCClient)
 						items, err := client.ListUsernamePasswordGRPC(ctx, clientGRPC, token)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list username/password secrets: %v", err)
 						}
 						appendNames(items)
 					default:
 						items, err := client.ListUsernamePasswordLocal(ctx, cfg.DB)
 						if err != nil {
-							return err
+							return fmt.Errorf("failed to list local username/password secrets: %v", err)
 						}
 						appendNames(items)
 					}
 
 				default:
-					return fmt.Errorf("unsupported secret-type %q", secretType)
-				}
-				return nil
-			}
-
-			if secretType == "" {
-				// List all types if no specific secretType provided
-				for _, t := range []string{
-					models.SecretTypeBankCard,
-					models.SecretTypeBinary,
-					models.SecretTypeText,
-					models.SecretTypeUsernamePassword,
-				} {
-					if err := listSecretsByType(t); err != nil {
-						return err
-					}
-				}
-			} else {
-				if err := listSecretsByType(secretType); err != nil {
-					return err
+					return fmt.Errorf("unsupported secret type %q", t)
 				}
 			}
 
-			// Print the secret names
 			for _, name := range names {
 				cmd.Println(name)
 			}
@@ -195,8 +181,7 @@ func RegisterListSecretsCommand(root *cobra.Command) {
 		},
 	}
 
-	cmd.Flags().StringVar(&secretType, "secret-type", "", fmt.Sprintf("Type of secrets to list (%s, %s, %s, %s)",
-		models.SecretTypeBankCard, models.SecretTypeBinary, models.SecretTypeText, models.SecretTypeUsernamePassword))
+	cmd.Flags().StringVar(&secretType, "secret-type", "", fmt.Sprintf("Type of secrets to list (%s, %s, %s, %s)", models.SecretTypeBankCard, models.SecretTypeBinary, models.SecretTypeText, models.SecretTypeUsernamePassword))
 	cmd.Flags().StringVar(&authURL, "auth-url", "", "Service URL (e.g. http://, https://, grpc://) to detect transport")
 	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file (optional)")
 	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS private key file (optional)")

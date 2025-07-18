@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -27,13 +28,14 @@ func RegisterGetSecretCommand(root *cobra.Command) {
 		Use:   "get-secret",
 		Short: "Get a secret by type and name",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
+			ctx := context.Background()
 
 			if err := validation.ValidateSecretType(secretType); err != nil {
-				return fmt.Errorf("invalid secret type: %w", err)
+				return err
 			}
+
 			if err := validation.ValidateSecretName(secretName); err != nil {
-				return fmt.Errorf("invalid secret name: %w", err)
+				return err
 			}
 
 			cfg, err := config.NewClientConfig(authURL, tlsClientCert, tlsClientKey)
@@ -43,7 +45,9 @@ func RegisterGetSecretCommand(root *cobra.Command) {
 
 			mode := scheme.GetSchemeFromURL(authURL)
 
-			var res any
+			var (
+				res any
+			)
 
 			switch secretType {
 			case models.SecretTypeBankCard:
@@ -91,7 +95,8 @@ func RegisterGetSecretCommand(root *cobra.Command) {
 				}
 
 			default:
-				return fmt.Errorf("unsupported secret-type %q", secretType)
+				return fmt.Errorf("unsupported secret type %q", secretType)
+
 			}
 
 			if err != nil {
@@ -103,16 +108,12 @@ func RegisterGetSecretCommand(root *cobra.Command) {
 		},
 	}
 
-	cmd.Flags().StringVar(&secretType, "secret-type", "", fmt.Sprintf("Type of secret (%s, %s, %s, %s)",
-		models.SecretTypeBankCard, models.SecretTypeBinary, models.SecretTypeText, models.SecretTypeUsernamePassword))
+	cmd.Flags().StringVar(&secretType, "secret-type", "", "Type of secret (bankcard, binary, text, usernamepassword)")
 	cmd.Flags().StringVar(&secretName, "secret-name", "", "Name of the secret")
 	cmd.Flags().StringVar(&authURL, "auth-url", "", "Service URL (e.g. http://, https://, grpc://) to detect transport")
 	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file (optional)")
 	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS private key file (optional)")
 	cmd.Flags().StringVar(&token, "token", "", "Authentication token")
-
-	_ = cmd.MarkFlagRequired("secret-type")
-	_ = cmd.MarkFlagRequired("secret-name")
 
 	root.AddCommand(cmd)
 }

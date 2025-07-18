@@ -2,16 +2,15 @@ package commands
 
 import (
 	"errors"
-	"fmt"
+
+	"github.com/spf13/cobra"
 
 	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config"
 	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/validation"
-	"github.com/spf13/cobra"
 )
 
-// RegisterAddTextCommand registers the 'add-text-secret' command.
 func RegisterAddTextCommand(root *cobra.Command) {
 	var (
 		secretName    string
@@ -27,15 +26,15 @@ func RegisterAddTextCommand(root *cobra.Command) {
 		Short: "Add a text secret",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := validation.ValidateSecretName(secretName); err != nil {
-				return fmt.Errorf("invalid secret name: %w", err)
+				return err
 			}
 			if err := validation.ValidateMeta(meta); err != nil {
-				return fmt.Errorf("invalid meta: %w", err)
+				return err
 			}
 
 			cfg, err := config.NewClientConfig(authURL, tlsClientCert, tlsClientKey)
 			if err != nil {
-				return fmt.Errorf("failed to create client config: %w", err)
+				return err
 			}
 
 			req := models.TextAddRequest{
@@ -67,9 +66,6 @@ func RegisterAddTextCommand(root *cobra.Command) {
 	cmd.Flags().StringVar(&authURL, "auth-url", "", "Authentication service URL")
 	cmd.Flags().StringVar(&tlsClientCert, "tls-client-cert", "", "Path to client TLS certificate file")
 	cmd.Flags().StringVar(&tlsClientKey, "tls-client-key", "", "Path to client TLS key file")
-
-	_ = cmd.MarkFlagRequired("secret-name")
-	_ = cmd.MarkFlagRequired("content")
 
 	root.AddCommand(cmd)
 }
