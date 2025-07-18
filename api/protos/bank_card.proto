@@ -36,6 +36,13 @@ message BankCardListResponse {
   repeated BankCardGetResponse items = 1;
 }
 
+
+message BankCardDeleteRequest {
+  string secret_name = 1;
+}
+
+// === Services ===
+
 service BankCardAddService {
   rpc Add(BankCardAddRequest) returns (google.protobuf.Empty);
 }
@@ -46,4 +53,9 @@ service BankCardGetService {
 
 service BankCardListService {
   rpc List(google.protobuf.Empty) returns (BankCardListResponse);
+}
+
+
+service BankCardDeleteService {
+  rpc Delete(BankCardDeleteRequest) returns (google.protobuf.Empty);
 }

@@ -30,6 +30,12 @@ message BinaryListResponse {
   repeated BinaryGetResponse items = 1;
 }
 
+message BinaryDeleteRequest {
+  string secret_name = 1;
+}
+
+// === Services ===
+
 service BinaryAddService {
   rpc Add(BinaryAddRequest) returns (google.protobuf.Empty);
 }
@@ -40,4 +46,8 @@ service BinaryGetService {
 
 service BinaryListService {
   rpc List(google.protobuf.Empty) returns (BinaryListResponse);
+}
+
+service BinaryDeleteService {
+  rpc Delete(BinaryDeleteRequest) returns (google.protobuf.Empty);
 }

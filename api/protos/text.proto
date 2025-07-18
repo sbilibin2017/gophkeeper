@@ -30,6 +30,13 @@ message TextListResponse {
   repeated TextGetResponse items = 1;
 }
 
+
+message TextDeleteRequest {
+  string secret_name = 1;
+}
+
+// Services
+
 service TextAddService {
   rpc Add(TextAddRequest) returns (google.protobuf.Empty);
 }
@@ -40,4 +47,9 @@ service TextGetService {
 
 service TextListService {
   rpc List(google.protobuf.Empty) returns (TextListResponse);
+}
+
+
+service TextDeleteService {
+  rpc Delete(TextDeleteRequest) returns (google.protobuf.Empty);
 }
