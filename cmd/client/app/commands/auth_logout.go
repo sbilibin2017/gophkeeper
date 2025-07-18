@@ -4,10 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config" // import centralized config package
 	"github.com/sbilibin2017/gophkeeper/internal/client"
-	"github.com/sbilibin2017/gophkeeper/internal/configs"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/clients"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/spf13/cobra"
@@ -31,32 +29,8 @@ func RegisterLogoutCommand(root *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			var opts []configs.ClientConfigOpt
-
-			opts = append(opts, configs.WithClientConfigDB())
-
-			schm := scheme.GetSchemeFromURL(authURL)
-
-			switch schm {
-			case scheme.HTTP, scheme.HTTPS:
-				httpOpts := []clients.HTTPClientOption{}
-				if tlsClientCert != "" && tlsClientKey != "" {
-					httpOpts = append(httpOpts, clients.WithHTTPTLSClientCert(tlsClientCert, tlsClientKey))
-				}
-				opts = append(opts, configs.WithClientConfigHTTPClient(authURL, httpOpts...))
-
-			case scheme.GRPC:
-				grpcOpts := []clients.GRPCClientOption{}
-				if tlsClientCert != "" && tlsClientKey != "" {
-					grpcOpts = append(grpcOpts, clients.WithGRPCTLSClientCert(tlsClientCert, tlsClientKey))
-				}
-				opts = append(opts, configs.WithClientConfigGRPCClient(authURL, grpcOpts...))
-
-			default:
-				return errors.New("unsupported scheme: " + schm)
-			}
-
-			cfg, err := configs.NewClientConfig(opts...)
+			// Use centralized config creation
+			cfg, err := config.NewClientConfig(authURL, tlsClientCert, tlsClientKey)
 			if err != nil {
 				return fmt.Errorf("failed to create client config: %w", err)
 			}
@@ -65,6 +39,7 @@ func RegisterLogoutCommand(root *cobra.Command) {
 				Token: token,
 			}
 
+			// Try HTTP logout first
 			if cfg.HTTPClient != nil {
 				if err := client.LogoutHTTP(ctx, cfg.HTTPClient, req); err == nil {
 					cmd.Println("Logout successful")
@@ -74,6 +49,7 @@ func RegisterLogoutCommand(root *cobra.Command) {
 				}
 			}
 
+			// Try gRPC logout fallback
 			if cfg.GRPCClient != nil {
 				logoutClient := pb.NewLogoutServiceClient(cfg.GRPCClient)
 				if err := client.LogoutGRPC(ctx, logoutClient, req); err != nil {
@@ -83,7 +59,7 @@ func RegisterLogoutCommand(root *cobra.Command) {
 				return nil
 			}
 
-			return fmt.Errorf("no HTTP or gRPC client available for logout command")
+			return errors.New("no HTTP or gRPC client available for logout command")
 		},
 	}
 

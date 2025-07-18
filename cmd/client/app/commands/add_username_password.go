@@ -4,11 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config"
 	"github.com/sbilibin2017/gophkeeper/internal/client"
-	"github.com/sbilibin2017/gophkeeper/internal/configs"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/clients"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/validation"
 	"github.com/spf13/cobra"
 )
 
@@ -28,32 +27,14 @@ func RegisterAddUsernamePasswordCommand(root *cobra.Command) {
 		Use:   "add-username-password",
 		Short: "Add a username-password secret",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			var opts []configs.ClientConfigOpt
-
-			opts = append(opts, configs.WithClientConfigDB())
-
-			schm := scheme.GetSchemeFromURL(authURL)
-
-			switch schm {
-			case scheme.HTTP, scheme.HTTPS:
-				httpOpts := []clients.HTTPClientOption{}
-				if tlsClientCert != "" && tlsClientKey != "" {
-					httpOpts = append(httpOpts, clients.WithHTTPTLSClientCert(tlsClientCert, tlsClientKey))
-				}
-				opts = append(opts, configs.WithClientConfigHTTPClient(authURL, httpOpts...))
-
-			case scheme.GRPC:
-				grpcOpts := []clients.GRPCClientOption{}
-				if tlsClientCert != "" && tlsClientKey != "" {
-					grpcOpts = append(grpcOpts, clients.WithGRPCTLSClientCert(tlsClientCert, tlsClientKey))
-				}
-				opts = append(opts, configs.WithClientConfigGRPCClient(authURL, grpcOpts...))
-
-			default:
-				return errors.New("unsupported scheme: " + schm)
+			if err := validation.ValidateSecretName(secretName); err != nil {
+				return fmt.Errorf("invalid secret name: %w", err)
+			}
+			if err := validation.ValidateMeta(meta); err != nil {
+				return fmt.Errorf("invalid meta: %w", err)
 			}
 
-			cfg, err := configs.NewClientConfig(opts...)
+			cfg, err := config.NewClientConfig(authURL, tlsClientCert, tlsClientKey)
 			if err != nil {
 				return fmt.Errorf("failed to create client config: %w", err)
 			}
@@ -70,8 +51,7 @@ func RegisterAddUsernamePasswordCommand(root *cobra.Command) {
 			ctx := cmd.Context()
 
 			if cfg.DB != nil {
-				err := client.AddUsernamePasswordLocal(ctx, cfg.DB, req)
-				if err != nil {
+				if err := client.AddUsernamePasswordLocal(ctx, cfg.DB, req); err != nil {
 					return err
 				}
 				cmd.Println("Username-password secret added locally")

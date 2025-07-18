@@ -4,11 +4,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app/commands/config" // import your config package here
 	"github.com/sbilibin2017/gophkeeper/internal/client"
-	"github.com/sbilibin2017/gophkeeper/internal/configs"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/clients"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/validation"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/spf13/cobra"
 )
@@ -32,42 +31,20 @@ func RegisterRegisterCommand(root *cobra.Command) {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			if err := client.ValidateRegisterUsername(username); err != nil {
+			if err := validation.ValidateRegisterUsername(username); err != nil {
 				return err
 			}
-			if err := client.ValidateRegisterPassword(password); err != nil {
+			if err := validation.ValidateRegisterPassword(password); err != nil {
 				return err
 			}
-			var opts []configs.ClientConfigOpt
 
-			opts = append(opts, configs.WithClientConfigDB())
-
-			schm := scheme.GetSchemeFromURL(authURL)
-
-			switch schm {
-			case scheme.HTTP, scheme.HTTPS:
-				httpOpts := []clients.HTTPClientOption{}
-				if tlsClientCert != "" && tlsClientKey != "" {
-					httpOpts = append(httpOpts, clients.WithHTTPTLSClientCert(tlsClientCert, tlsClientKey))
-				}
-				opts = append(opts, configs.WithClientConfigHTTPClient(authURL, httpOpts...))
-
-			case scheme.GRPC:
-				grpcOpts := []clients.GRPCClientOption{}
-				if tlsClientCert != "" && tlsClientKey != "" {
-					grpcOpts = append(grpcOpts, clients.WithGRPCTLSClientCert(tlsClientCert, tlsClientKey))
-				}
-				opts = append(opts, configs.WithClientConfigGRPCClient(authURL, grpcOpts...))
-
-			default:
-				return errors.New("unsupported scheme: " + schm)
-			}
-
-			cfg, err := configs.NewClientConfig(opts...)
+			// Use centralized client config creation
+			cfg, err := config.NewClientConfig(authURL, tlsClientCert, tlsClientKey)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create client config: %w", err)
 			}
 
+			// Create necessary DB tables
 			if err := client.CreateBinaryRequestTable(ctx, cfg.DB); err != nil {
 				return fmt.Errorf("failed to create binary request table: %w", err)
 			}
@@ -86,23 +63,23 @@ func RegisterRegisterCommand(root *cobra.Command) {
 				Password: password,
 			}
 
+			// Try HTTP registration if HTTP client available
 			if cfg.HTTPClient != nil {
-				err := client.RegisterHTTP(ctx, cfg.HTTPClient, req)
-				if err != nil {
+				if err := client.RegisterHTTP(ctx, cfg.HTTPClient, req); err != nil {
 					return err
 				}
 			}
 
+			// Try gRPC registration if gRPC client available
 			if cfg.GRPCClient != nil {
 				registerClient := pb.NewRegisterServiceClient(cfg.GRPCClient)
-				err := client.RegisterGRPC(ctx, registerClient, req)
-				if err != nil {
+				if err := client.RegisterGRPC(ctx, registerClient, req); err != nil {
 					return err
 				}
 				return nil
 			}
 
-			return fmt.Errorf("no HTTP or gRPC client available for register command")
+			return errors.New("no HTTP or gRPC client available for register command")
 		},
 	}
 
