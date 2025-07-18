@@ -111,6 +111,9 @@ func ValidateBankCardCVV(cvv string) error {
 
 // ValidateBankCardMeta validates the meta string, optional - allows empty or printable characters only.
 func ValidateBankCardMeta(meta string) error {
+	if meta == "" {
+		return nil
+	}
 	for _, ch := range meta {
 		if ch < 32 || ch == 127 {
 			return errors.New("meta contains invalid control characters")

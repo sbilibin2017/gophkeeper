@@ -26,7 +26,11 @@ func ValidateTextContent(content string) error {
 	return nil
 }
 
+// ValidateTextMeta validates the meta string for printable characters only (optional).
 func ValidateTextMeta(meta string) error {
+	if meta == "" {
+		return nil
+	}
 	for _, ch := range meta {
 		if (ch < 32 && ch != 9 && ch != 10 && ch != 13) || ch == 127 {
 			return errors.New("meta contains invalid control characters")

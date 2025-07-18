@@ -6,84 +6,63 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidateLoginUsername(t *testing.T) {
+func TestValidateSecretName(t *testing.T) {
 	tests := []struct {
-		username string
-		wantErr  bool
+		input   string
+		wantErr bool
+		errMsg  string
 	}{
-		{"user", false},
-		{"", true},
+		{"Valid_Name-123", false, ""},
+		{"", true, "secret name must not be empty"},
+		{"Invalid!", true, "secret name can only contain letters, digits, underscore, hyphen, and spaces"},
+		{"Name With Spaces", false, ""},
 	}
 
 	for _, tt := range tests {
-		err := ValidateLoginUsername(tt.username)
+		err := ValidateSecretName(tt.input)
 		if tt.wantErr {
-			assert.Error(t, err, "username: %q", tt.username)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errMsg)
 		} else {
-			assert.NoError(t, err, "username: %q", tt.username)
+			assert.NoError(t, err)
 		}
 	}
 }
 
-func TestValidateLoginPassword(t *testing.T) {
+func TestValidateUsername(t *testing.T) {
 	tests := []struct {
-		password string
-		wantErr  bool
+		input   string
+		wantErr bool
+		errMsg  string
 	}{
-		{"pass", false},
-		{"", true},
+		{"valid_user123", false, ""},
+		{"", true, "username must not be empty"},
+		{"invalid-user!", true, "username can only contain letters, digits, and underscore"},
 	}
 
 	for _, tt := range tests {
-		err := ValidateLoginPassword(tt.password)
+		err := ValidateUsername(tt.input)
 		if tt.wantErr {
-			assert.Error(t, err, "password: %q", tt.password)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errMsg)
 		} else {
-			assert.NoError(t, err, "password: %q", tt.password)
+			assert.NoError(t, err)
 		}
 	}
 }
 
-func TestRegisterValidateRegisterUsername(t *testing.T) {
-	tests := []struct {
-		username string
-		wantErr  bool
-	}{
-		{"abc", false},
-		{"a1_b2", false},
-		{"ab", true},
-		{"a_very_long_username_more_than_30_chars", true},
-		{"invalid-char!", true},
-	}
-
-	for _, tt := range tests {
-		err := ValidateRegisterUsername(tt.username)
-		if tt.wantErr {
-			assert.Error(t, err, "username: %s", tt.username)
-		} else {
-			assert.NoError(t, err, "username: %s", tt.username)
-		}
-	}
+func TestValidatePassword(t *testing.T) {
+	assert.NoError(t, ValidatePassword("anything"))
+	assert.ErrorContains(t, ValidatePassword(""), "password must not be empty")
 }
 
-func TestRegisterValidateRegisterPassword(t *testing.T) {
-	tests := []struct {
-		password string
-		wantErr  bool
-	}{
-		{"Strong1A", false},
-		{"weak", true},
-		{"nouppercase1", true},
-		{"NOLOWERCASE1", true},
-		{"NoDigits", true},
-	}
+func TestValidateMeta(t *testing.T) {
+	validMeta := "This is some valid meta info.\nWith newlines and tabs\tallowed."
+	invalidMeta := string([]byte{0x01, 0x02, 0x03}) // control chars
 
-	for _, tt := range tests {
-		err := ValidateRegisterPassword(tt.password)
-		if tt.wantErr {
-			assert.Error(t, err, "password: %s", tt.password)
-		} else {
-			assert.NoError(t, err, "password: %s", tt.password)
-		}
-	}
+	assert.NoError(t, ValidateMeta(""))        // empty meta allowed
+	assert.NoError(t, ValidateMeta(validMeta)) // valid meta passes
+	err := ValidateMeta(invalidMeta)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "meta contains invalid control characters")
 }

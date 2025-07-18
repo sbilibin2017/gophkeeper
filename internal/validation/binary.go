@@ -36,6 +36,9 @@ func ValidateBinaryDataPath(dataPath string) error {
 
 // ValidateBinaryMeta validates the meta string for printable characters only (optional).
 func ValidateBinaryMeta(meta string) error {
+	if meta == "" {
+		return nil
+	}
 	for _, ch := range meta {
 		if ch < 32 || ch == 127 {
 			return errors.New("meta contains invalid control characters")
