@@ -2,88 +2,132 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
-	_ "modernc.org/sqlite"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/sbilibin2017/gophkeeper/internal/models"
+	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// setupAddUsernamePasswordLocalTestDB creates an in-memory SQLite DB and sets up the required schema.
-func setupAddUsernamePasswordLocalTestDB(t *testing.T) *sqlx.DB {
-	db, err := sqlx.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open SQLite in-memory DB: %v", err)
-	}
+// ---------- Test for AddUsernamePasswordHTTP ----------
 
-	schema := `
-	CREATE TABLE IF NOT EXISTS secret_username_password_request (
-		secret_name TEXT PRIMARY KEY,
-		username TEXT NOT NULL,
-		password TEXT NOT NULL,
-		meta TEXT
-	);
-	`
+func TestAddUsernamePasswordHTTP(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "/add/username-password", r.URL.Path) // Corrected path here
 
-	_, err = db.Exec(schema)
-	if err != nil {
-		t.Fatalf("failed to create table: %v", err)
-	}
+		// Optionally decode and check the JSON body here if needed.
 
-	return db
-}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
 
-func TestAddUsernamePasswordLocal(t *testing.T) {
-	db := setupAddUsernamePasswordLocalTestDB(t)
-	defer db.Close()
-
+	client := resty.New().SetBaseURL(ts.URL)
 	ctx := context.Background()
 
-	meta := "initial meta"
+	meta := "http-meta"
 	req := models.UsernamePasswordAddRequest{
-		SecretName: "login_001",
-		Username:   "user1",
-		Password:   "pass123",
+		SecretName: "login_abc",
+		Username:   "user_http",
+		Password:   "pass_http",
 		Meta:       &meta,
 	}
 
-	// First insert
-	err := AddUsernamePasswordLocal(ctx, db, req)
-	assert.NoError(t, err)
+	err := AddUsernamePasswordHTTP(ctx, client, "test-token", req)
+	require.NoError(t, err)
+}
 
-	// Verify insert
-	var count int
-	err = db.Get(&count, `SELECT COUNT(*) FROM secret_username_password_request WHERE secret_name = ?`, req.SecretName)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, count)
+func TestAddUsernamePasswordHTTP_ErrorStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	}))
+	defer ts.Close()
 
-	// Update (upsert)
-	newMeta := "updated meta"
-	req.Username = "user2"
-	req.Password = "newpass456"
-	req.Meta = &newMeta
+	client := resty.New().SetBaseURL(ts.URL)
+	ctx := context.Background()
 
-	err = AddUsernamePasswordLocal(ctx, db, req)
-	assert.NoError(t, err)
+	req := models.UsernamePasswordAddRequest{
+		SecretName: "login_err",
+		Username:   "user",
+		Password:   "pass",
+	}
 
-	// Verify updated values
-	var (
-		secretName string
-		username   string
-		password   string
-		metaVal    *string
-	)
-	err = db.QueryRowx(`
-		SELECT secret_name, username, password, meta
-		FROM secret_username_password_request
-		WHERE secret_name = ?
-	`, req.SecretName).Scan(&secretName, &username, &password, &metaVal)
-	assert.NoError(t, err)
+	err := AddUsernamePasswordHTTP(ctx, client, "bad-token", req)
+	assert.Error(t, err)
+}
 
-	assert.Equal(t, req.SecretName, secretName)
-	assert.Equal(t, req.Username, username)
-	assert.Equal(t, req.Password, password)
-	assert.NotNil(t, metaVal)
-	assert.Equal(t, *req.Meta, *metaVal)
+// ---------- Test for AddUsernamePasswordGRPC ----------
+
+type stubUsernamePasswordAddClient struct{}
+
+func (s *stubUsernamePasswordAddClient) Add(
+	ctx context.Context,
+	in *pb.UsernamePasswordAddRequest,
+	opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
+	md, _ := metadata.FromOutgoingContext(ctx)
+	auth := md["authorization"]
+	if len(auth) != 1 || auth[0] != "Bearer grpc-token" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+
+	if in.SecretName == "" {
+		return nil, fmt.Errorf("secret_name required")
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func TestAddUsernamePasswordGRPC(t *testing.T) {
+	client := &stubUsernamePasswordAddClient{}
+	ctx := context.Background()
+
+	meta := "grpc-meta"
+	req := models.UsernamePasswordAddRequest{
+		SecretName: "grpc-login",
+		Username:   "grpcuser",
+		Password:   "grpcpass",
+		Meta:       &meta,
+	}
+
+	err := AddUsernamePasswordGRPC(ctx, client, "grpc-token", req)
+	require.NoError(t, err)
+}
+
+func TestAddUsernamePasswordGRPC_Unauthorized(t *testing.T) {
+	client := &stubUsernamePasswordAddClient{}
+	ctx := context.Background()
+
+	req := models.UsernamePasswordAddRequest{
+		SecretName: "grpc-login",
+		Username:   "user",
+		Password:   "pass",
+	}
+
+	err := AddUsernamePasswordGRPC(ctx, client, "bad-token", req)
+	assert.Error(t, err)
+}
+
+func TestAddUsernamePasswordGRPC_ValidationError(t *testing.T) {
+	client := &stubUsernamePasswordAddClient{}
+	ctx := context.Background()
+
+	req := models.UsernamePasswordAddRequest{
+		SecretName: "",
+		Username:   "user",
+		Password:   "pass",
+	}
+
+	err := AddUsernamePasswordGRPC(ctx, client, "grpc-token", req)
+	assert.Error(t, err)
 }

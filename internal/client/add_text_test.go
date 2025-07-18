@@ -2,83 +2,127 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
-	"github.com/jmoiron/sqlx"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
-	_ "modernc.org/sqlite"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
+
+	"github.com/sbilibin2017/gophkeeper/internal/models"
+	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// setupAddTextLocalTestDB creates an in-memory SQLite DB and sets up the required schema.
-func setupAddTextLocalTestDB(t *testing.T) *sqlx.DB {
-	db, err := sqlx.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("failed to open SQLite in-memory DB: %v", err)
-	}
+// ---------- Test for AddTextHTTP ----------
 
-	schema := `
-	CREATE TABLE IF NOT EXISTS secret_text_request (
-		secret_name TEXT PRIMARY KEY,
-		content TEXT NOT NULL,
-		meta TEXT
-	);
-	`
+func TestAddTextHTTP(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
+		assert.Equal(t, "/add/text", r.URL.Path)
 
-	_, err = db.Exec(schema)
-	if err != nil {
-		t.Fatalf("failed to create table: %v", err)
-	}
+		// Optionally decode and validate JSON body here.
 
-	return db
-}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
 
-func TestAddTextLocal(t *testing.T) {
-	db := setupAddTextLocalTestDB(t)
-	defer db.Close()
-
+	client := resty.New().SetBaseURL(ts.URL)
 	ctx := context.Background()
 
-	meta := "first meta"
+	meta := "http-meta"
 	req := models.TextAddRequest{
-		SecretName: "text_001",
-		Content:    "initial content",
+		SecretName: "text_123",
+		Content:    "some text content",
 		Meta:       &meta,
 	}
 
-	// First insert
-	err := AddTextLocal(ctx, db, req)
-	assert.NoError(t, err)
+	err := AddTextHTTP(ctx, client, "test-token", req)
+	require.NoError(t, err)
+}
 
-	// Verify insert
-	var count int
-	err = db.Get(&count, `SELECT COUNT(*) FROM secret_text_request WHERE secret_name = ?`, req.SecretName)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, count)
+func TestAddTextHTTP_ErrorStatus(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "bad request", http.StatusBadRequest)
+	}))
+	defer ts.Close()
 
-	// Update (upsert)
-	newMeta := "updated meta"
-	req.Content = "updated content"
-	req.Meta = &newMeta
+	client := resty.New().SetBaseURL(ts.URL)
+	ctx := context.Background()
 
-	err = AddTextLocal(ctx, db, req)
-	assert.NoError(t, err)
+	req := models.TextAddRequest{
+		SecretName: "text_123",
+		Content:    "some text",
+	}
 
-	// Verify updated values
-	var (
-		secretName string
-		content    string
-		metaVal    *string
-	)
-	err = db.QueryRowx(`
-		SELECT secret_name, content, meta
-		FROM secret_text_request
-		WHERE secret_name = ?
-	`, req.SecretName).Scan(&secretName, &content, &metaVal)
-	assert.NoError(t, err)
+	err := AddTextHTTP(ctx, client, "bad-token", req)
+	assert.Error(t, err)
+}
 
-	assert.Equal(t, req.SecretName, secretName)
-	assert.Equal(t, req.Content, content)
-	assert.NotNil(t, metaVal)
-	assert.Equal(t, *req.Meta, *metaVal)
+// ---------- Test for AddTextGRPC ----------
+
+type stubTextAddClient struct{}
+
+func (s *stubTextAddClient) Add(
+	ctx context.Context,
+	in *pb.TextAddRequest,
+	opts ...grpc.CallOption,
+) (*emptypb.Empty, error) {
+	md, _ := metadata.FromOutgoingContext(ctx)
+	auth := md["authorization"]
+	if len(auth) != 1 || auth[0] != "Bearer grpc-token" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+
+	if in.SecretName == "" {
+		return nil, fmt.Errorf("secret_name required")
+	}
+
+	return &emptypb.Empty{}, nil
+}
+
+func TestAddTextGRPC(t *testing.T) {
+	client := &stubTextAddClient{}
+	ctx := context.Background()
+
+	meta := "grpc-meta"
+	req := models.TextAddRequest{
+		SecretName: "grpc-text",
+		Content:    "grpc text content",
+		Meta:       &meta,
+	}
+
+	err := AddTextGRPC(ctx, client, "grpc-token", req)
+	require.NoError(t, err)
+}
+
+func TestAddTextGRPC_Unauthorized(t *testing.T) {
+	client := &stubTextAddClient{}
+	ctx := context.Background()
+
+	req := models.TextAddRequest{
+		SecretName: "grpc-text",
+		Content:    "some content",
+	}
+
+	err := AddTextGRPC(ctx, client, "bad-token", req)
+	assert.Error(t, err)
+}
+
+func TestAddTextGRPC_ValidationError(t *testing.T) {
+	client := &stubTextAddClient{}
+	ctx := context.Background()
+
+	req := models.TextAddRequest{
+		SecretName: "",
+		Content:    "some content",
+	}
+
+	err := AddTextGRPC(ctx, client, "grpc-token", req)
+	assert.Error(t, err)
 }
