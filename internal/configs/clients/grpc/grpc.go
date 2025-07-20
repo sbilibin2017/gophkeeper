@@ -61,7 +61,7 @@ func WithTLSClientCert(certFile, keyFile string) Opt {
 		}
 
 		rootCAs, err := x509.SystemCertPool()
-		if err != nil {
+		if err != nil || rootCAs == nil {
 			rootCAs = x509.NewCertPool()
 		}
 
@@ -75,7 +75,21 @@ func WithTLSClientCert(certFile, keyFile string) Opt {
 	}
 }
 
-// UnaryInterceptorWithToken returns a unary client interceptor that injects
+// WithUnaryInterceptor wraps a grpc.UnaryClientInterceptor into an Opt
+func WithUnaryInterceptor(interceptor grpc.UnaryClientInterceptor) Opt {
+	return func(opts []grpc.DialOption) ([]grpc.DialOption, error) {
+		return append(opts, grpc.WithUnaryInterceptor(interceptor)), nil
+	}
+}
+
+// WithStreamInterceptor wraps a grpc.StreamClientInterceptor into an Opt
+func WithStreamInterceptor(interceptor grpc.StreamClientInterceptor) Opt {
+	return func(opts []grpc.DialOption) ([]grpc.DialOption, error) {
+		return append(opts, grpc.WithStreamInterceptor(interceptor)), nil
+	}
+}
+
+// WithUnaryInterceptorToken returns a unary client interceptor that injects
 // the "authorization" metadata with the Bearer token.
 func WithUnaryInterceptorToken(token string) grpc.UnaryClientInterceptor {
 	return func(
@@ -92,7 +106,7 @@ func WithUnaryInterceptorToken(token string) grpc.UnaryClientInterceptor {
 	}
 }
 
-// StreamInterceptorWithToken returns a stream client interceptor that injects
+// WithStreamInterceptorToken returns a stream client interceptor that injects
 // the "authorization" metadata with the Bearer token.
 func WithStreamInterceptorToken(token string) grpc.StreamClientInterceptor {
 	return func(
