@@ -1,22 +1,18 @@
 package client
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"github.com/sbilibin2017/gophkeeper/internal/facades/auth"
+	clientHandlers "github.com/sbilibin2017/gophkeeper/internal/handlers/client"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
-	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc/auth"
 	"github.com/spf13/cobra"
-
-	"github.com/sbilibin2017/gophkeeper/internal/configs"
 )
 
 // Define variables for mocking that point to the actual functions by default
 var (
-	registerHTTPFunc = registerHTTP
-	registerGRPCFunc = registerGRPC
+	registerHTTPFunc = clientHandlers.RegisterHTTP
+	registerGRPCFunc = clientHandlers.RegisterGRPC
 )
 
 func RegisterRegisterCommand(root *cobra.Command) {
@@ -67,67 +63,4 @@ func RegisterRegisterCommand(root *cobra.Command) {
 	cmd.MarkFlagRequired("tls-client-key")
 
 	root.AddCommand(cmd)
-}
-
-func registerHTTP(
-	ctx context.Context,
-	username string,
-	password string,
-	authURL string,
-	tlsCertFile string,
-	tlsKeyFile string,
-) (*models.AuthResponse, error) {
-	config, err := configs.NewClientConfig(configs.WithAuthURL(authURL, tlsCertFile, tlsKeyFile))
-	if err != nil {
-		return nil, err
-	}
-	if config.HTTPClient == nil {
-		return nil, fmt.Errorf("HTTP client is not configured for URL: %s", authURL)
-	}
-
-	authReq := &models.AuthRequest{
-		Username: username,
-		Password: password,
-	}
-
-	facade := auth.NewRegisterHTTPFacade(config.HTTPClient)
-
-	resp, err := facade.Register(ctx, authReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
-}
-
-func registerGRPC(
-	ctx context.Context,
-	username string,
-	password string,
-	authURL string,
-	tlsCertFile string,
-	tlsKeyFile string,
-) (*models.AuthResponse, error) {
-	config, err := configs.NewClientConfig(configs.WithAuthURL(authURL, tlsCertFile, tlsKeyFile))
-	if err != nil {
-		return nil, err
-	}
-	if config.GRPCClient == nil {
-		return nil, fmt.Errorf("gRPC client is not configured for URL: %s", authURL)
-	}
-
-	authReq := &models.AuthRequest{
-		Username: username,
-		Password: password,
-	}
-
-	grpcClient := pb.NewAuthServiceClient(config.GRPCClient)
-	facade := auth.NewRegisterGRPCFacade(grpcClient)
-
-	resp, err := facade.Register(ctx, authReq)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
 }
