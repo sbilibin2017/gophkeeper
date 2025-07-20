@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/client/models"
 	"github.com/stretchr/testify/require"
 )
 

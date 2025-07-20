@@ -16,12 +16,3 @@ type BinaryGetRequest struct {
 type BinaryDeleteRequest struct {
 	SecretName string `json:"secret_name,omitempty"` // Unique name of the secret to delete
 }
-
-// BinaryDB represents the database model for a stored binary secret.
-type BinaryDB struct {
-	SecretName  string  `json:"secret_name,omitempty" db:"secret_name"`   // Unique name of the secret
-	SecretOwner string  `json:"secret_owner,omitempty" db:"secret_owner"` // Owner of the secret (user)
-	Data        []byte  `json:"data,omitempty" db:"data"`                 // Binary data of the secret
-	Meta        *string `json:"meta,omitempty" db:"meta"`                 // Additional metadata or notes
-	UpdatedAt   string  `json:"updated_at,omitempty" db:"updated_at"`     // Timestamp of last update
-}

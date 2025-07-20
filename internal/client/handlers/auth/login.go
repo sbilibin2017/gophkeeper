@@ -6,11 +6,11 @@ import (
 
 	"github.com/sbilibin2017/gophkeeper/internal/client/config"
 	"github.com/sbilibin2017/gophkeeper/internal/client/facades/auth"
+	"github.com/sbilibin2017/gophkeeper/internal/client/models"
 	"github.com/sbilibin2017/gophkeeper/internal/client/repositories/bankcard"
 	"github.com/sbilibin2017/gophkeeper/internal/client/repositories/binary"
 	"github.com/sbilibin2017/gophkeeper/internal/client/repositories/text"
 	"github.com/sbilibin2017/gophkeeper/internal/client/repositories/user"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc/auth"
 )
 

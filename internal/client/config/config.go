@@ -1,64 +1,36 @@
 package config
 
 import (
-	"net/url"
+	"context"
+	"crypto/tls"
+	"fmt"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/grpc"
-
-	grpcClient "github.com/sbilibin2017/gophkeeper/internal/configs/clients/grpc"
-	httpClient "github.com/sbilibin2017/gophkeeper/internal/configs/clients/http"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+	_ "modernc.org/sqlite"
 )
 
-const (
-	// clientDriverName is the default database driver name used by the client.
-	clientDriverName = "sqlite"
-	// clientDSN is the default data source name for the client database.
-	clientDSN = "client.db"
-)
-
-// Config holds configuration for the client, including database and network clients.
+// Config holds application-wide clients.
 type Config struct {
 	DB         *sqlx.DB
 	HTTPClient *resty.Client
 	GRPCClient *grpc.ClientConn
 }
 
-// Opt defines a functional option for configuring Config.
+// Opt defines a functional option for Config initialization.
 type Opt func(*Config) error
 
-// package-level variables to allow overriding in tests
-var (
-	httpClientNew = httpClient.New
-	grpcClientNew = grpcClient.New
-	dbNew         = db.NewDB
-)
-
-// WithDB returns an Opt that configures the database connection using
-// the private driver and DSN constants and applies provided options.
-func WithDB(opts ...db.Opt) Opt {
-	return func(cfg *Config) error {
-		conn, err := dbNew(clientDriverName, clientDSN, opts...)
-		if err != nil {
-			return err
-		}
-		cfg.DB = conn
-		return nil
-	}
-}
-
-// NewConfig creates a new Config with default settings, applying any
-// provided functional options to customize the configuration.
+// NewConfig initializes a Config with optional components.
 func NewConfig(opts ...Opt) (*Config, error) {
 	cfg := &Config{}
-
-	conn, err := dbNew(clientDriverName, clientDSN)
-	if err != nil {
-		return nil, err
-	}
-	cfg.DB = conn
 
 	for _, opt := range opts {
 		if err := opt(cfg); err != nil {
@@ -69,70 +41,187 @@ func NewConfig(opts ...Opt) (*Config, error) {
 	return cfg, nil
 }
 
-// WithHTTPClient returns an Opt that configures the HTTP client with
-// the provided authURL, optional TLS client certificate/key, and bearer token.
-func WithHTTPClient(authURL, tlsClientCert, tlsClientKey, token string) Opt {
+// WithDB connects to SQLite with optional custom DSN.
+func WithDB() Opt {
 	return func(cfg *Config) error {
-		httpOpts := []httpClient.Opt{}
-		if tlsClientCert != "" && tlsClientKey != "" {
-			httpOpts = append(httpOpts, httpClient.WithTLSClientCert(tlsClientCert, tlsClientKey))
-		}
-		if token != "" {
-			httpOpts = append(httpOpts, httpClient.WithToken(token))
-		}
-
-		client, err := httpClientNew(authURL, httpOpts...)
+		db, err := sqlx.Connect("sqlite", "client.db")
 		if err != nil {
 			return err
 		}
+
+		cfg.DB = db
+		return nil
+	}
+}
+
+func WithHTTPClient(baseURL, certPath, keyPath, token string) Opt {
+	return func(cfg *Config) error {
+		client := resty.New().
+			SetBaseURL(baseURL)
+
+		// Load and apply TLS certificates if provided
+		if certPath != "" && keyPath != "" {
+			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+			if err != nil {
+				return err
+			}
+
+			tlsConfig := &tls.Config{
+				Certificates: []tls.Certificate{cert},
+			}
+
+			client.SetTransport(&http.Transport{
+				TLSClientConfig: tlsConfig,
+			})
+		}
+
+		// Set Authorization token if provided
+		if token != "" {
+			client.OnBeforeRequest(func(c *resty.Client, r *resty.Request) error {
+				r.SetHeader("Authorization", "Bearer "+token)
+				return nil
+			})
+		}
+
+		// Configure retries: example values, adjust as needed
+		client.
+			SetRetryCount(3).
+			SetRetryWaitTime(1 * time.Second).
+			SetRetryMaxWaitTime(5 * time.Second).
+			AddRetryCondition(func(r *resty.Response, err error) bool {
+				return err != nil || (r.StatusCode() >= 500 && r.StatusCode() < 600)
+			})
 
 		cfg.HTTPClient = client
 		return nil
 	}
 }
 
-// WithGRPCClient returns an Opt that configures the gRPC client with
-// the given authURL, optional TLS client certificate/key, and bearer token.
-// It handles creating secure or insecure connections and applies token interceptors.
-func WithGRPCClient(authURL, tlsClientCert, tlsClientKey, token string) Opt {
+func WithGRPCClient(baseURL, certPath, keyPath, token string) Opt {
 	return func(cfg *Config) error {
-		grpcOpts := []grpcClient.Opt{}
+		var opts []grpc.DialOption
 
-		if tlsClientCert != "" && tlsClientKey != "" {
-			grpcOpts = append(grpcOpts, grpcClient.WithTLSClientCert(tlsClientCert, tlsClientKey))
+		// Setup transport credentials: TLS or insecure
+		if certPath != "" && keyPath != "" {
+			cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+			if err != nil {
+				return err
+			}
+			tlsConfig := &tls.Config{Certificates: []tls.Certificate{cert}}
+			creds := credentials.NewTLS(tlsConfig)
+			opts = append(opts, grpc.WithTransportCredentials(creds))
 		} else {
-			grpcOpts = append(grpcOpts, grpcClient.WithInsecure())
+			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		}
 
+		// Retry interceptor (3 retries, exponential backoff)
+		retryUnary := retryInterceptor(3, 100*time.Millisecond)
+
+		// Auth token interceptor if token provided
+		var unaryInterceptor grpc.UnaryClientInterceptor
 		if token != "" {
-			grpcOpts = append(grpcOpts,
-				grpcClient.WithUnaryInterceptor(grpcClient.WithUnaryInterceptorToken(token)),
-				grpcClient.WithStreamInterceptor(grpcClient.WithStreamInterceptorToken(token)),
+			tokenUnary := func(
+				ctx context.Context,
+				method string,
+				req, reply any,
+				cc *grpc.ClientConn,
+				invoker grpc.UnaryInvoker,
+				callOpts ...grpc.CallOption,
+			) error {
+				ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
+				return invoker(ctx, method, req, reply, cc, callOpts...)
+			}
+
+			unaryInterceptor = func(
+				ctx context.Context,
+				method string,
+				req, reply any,
+				cc *grpc.ClientConn,
+				invoker grpc.UnaryInvoker,
+				callOpts ...grpc.CallOption,
+			) error {
+				return retryUnary(ctx, method, req, reply, cc,
+					func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+						return tokenUnary(ctx, method, req, reply, cc, invoker, opts...)
+					}, callOpts...)
+			}
+
+			streamInterceptor := func(
+				ctx context.Context,
+				desc *grpc.StreamDesc,
+				cc *grpc.ClientConn,
+				method string,
+				streamer grpc.Streamer,
+				callOpts ...grpc.CallOption,
+			) (grpc.ClientStream, error) {
+				ctx = metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+token)
+				return streamer(ctx, desc, cc, method, callOpts...)
+			}
+
+			opts = append(opts,
+				grpc.WithUnaryInterceptor(unaryInterceptor),
+				grpc.WithStreamInterceptor(streamInterceptor),
 			)
+		} else {
+			opts = append(opts, grpc.WithUnaryInterceptor(retryUnary))
 		}
 
-		addr, err := stripScheme(authURL)
+		// Custom dialer with context
+		opts = append(opts, grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+		}))
+
+		// Create the client connection
+		conn, err := grpc.NewClient(baseURL, opts...)
 		if err != nil {
 			return err
 		}
 
-		conn, err := grpcClientNew(addr, grpcOpts...)
-		if err != nil {
-			return err
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		// Trigger connection attempts
+		conn.Connect()
+
+		// Wait for Ready state or timeout
+		for {
+			state := conn.GetState()
+			if state == connectivity.Ready {
+				break
+			}
+			if !conn.WaitForStateChange(ctx, state) {
+				conn.Close()
+				return fmt.Errorf("grpc connection failed to become ready")
+			}
 		}
 
+		if cfg.GRPCClient != nil {
+			_ = cfg.GRPCClient.Close()
+		}
 		cfg.GRPCClient = conn
 		return nil
 	}
 }
 
-// stripScheme parses the raw URL string and returns only the host portion (host:port),
-// removing the scheme (e.g., "http://", "grpc://").
-// Returns an error if the URL cannot be parsed.
-func stripScheme(rawURL string) (string, error) {
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return "", err
+func retryInterceptor(maxRetries int, baseBackoff time.Duration) grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply any,
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		var err error
+		backoff := baseBackoff
+		for i := 0; i < maxRetries; i++ {
+			err = invoker(ctx, method, req, reply, cc, opts...)
+			if err == nil {
+				return nil
+			}
+			time.Sleep(backoff)
+			backoff *= 2
+		}
+		return err
 	}
-	return parsed.Host, nil
 }

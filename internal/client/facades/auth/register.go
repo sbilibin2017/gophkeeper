@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/client/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc/auth"
 )
 

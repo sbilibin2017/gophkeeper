@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/sbilibin2017/gophkeeper/internal/client/config"
+	"github.com/sbilibin2017/gophkeeper/internal/client/models"
 	"github.com/sbilibin2017/gophkeeper/internal/client/repositories/bankcard"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 // AddClient saves or updates a bank card locally using the default client DB config.

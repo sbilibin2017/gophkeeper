@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/client/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc/auth"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"

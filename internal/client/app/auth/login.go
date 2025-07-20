@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	authHandlers "github.com/sbilibin2017/gophkeeper/internal/client/handlers/auth"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/client/models"
 	"github.com/spf13/cobra"
 )
 
