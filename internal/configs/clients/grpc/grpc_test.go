@@ -203,3 +203,11 @@ func TestStreamInterceptorWithToken_AddsAuthorizationMetadata(t *testing.T) {
 	_, err := interceptor(context.Background(), nil, nil, "TestMethod", fakeStreamer)
 	assert.NoError(t, err)
 }
+
+func TestWithInsecure(t *testing.T) {
+	opt := WithInsecure()
+	opts, err := opt(nil)
+	assert.NoError(t, err)
+	assert.Len(t, opts, 1)
+	assert.NotNil(t, opts[0])
+}

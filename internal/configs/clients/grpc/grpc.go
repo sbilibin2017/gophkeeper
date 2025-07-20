@@ -8,6 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure" // << import this
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 )
@@ -24,11 +25,18 @@ func New(target string, options ...Opt) (*grpc.ClientConn, error) {
 		}
 	}
 
-	return grpc.NewClient(target, dialOpts...)
+	return grpc.Dial(target, dialOpts...) // changed grpc.NewClient -> grpc.Dial
 }
 
 // Opt modifies grpc.DialOptions
 type Opt func([]grpc.DialOption) ([]grpc.DialOption, error)
+
+// WithInsecure disables transport security (useful for local or test)
+func WithInsecure() Opt {
+	return func(opts []grpc.DialOption) ([]grpc.DialOption, error) {
+		return append(opts, grpc.WithTransportCredentials(insecure.NewCredentials())), nil
+	}
+}
 
 // WithGRPCKeepaliveParams sets keepalive parameters
 func WithKeepaliveParams(params keepalive.ClientParameters) Opt {
@@ -44,7 +52,7 @@ func WithTransportCredentials(creds credentials.TransportCredentials) Opt {
 	}
 }
 
-// WithGRPCTLSClientCert loads and sets a TLS cert/key pair
+// WithTLSClientCert loads and sets a TLS cert/key pair
 func WithTLSClientCert(certFile, keyFile string) Opt {
 	return func(opts []grpc.DialOption) ([]grpc.DialOption, error) {
 		cert, err := tls.LoadX509KeyPair(certFile, keyFile)
