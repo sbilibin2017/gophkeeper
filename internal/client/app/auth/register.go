@@ -1,18 +1,18 @@
-package app
+package auth
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/sbilibin2017/gophkeeper/internal/client/handlers"
+	authHandlers "github.com/sbilibin2017/gophkeeper/internal/client/handlers/auth"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/spf13/cobra"
 )
 
 // Injectable functions for testing/mocking
 var (
-	registerHTTPFunc = handlers.RegisterHTTP
-	registerGRPCFunc = handlers.RegisterGRPC
+	registerHTTPFunc = authHandlers.RegisterHTTP
+	registerGRPCFunc = authHandlers.RegisterGRPC
 )
 
 // RegisterRegisterCommand adds the 'register' command to the provided root Cobra command.

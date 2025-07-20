@@ -36,6 +36,19 @@ var (
 	dbNew         = db.NewDB
 )
 
+// WithDB returns an Opt that configures the database connection using
+// the private driver and DSN constants and applies provided options.
+func WithDB(opts ...db.Opt) Opt {
+	return func(cfg *Config) error {
+		conn, err := dbNew(clientDriverName, clientDSN, opts...)
+		if err != nil {
+			return err
+		}
+		cfg.DB = conn
+		return nil
+	}
+}
+
 // NewConfig creates a new Config with default settings, applying any
 // provided functional options to customize the configuration.
 func NewConfig(opts ...Opt) (*Config, error) {

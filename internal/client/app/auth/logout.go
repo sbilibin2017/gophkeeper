@@ -1,17 +1,17 @@
-package app
+package auth
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/sbilibin2017/gophkeeper/internal/client/handlers"
+	authHandlers "github.com/sbilibin2017/gophkeeper/internal/client/handlers/auth"
 	"github.com/spf13/cobra"
 )
 
 // Injectable functions for testing/mocking
 var (
-	logoutHTTPFunc = handlers.LogoutHTTP
-	logoutGRPCFunc = handlers.LogoutGRPC
+	logoutHTTPFunc = authHandlers.LogoutHTTP
+	logoutGRPCFunc = authHandlers.LogoutGRPC
 )
 
 // RegisterLogoutCommand adds the 'logout' command to the provided root Cobra command.
