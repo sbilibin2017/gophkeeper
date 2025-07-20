@@ -4,6 +4,8 @@ import (
 	"log"
 
 	"github.com/sbilibin2017/gophkeeper/internal/client/app"
+	"github.com/sbilibin2017/gophkeeper/internal/client/app/auth"
+	"github.com/sbilibin2017/gophkeeper/internal/client/app/bankcard"
 )
 
 // main is the entry point of the application.
@@ -20,8 +22,7 @@ func main() {
 // Returns an error if command execution fails.
 func run() error {
 	rootCmd := app.NewRootCommand()
-
-	app.RegisterRegisterCommand(rootCmd)
-
+	auth.RegisterRegisterCommand(rootCmd)
+	bankcard.RegisterAddCommand(rootCmd)
 	return rootCmd.Execute()
 }
