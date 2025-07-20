@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package text;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+import "google/protobuf/empty.proto";
+
+message TextAddRequest {
+  string secret_name = 1;
+  string content = 2;
+  string meta = 3;
+}
+
+message TextGetRequest {
+  string secret_name = 1;
+}
+
+message TextDB {
+  string secret_name = 1;
+  string secret_owner = 2;
+  string content = 3;
+  string meta = 4;
+  string updated_at = 5;
+}
+
+message TextDeleteRequest {
+  string secret_name = 1;
+}
+
+service TextReadService {
+  rpc Get(TextGetRequest) returns (TextDB);
+  rpc List(google.protobuf.Empty) returns (stream TextDB);
+}
+
+service TextWriteService {
+  rpc Add(TextAddRequest) returns (google.protobuf.Empty);
+  rpc Delete(TextDeleteRequest) returns (google.protobuf.Empty);
+}

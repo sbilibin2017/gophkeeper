@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package binary;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+import "google/protobuf/empty.proto";
+
+message BinaryAddRequest {
+  string secret_name = 1;
+  bytes data = 2;
+  string meta = 3;
+}
+
+message BinaryGetRequest {
+  string secret_name = 1;
+}
+
+message BinaryDB {
+  string secret_name = 1;
+  string secret_owner = 2;
+  bytes data = 3;
+  string meta = 4;
+  string updated_at = 5;
+}
+
+message BinaryDeleteRequest {
+  string secret_name = 1;
+}
+
+service BinaryReadService {
+  rpc Get(BinaryGetRequest) returns (BinaryDB);
+  rpc List(google.protobuf.Empty) returns (stream BinaryDB);
+}
+
+service BinaryWriteService {
+  rpc Add(BinaryAddRequest) returns (google.protobuf.Empty);
+  rpc Delete(BinaryDeleteRequest) returns (google.protobuf.Empty);
+}

@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+import "google/protobuf/empty.proto";
+
+message UserAddRequest {
+  string secret_name = 1;
+  string username = 2;
+  string password = 3;
+  string meta = 4;
+}
+
+message UserGetRequest {
+  string secret_name = 1;
+}
+
+message UserDB {
+  string secret_name = 1;
+  string secret_owner = 2;
+  string username = 3;
+  string password = 4;
+  string meta = 5;
+  string updated_at = 6;
+}
+
+message UserDeleteRequest {
+  string secret_name = 1;
+}
+
+service UserReadService {
+  rpc Get(UserGetRequest) returns (UserDB);
+  rpc List(google.protobuf.Empty) returns (stream UserDB);
+}
+
+service UserWriteService {
+  rpc Add(UserAddRequest) returns (google.protobuf.Empty);
+  rpc Delete(UserDeleteRequest) returns (google.protobuf.Empty);
+}
