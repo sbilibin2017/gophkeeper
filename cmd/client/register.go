@@ -9,7 +9,6 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/handlers/client/register"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 var registerCmd = &cobra.Command{
@@ -77,13 +76,8 @@ register --auth-url http://localhost:8080 --username user1 --password pass123 --
 func init() {
 	registerCmd.Flags().String("username", "", "Username for registration")
 	registerCmd.Flags().String("password", "", "Password for registration")
+
 	registerCmd.Flags().String("auth-url", "", "Auth server URL with protocol prefix, e.g. grpc://host:port or http://host:port")
 	registerCmd.Flags().String("tls-cert", "", "Path to TLS certificate file")
 	registerCmd.Flags().String("tls-key", "", "Path to TLS key file")
-
-	registerCmd.Flags().VisitAll(func(f *pflag.Flag) {
-		if err := registerCmd.MarkFlagRequired(f.Name); err != nil {
-			panic(err)
-		}
-	})
 }

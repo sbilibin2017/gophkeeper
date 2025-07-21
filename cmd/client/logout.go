@@ -9,7 +9,6 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/handlers/client/logout"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 var logoutCmd = &cobra.Command{
@@ -70,13 +69,8 @@ logout --auth-url http://localhost:8080 --token your_token_here --tls-cert path/
 
 func init() {
 	logoutCmd.Flags().String("token", "", "Authentication token for logout")
+
 	logoutCmd.Flags().String("auth-url", "", "Auth server URL with protocol prefix, e.g. grpc://host:port or http://host:port")
 	logoutCmd.Flags().String("tls-cert", "", "Path to TLS certificate file")
 	logoutCmd.Flags().String("tls-key", "", "Path to TLS key file")
-
-	logoutCmd.Flags().VisitAll(func(f *pflag.Flag) {
-		if err := logoutCmd.MarkFlagRequired(f.Name); err != nil {
-			panic(err)
-		}
-	})
 }
