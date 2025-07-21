@@ -2,6 +2,17 @@ package client
 
 import "github.com/spf13/cobra"
 
+// NewRootCommand creates and returns the root Cobra command for the GophKeeper client CLI.
+//
+// The root command provides a brief description of the application and serves as
+// the entry point for subcommands like registration, authentication, and managing secrets.
+//
+// Example usage:
+//
+//	gophkeeper [command] [flags]
+//
+// Available commands include user registration, authentication, working with various secret types
+// (logins, text, binary data, bank cards), and synchronizing data with the server.
 func NewRootCommand() *cobra.Command {
 	var cmd = &cobra.Command{
 		Use:   "gophkeeper",

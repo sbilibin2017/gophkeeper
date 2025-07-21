@@ -213,7 +213,7 @@ func TestRegisterRegisterCommand_RunE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := &cobra.Command{Use: "root"}
-			RegisterCommand(root, runHTTPFunc, runGRPCFunc)
+			RegisterRegisterCommand(root, runHTTPFunc, runGRPCFunc)
 
 			var output bytes.Buffer
 			root.SetOut(&output)
@@ -254,7 +254,7 @@ func TestRunGRPC_Register_Integration(t *testing.T) {
 	defer cancel()
 
 	authURL := fmt.Sprintf("grpc://%s", addr)
-	resp, err := RunGRPC(ctx, authURL, certFile, keyFile, "testuser", "testpass")
+	resp, err := RunRegisterGRPC(ctx, authURL, certFile, keyFile, "testuser", "testpass")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -282,7 +282,7 @@ func TestRunHTTP_Register_Integration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := RunHTTP(ctx, authURL, certFile, keyFile, "newuser", "newpass")
+	resp, err := RunRegisterHTTP(ctx, authURL, certFile, keyFile, "newuser", "newpass")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)

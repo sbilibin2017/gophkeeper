@@ -19,11 +19,11 @@ func main() {
 func run() error {
 	rootCmd := client.NewRootCommand()
 
-	register.RegisterCommand(rootCmd, register.RunHTTP, register.RunGRPC)
-	login.RegisterCommand(rootCmd, login.RunHTTP, login.RunGRPC)
-	logout.RegisterCommand(rootCmd, logout.RunHTTP, logout.RunGRPC)
+	register.RegisterRegisterCommand(rootCmd, register.RunRegisterHTTP, register.RunRegisterGRPC)
+	login.RegisterLoginCommand(rootCmd, login.RunLoginHTTP, login.RunLoginGRPC)
+	logout.RegisterLogoutCommand(rootCmd, logout.RunLogoutHTTP, logout.RunLogoutGRPC)
 
-	bankcard.RegisterAddCommand(rootCmd, bankcard.RunAdd)
+	bankcard.RegisterAddBankCardCommand(rootCmd, bankcard.RunAddBankCard)
 
 	return rootCmd.Execute()
 }

@@ -35,7 +35,7 @@ import (
 //	  --token your-token \
 //	  --tls-client-cert cert.pem \
 //	  --tls-client-key key.pem
-func RegisterCommand(
+func RegisterLogoutCommand(
 	root *cobra.Command,
 	runHTTPFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error,
 	runGRPCFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error,
@@ -104,8 +104,8 @@ func cleanupClientTables(ctx context.Context, dbConn *sqlx.DB) error {
 	return nil
 }
 
-// RunGRPC performs user logout via gRPC.
-func RunGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
+// RunLogoutGRPC performs user logout via gRPC.
+func RunLogoutGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
 	dbConn, err := db.NewDB("sqlite", "client.db")
 	if err != nil {
 		return fmt.Errorf("failed to connect to DB: %w", err)
@@ -137,8 +137,8 @@ func RunGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string
 	return cleanupClientTables(ctx, dbConn)
 }
 
-// RunHTTP performs user logout via HTTP.
-func RunHTTP(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
+// RunLogoutHTTP performs user logout via HTTP.
+func RunLogoutHTTP(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
 	dbConn, err := db.NewDB("sqlite", "client.db")
 	if err != nil {
 		return fmt.Errorf("failed to connect to DB: %w", err)

@@ -43,7 +43,7 @@ import (
 //	  --auth-url https://example.com \
 //	  --tls-client-cert cert.pem \
 //	  --tls-client-key key.pem
-func RegisterCommand(
+func RegisterRegisterCommand(
 	root *cobra.Command,
 	runHTTPFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
 	runGRPCFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
@@ -99,8 +99,8 @@ func RegisterCommand(
 	root.AddCommand(cmd)
 }
 
-// RunGRPC performs user registration via gRPC.
-func RunGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+// RunRegisterGRPC performs user registration via gRPC.
+func RunRegisterGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
 	dbConn, err := db.NewDB("sqlite", "client.db")
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
@@ -143,8 +143,8 @@ func RunGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, pa
 	})
 }
 
-// RunHTTP performs user registration via HTTP.
-func RunHTTP(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+// RunRegisterHTTP performs user registration via HTTP.
+func RunRegisterHTTP(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
 	dbConn, err := db.NewDB("sqlite", "client.db")
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)

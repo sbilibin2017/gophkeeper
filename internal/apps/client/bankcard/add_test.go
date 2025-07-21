@@ -28,7 +28,7 @@ func TestRegisterAddBankCardCommand_Success(t *testing.T) {
 	}
 
 	root := &cobra.Command{Use: "gophkeeper"}
-	RegisterAddCommand(root, mockRunFunc)
+	RegisterAddBankCardCommand(root, mockRunFunc)
 
 	args := []string{
 		"add-bankcard",
@@ -64,7 +64,7 @@ func TestRegisterAddBankCardCommand_MissingRequiredFlags(t *testing.T) {
 	}
 
 	root := &cobra.Command{Use: "gophkeeper"}
-	RegisterAddCommand(root, mockRunFunc)
+	RegisterAddBankCardCommand(root, mockRunFunc)
 
 	// Omit required flags
 	root.SetArgs([]string{"add-bankcard"})
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS bankcard_client (
 	meta := "some meta info"
 
 	// Run the function under test
-	err = RunAdd(ctx, secretName, number, owner, exp, cvv, meta)
+	err = RunAddBankCard(ctx, secretName, number, owner, exp, cvv, meta)
 	require.NoError(t, err)
 
 	// Re-open DB to verify record inserted

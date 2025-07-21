@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RegisterAddCommand adds the 'add-bankcard' command to the root Cobra command.
-func RegisterAddCommand(
+// RegisterAddBankCardCommand adds the 'add-bankcard' command to the root Cobra command.
+func RegisterAddBankCardCommand(
 	root *cobra.Command,
 	runFunc func(ctx context.Context, secretName, number, owner, exp, cvv, meta string) error,
 ) {
@@ -58,9 +58,9 @@ func RegisterAddCommand(
 	root.AddCommand(cmd)
 }
 
-// NewRunAdd returns a closure that saves a bank card secret to the local encrypted DB.
+// RunAddBankCard returns a closure that saves a bank card secret to the local encrypted DB.
 // It initializes DB connection using db.NewDB and creates repository before returning the actual run function.
-func RunAdd(ctx context.Context, secretName, number, owner, exp, cvv, meta string) error {
+func RunAddBankCard(ctx context.Context, secretName, number, owner, exp, cvv, meta string) error {
 	dbConn, err := db.NewDB("sqlite", "client.db")
 	if err != nil {
 		return err

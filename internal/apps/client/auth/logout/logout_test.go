@@ -101,7 +101,7 @@ func TestRegisterCommand_RunE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := &cobra.Command{Use: "root"}
-			RegisterCommand(root, runLogoutHTTPFunc, runLogoutGRPCFunc)
+			RegisterLogoutCommand(root, runLogoutHTTPFunc, runLogoutGRPCFunc)
 
 			var output bytes.Buffer
 			root.SetOut(&output)
@@ -241,7 +241,7 @@ func TestRunGRPC_LogoutIntegration(t *testing.T) {
 		t.Fatalf("failed to create client tables: %v", err)
 	}
 
-	err = RunGRPC(ctx, authURL, certFile, keyFile, "dummy_token")
+	err = RunLogoutGRPC(ctx, authURL, certFile, keyFile, "dummy_token")
 	assert.NoError(t, err)
 }
 
@@ -305,6 +305,6 @@ func TestRunHTTP_LogoutIntegration(t *testing.T) {
 		t.Fatalf("failed to create client tables: %v", err)
 	}
 
-	err = RunHTTP(ctx, authURL, certFile, keyFile, "dummy_token")
+	err = RunLogoutHTTP(ctx, authURL, certFile, keyFile, "dummy_token")
 	assert.NoError(t, err)
 }
