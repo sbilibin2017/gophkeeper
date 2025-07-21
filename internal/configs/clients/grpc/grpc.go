@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"os"
 	"time"
 
 	"google.golang.org/grpc"
@@ -46,20 +47,30 @@ type TLSCert struct {
 func WithTLSCert(opts ...TLSCert) Opt {
 	return func() (grpc.DialOption, error) {
 		for _, certPair := range opts {
-			if certPair.CertFile != "" && certPair.KeyFile != "" {
-				cert, err := tls.LoadX509KeyPair(certPair.CertFile, certPair.KeyFile)
+			if certPair.CertFile != "" {
+				// Load the cert file bytes
+				certPEM, err := os.ReadFile(certPair.CertFile)
 				if err != nil {
-					return nil, fmt.Errorf("failed to load TLS cert/key: %w", err)
+					return nil, fmt.Errorf("failed to read cert file: %w", err)
 				}
 
-				certPool, err := x509.SystemCertPool()
-				if err != nil {
-					return nil, fmt.Errorf("failed to load system cert pool: %w", err)
+				// Create a cert pool and append cert file to it as trusted root CA
+				certPool := x509.NewCertPool()
+				if !certPool.AppendCertsFromPEM(certPEM) {
+					return nil, fmt.Errorf("failed to append cert to pool")
 				}
 
 				tlsConfig := &tls.Config{
-					Certificates: []tls.Certificate{cert},
-					RootCAs:      certPool,
+					RootCAs: certPool,
+				}
+
+				// Optional: load client cert/key if both provided (for mTLS)
+				if certPair.KeyFile != "" {
+					clientCert, err := tls.LoadX509KeyPair(certPair.CertFile, certPair.KeyFile)
+					if err != nil {
+						return nil, fmt.Errorf("failed to load client cert/key: %w", err)
+					}
+					tlsConfig.Certificates = []tls.Certificate{clientCert}
 				}
 
 				creds := credentials.NewTLS(tlsConfig)
@@ -85,8 +96,8 @@ func (t tokenAuth) RequireTransportSecurity() bool {
 	return true
 }
 
-// WithToken adds a bearer token as per-RPC credentials.
-func WithToken(opts ...string) Opt {
+// WithAuthToken adds a bearer token as per-RPC credentials.
+func WithAuthToken(opts ...string) Opt {
 	return func() (grpc.DialOption, error) {
 		for _, token := range opts {
 			if token != "" {

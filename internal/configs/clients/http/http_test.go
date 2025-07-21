@@ -99,7 +99,7 @@ func TestWithToken(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	client, err := New(ts.URL, WithToken(expectedToken))
+	client, err := New(ts.URL, WithAuthToken(expectedToken))
 	require.NoError(t, err)
 
 	resp, err := client.R().

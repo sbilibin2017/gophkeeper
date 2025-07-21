@@ -78,14 +78,14 @@ func generateTestCertFiles() (certFile, keyFile string, err error) {
 }
 
 func TestWithToken(t *testing.T) {
-	opt := WithToken("abc123")
+	opt := WithAuthToken("abc123")
 	dialOpt, err := opt()
 	require.NoError(t, err)
 	require.NotNil(t, dialOpt)
 }
 
 func TestWithToken_Empty(t *testing.T) {
-	opt := WithToken("")
+	opt := WithAuthToken("")
 	dialOpt, err := opt()
 	require.NoError(t, err)
 	assert.Nil(t, dialOpt)
@@ -148,7 +148,7 @@ func TestNew_WithOptions(t *testing.T) {
 			return gogrpc.WithContextDialer(bufDialer), nil
 		},
 		WithTLSCert(TLSCert{CertFile: certFile, KeyFile: keyFile}),
-		WithToken("abc123"),
+		WithAuthToken("abc123"),
 		WithRetryPolicy(RetryPolicy{
 			Count:   2,
 			Wait:    100 * time.Millisecond, // add valid initial backoff

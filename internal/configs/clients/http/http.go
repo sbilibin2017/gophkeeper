@@ -2,7 +2,9 @@ package http
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -62,11 +64,33 @@ func WithTLSCert(opts ...TLSCert) Opt {
 	return func(c *resty.Client) error {
 		for _, certPair := range opts {
 			if certPair.CertFile != "" && certPair.KeyFile != "" {
+				// Load client cert/key
 				cert, err := tls.LoadX509KeyPair(certPair.CertFile, certPair.KeyFile)
 				if err != nil {
 					return fmt.Errorf("failed to load TLS cert/key: %w", err)
 				}
-				c.SetTLSClientConfig(&tls.Config{Certificates: []tls.Certificate{cert}})
+
+				// Load CA cert (server cert) to RootCAs
+				caCertPEM, err := os.ReadFile(certPair.CertFile)
+				if err != nil {
+					return fmt.Errorf("failed to read cert file: %w", err)
+				}
+
+				caCertPool, err := x509.SystemCertPool()
+				if err != nil {
+					// fallback if SystemCertPool is not available
+					caCertPool = x509.NewCertPool()
+				}
+
+				if ok := caCertPool.AppendCertsFromPEM(caCertPEM); !ok {
+					return fmt.Errorf("failed to append cert to root CA pool")
+				}
+
+				c.SetTLSClientConfig(&tls.Config{
+					Certificates: []tls.Certificate{cert},
+					RootCAs:      caCertPool,
+					MinVersion:   tls.VersionTLS12,
+				})
 				break
 			}
 		}
@@ -74,8 +98,8 @@ func WithTLSCert(opts ...TLSCert) Opt {
 	}
 }
 
-// WithToken sets the Authorization header with a Bearer token.
-func WithToken(opts ...string) Opt {
+// WithAuthToken sets the Authorization header with a Bearer token.
+func WithAuthToken(opts ...string) Opt {
 	return func(c *resty.Client) error {
 		for _, token := range opts {
 			if token != "" {
