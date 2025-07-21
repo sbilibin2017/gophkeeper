@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/http"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
@@ -18,11 +19,26 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RegisterLogoutCommand adds the 'logout' command to the provided root Cobra command.
-func RegisterLogoutCommand(
+// RegisterCommand adds the "logout" subcommand to the root command.
+//
+// Flags:
+//
+//	--auth-url
+//	--tls-client-cert
+//	--tls-client-key
+//	--token
+//
+// Example:
+//
+//	gophkeeper logout \
+//	  --auth-url https://example.com \
+//	  --token your-token \
+//	  --tls-client-cert cert.pem \
+//	  --tls-client-key key.pem
+func RegisterCommand(
 	root *cobra.Command,
-	runLogoutHTTP func(ctx context.Context, token string) error,
-	runLogoutGRPC func(ctx context.Context, token string) error,
+	runHTTPFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error,
+	runGRPCFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error,
 ) {
 	var (
 		authURL     string
@@ -42,9 +58,9 @@ func RegisterLogoutCommand(
 			var err error
 			switch {
 			case strings.HasPrefix(authURL, "grpc://"):
-				err = runLogoutGRPC(ctx, token)
+				err = runGRPCFunc(ctx, authURL, tlsCertFile, tlsKeyFile, token)
 			case strings.HasPrefix(authURL, "http://"), strings.HasPrefix(authURL, "https://"):
-				err = runLogoutHTTP(ctx, token)
+				err = runHTTPFunc(ctx, authURL, tlsCertFile, tlsKeyFile, token)
 			default:
 				return fmt.Errorf("unsupported auth URL scheme, must start with grpc://, http:// or https://")
 			}
@@ -71,82 +87,82 @@ func RegisterLogoutCommand(
 	root.AddCommand(cmd)
 }
 
-// NewRunGRPC returns a closure that performs logout via gRPC.
-func NewRunGRPC(authURL, tlsCertFile, tlsKeyFile string) func(ctx context.Context, token string) error {
-	return func(ctx context.Context, token string) error {
-		// Setup DB connection
-		dbConn, err := db.NewDB("sqlite", "client.db")
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		conn, err := grpc.New(
-			authURL,
-			grpc.WithTLSCert(grpc.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
-			grpc.WithAuthToken(token),
-			grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    2 * time.Second,
-				MaxWait: 10 * time.Second,
-			}),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create gRPC connection: %w", err)
-		}
-		defer conn.Close()
-
-		client := pb.NewAuthServiceClient(conn)
-		facade := auth.NewLogoutGRPCFacade(client)
-
-		if err := facade.Logout(ctx); err != nil {
-			return err
-		}
-
-		bankcard.DropClientTable(ctx, dbConn)
-		text.DropClientTable(ctx, dbConn)
-		binary.DropClientTable(ctx, dbConn)
-		user.DropClientTable(ctx, dbConn)
-
-		return nil
+// helper to initialize DB and drop client tables
+func cleanupClientTables(ctx context.Context, dbConn *sqlx.DB) error {
+	if err := bankcard.DropClientTable(ctx, dbConn); err != nil {
+		return err
 	}
+	if err := text.DropClientTable(ctx, dbConn); err != nil {
+		return err
+	}
+	if err := binary.DropClientTable(ctx, dbConn); err != nil {
+		return err
+	}
+	if err := user.DropClientTable(ctx, dbConn); err != nil {
+		return err
+	}
+	return nil
 }
 
-// NewRunHTTP returns a closure that performs logout via HTTP.
-func NewRunHTTP(authURL, tlsCertFile, tlsKeyFile string) func(ctx context.Context, token string) error {
-	return func(ctx context.Context, token string) error {
-		// Setup DB connection
-		dbConn, err := db.NewDB("sqlite", "client.db")
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		// Create HTTP client with TLS cert and retry policy
-		client, err := http.New(
-			authURL,
-			http.WithTLSCert(http.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
-			http.WithRetryPolicy(http.RetryPolicy{
-				Count: 3,
-				Wait:  2 * time.Second,
-			}),
-			http.WithAuthToken(token),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to create HTTP client: %w", err)
-		}
-
-		facade := auth.NewLogoutHTTPFacade(client)
-
-		if err := facade.Logout(ctx); err != nil {
-			return err
-		}
-
-		bankcard.DropClientTable(ctx, dbConn)
-		text.DropClientTable(ctx, dbConn)
-		binary.DropClientTable(ctx, dbConn)
-		user.DropClientTable(ctx, dbConn)
-
-		return nil
+// RunGRPC performs user logout via gRPC.
+func RunGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
 	}
+	defer dbConn.Close()
+
+	conn, err := grpc.New(
+		strings.TrimPrefix(authURL, "grpc://"),
+		grpc.WithTLSCert(grpc.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
+		grpc.WithAuthToken(token),
+		grpc.WithRetryPolicy(grpc.RetryPolicy{
+			Count:   3,
+			Wait:    2 * time.Second,
+			MaxWait: 10 * time.Second,
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create gRPC connection: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewAuthServiceClient(conn)
+	facade := auth.NewLogoutGRPCFacade(client)
+
+	if err := facade.Logout(ctx); err != nil {
+		return err
+	}
+
+	return cleanupClientTables(ctx, dbConn)
+}
+
+// RunHTTP performs user logout via HTTP.
+func RunHTTP(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	client, err := http.New(
+		authURL,
+		http.WithTLSCert(http.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
+		http.WithRetryPolicy(http.RetryPolicy{
+			Count: 3,
+			Wait:  2 * time.Second,
+		}),
+		http.WithAuthToken(token),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP client: %w", err)
+	}
+
+	facade := auth.NewLogoutHTTPFacade(client)
+
+	if err := facade.Logout(ctx); err != nil {
+		return err
+	}
+
+	return cleanupClientTables(ctx, dbConn)
 }

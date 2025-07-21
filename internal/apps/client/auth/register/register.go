@@ -45,8 +45,8 @@ import (
 //	  --tls-client-key key.pem
 func RegisterRegisterCommand(
 	root *cobra.Command,
-	runHTTPFunc func(ctx context.Context, username, password string) (*models.AuthResponse, error),
-	runGRPCFunc func(ctx context.Context, username, password string) (*models.AuthResponse, error),
+	runHTTPFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
+	runGRPCFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
 ) {
 	var (
 		username    string
@@ -68,9 +68,9 @@ func RegisterRegisterCommand(
 
 			switch {
 			case strings.HasPrefix(authURL, "grpc://"):
-				resp, err = runGRPCFunc(ctx, username, password)
+				resp, err = runGRPCFunc(ctx, authURL, tlsCertFile, tlsKeyFile, username, password)
 			case strings.HasPrefix(authURL, "http://"), strings.HasPrefix(authURL, "https://"):
-				resp, err = runHTTPFunc(ctx, username, password)
+				resp, err = runHTTPFunc(ctx, authURL, tlsCertFile, tlsKeyFile, username, password)
 			default:
 				return fmt.Errorf("unsupported auth URL scheme, must start with grpc://, http:// or https://")
 			}
@@ -99,91 +99,87 @@ func RegisterRegisterCommand(
 	root.AddCommand(cmd)
 }
 
-// NewRunGRPC returns a closure function that performs user registration via gRPC.
-func NewRunGRPC(authURL, tlsCertFile, tlsKeyFile string) func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-	return func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-		dbConn, err := db.NewDB("sqlite", "client.db")
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-		if err := text.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-		if err := binary.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-		if err := user.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-
-		conn, err := grpc.New(
-			strings.TrimPrefix(authURL, "grpc://"),
-			grpc.WithTLSCert(grpc.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
-			grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    2 * time.Second,
-				MaxWait: 10 * time.Second,
-			}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
-		}
-		defer conn.Close()
-
-		client := pb.NewAuthServiceClient(conn)
-		facade := auth.NewRegisterGRPCFacade(client)
-
-		return facade.Register(ctx, &models.AuthRequest{
-			Username: username,
-			Password: password,
-		})
+// RunGRPC performs user registration via gRPC.
+func RunGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
+	defer dbConn.Close()
+
+	if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := text.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := binary.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := user.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+
+	conn, err := grpc.New(
+		strings.TrimPrefix(authURL, "grpc://"),
+		grpc.WithTLSCert(grpc.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
+		grpc.WithRetryPolicy(grpc.RetryPolicy{
+			Count:   3,
+			Wait:    2 * time.Second,
+			MaxWait: 10 * time.Second,
+		}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewAuthServiceClient(conn)
+	facade := auth.NewRegisterGRPCFacade(client)
+
+	return facade.Register(ctx, &models.AuthRequest{
+		Username: username,
+		Password: password,
+	})
 }
 
-// NewRunHTTP returns a closure function that performs user registration via HTTP.
-func NewRunHTTP(authURL, tlsCertFile, tlsKeyFile string) func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-	return func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-		dbConn, err := db.NewDB("sqlite", "client.db")
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-		if err := text.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-		if err := binary.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-		if err := user.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, err
-		}
-
-		client, err := http.New(
-			authURL,
-			http.WithTLSCert(http.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
-			http.WithRetryPolicy(http.RetryPolicy{
-				Count: 3,
-				Wait:  2 * time.Second,
-			}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create HTTP client: %w", err)
-		}
-
-		facade := auth.NewRegisterHTTPFacade(client)
-
-		return facade.Register(ctx, &models.AuthRequest{
-			Username: username,
-			Password: password,
-		})
+// RunHTTP performs user registration via HTTP.
+func RunHTTP(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
+	defer dbConn.Close()
+
+	if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := text.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := binary.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := user.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+
+	client, err := http.New(
+		authURL,
+		http.WithTLSCert(http.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
+		http.WithRetryPolicy(http.RetryPolicy{
+			Count: 3,
+			Wait:  2 * time.Second,
+		}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
+	}
+
+	facade := auth.NewRegisterHTTPFacade(client)
+
+	return facade.Register(ctx, &models.AuthRequest{
+		Username: username,
+		Password: password,
+	})
 }

@@ -19,6 +19,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
+	"github.com/sbilibin2017/gophkeeper/internal/repositories/bankcard"
+	"github.com/sbilibin2017/gophkeeper/internal/repositories/binary"
+	"github.com/sbilibin2017/gophkeeper/internal/repositories/text"
+	"github.com/sbilibin2017/gophkeeper/internal/repositories/user"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc/auth"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -27,15 +33,32 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
-func TestRegisterLogoutCommand_RunE(t *testing.T) {
-	runLogoutHTTPFunc := func(ctx context.Context, token string) error {
+// createClientTables creates all required client tables in DB before tests run
+func createClientTables(ctx context.Context, dbConn *sqlx.DB) error {
+	if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
+		return err
+	}
+	if err := text.CreateClientTable(ctx, dbConn); err != nil {
+		return err
+	}
+	if err := binary.CreateClientTable(ctx, dbConn); err != nil {
+		return err
+	}
+	if err := user.CreateClientTable(ctx, dbConn); err != nil {
+		return err
+	}
+	return nil
+}
+
+func TestRegisterCommand_RunE(t *testing.T) {
+	runLogoutHTTPFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
 		if token == "valid_http_token" {
 			return nil
 		}
 		return errors.New("http logout failed")
 	}
 
-	runLogoutGRPCFunc := func(ctx context.Context, token string) error {
+	runLogoutGRPCFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
 		if token == "valid_grpc_token" {
 			return nil
 		}
@@ -78,7 +101,7 @@ func TestRegisterLogoutCommand_RunE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := &cobra.Command{Use: "root"}
-			RegisterLogoutCommand(root, runLogoutHTTPFunc, runLogoutGRPCFunc)
+			RegisterCommand(root, runLogoutHTTPFunc, runLogoutGRPCFunc)
 
 			var output bytes.Buffer
 			root.SetOut(&output)
@@ -90,7 +113,6 @@ func TestRegisterLogoutCommand_RunE(t *testing.T) {
 			if tt.wantErrPart != "" {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErrPart)
-				// Usage/help is printed on error, so output won't be empty
 				assert.NotEmpty(t, output.String())
 			} else {
 				assert.NoError(t, err)
@@ -162,7 +184,6 @@ func generateSelfSignedCert(t *testing.T) (certFile, keyFile string) {
 
 // minimalGRPCAuthServer starts a gRPC test server with a simple AuthService implementation
 func minimalGRPCAuthServer(t *testing.T, certFile, keyFile string) (*grpc.Server, string) {
-	// Load TLS cert
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		t.Fatalf("failed to load key pair: %v", err)
@@ -175,8 +196,6 @@ func minimalGRPCAuthServer(t *testing.T, certFile, keyFile string) (*grpc.Server
 	}
 
 	server := grpc.NewServer(grpc.Creds(creds))
-
-	// Implement the AuthService server
 	pb.RegisterAuthServiceServer(server, &testAuthService{})
 
 	go func() {
@@ -185,7 +204,7 @@ func minimalGRPCAuthServer(t *testing.T, certFile, keyFile string) (*grpc.Server
 		}
 	}()
 
-	return server, lis.Addr().String()
+	return server, "grpc://" + lis.Addr().String()
 }
 
 type testAuthService struct {
@@ -193,37 +212,36 @@ type testAuthService struct {
 }
 
 func (s *testAuthService) Logout(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
-	// Just return empty success
 	return &emptypb.Empty{}, nil
 }
 
-func TestNewRunGRPC_LogoutIntegration(t *testing.T) {
-	// Remove old DB if exists
+func TestRunGRPC_LogoutIntegration(t *testing.T) {
 	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("failed to remove client.db: %v", err)
 	}
-	defer func() {
-		if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
-			t.Fatalf("failed to remove client.db: %v", err)
-		}
-	}()
+	defer os.Remove("client.db")
 
 	certFile, keyFile := generateSelfSignedCert(t)
 	defer os.Remove(certFile)
 	defer os.Remove(keyFile)
 
-	server, addr := minimalGRPCAuthServer(t, certFile, keyFile)
+	server, authURL := minimalGRPCAuthServer(t, certFile, keyFile)
 	defer server.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	authURL := addr // <-- REMOVE grpc:// prefix here!
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		t.Fatalf("failed to open DB: %v", err)
+	}
+	defer dbConn.Close()
 
-	run := NewRunGRPC(authURL, certFile, keyFile)
+	if err := createClientTables(ctx, dbConn); err != nil {
+		t.Fatalf("failed to create client tables: %v", err)
+	}
 
-	err := run(ctx, "dummy_token")
-
+	err = RunGRPC(ctx, authURL, certFile, keyFile, "dummy_token")
 	assert.NoError(t, err)
 }
 
@@ -261,16 +279,11 @@ func minimalLogoutServer(t *testing.T, certFile, keyFile string) (*http.Server, 
 	return srv, baseURL
 }
 
-func TestNewRunHTTP_LogoutIntegration(t *testing.T) {
-	// Clean up DB before and after
+func TestRunHTTP_LogoutIntegration(t *testing.T) {
 	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("failed to remove client.db: %v", err)
 	}
-	defer func() {
-		if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
-			t.Fatalf("failed to remove client.db: %v", err)
-		}
-	}()
+	defer os.Remove("client.db")
 
 	certFile, keyFile := generateSelfSignedCert(t)
 	defer os.Remove(certFile)
@@ -282,9 +295,16 @@ func TestNewRunHTTP_LogoutIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	run := NewRunHTTP(authURL, certFile, keyFile)
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		t.Fatalf("failed to open DB: %v", err)
+	}
+	defer dbConn.Close()
 
-	err := run(ctx, "dummy_token")
+	if err := createClientTables(ctx, dbConn); err != nil {
+		t.Fatalf("failed to create client tables: %v", err)
+	}
 
+	err = RunHTTP(ctx, authURL, certFile, keyFile, "dummy_token")
 	assert.NoError(t, err)
 }

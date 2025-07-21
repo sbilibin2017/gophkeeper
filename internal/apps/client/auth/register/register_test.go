@@ -27,74 +27,6 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func TestRegisterRegisterCommand_RunE(t *testing.T) {
-	runHTTPFunc := func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-		if username == "httpuser" && password == "httppass" {
-			return &models.AuthResponse{Token: "http_register_token"}, nil
-		}
-		return nil, errors.New("http registration failed")
-	}
-
-	runGRPCFunc := func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-		if username == "grpcuser" && password == "grpcpass" {
-			return &models.AuthResponse{Token: "grpc_register_token"}, nil
-		}
-		return nil, errors.New("grpc registration failed")
-	}
-
-	tests := []struct {
-		name        string
-		args        []string
-		wantOutput  string
-		wantErrPart string
-	}{
-		{
-			name:       "Successful gRPC registration",
-			args:       []string{"register", "--username", "grpcuser", "--password", "grpcpass", "--auth-url", "grpc://localhost", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantOutput: "grpc_register_token\n",
-		},
-		{
-			name:       "Successful HTTP registration",
-			args:       []string{"register", "--username", "httpuser", "--password", "httppass", "--auth-url", "https://example.com", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantOutput: "http_register_token\n",
-		},
-		{
-			name:        "Invalid scheme",
-			args:        []string{"register", "--username", "foo", "--password", "bar", "--auth-url", "ftp://invalid", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantErrPart: "unsupported auth URL scheme",
-		},
-		{
-			name:        "Missing required flag",
-			args:        []string{"register", "--username", "foo"},
-			wantErrPart: "required flag(s)",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			root := &cobra.Command{Use: "root"}
-			RegisterRegisterCommand(root, runHTTPFunc, runGRPCFunc)
-
-			var output bytes.Buffer
-			root.SetOut(&output)
-			root.SetErr(&output)
-			root.SetArgs(tt.args)
-
-			err := root.Execute()
-
-			if tt.wantErrPart != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErrPart)
-				// Optional: assert that some help text is printed
-				assert.Contains(t, output.String(), "Usage:")
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantOutput, output.String())
-			}
-		})
-	}
-}
-
 // testAuthServiceRegister implements the Register method of the AuthService
 type testAuthServiceRegister struct {
 	pb.UnimplementedAuthServiceServer
@@ -129,35 +61,6 @@ func minimalGRPCAuthServerRegister(t *testing.T, certFile, keyFile string) (*grp
 	}()
 
 	return s, lis.Addr().String()
-}
-
-func TestNewRunGRPC_Register_Integration(t *testing.T) {
-	// Clean up previous DB
-	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
-		t.Fatalf("failed to remove client.db: %v", err)
-	}
-	defer os.Remove("client.db")
-
-	// Generate self-signed certs
-	certFile, keyFile := generateSelfSignedCert(t)
-	defer os.Remove(certFile)
-	defer os.Remove(keyFile)
-
-	// Start gRPC server
-	server, addr := minimalGRPCAuthServerRegister(t, certFile, keyFile)
-	defer server.Stop()
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	authURL := fmt.Sprintf("grpc://%s", addr)
-	run := NewRunGRPC(authURL, certFile, keyFile)
-
-	resp, err := run(ctx, "testuser", "testpass")
-
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	assert.Equal(t, "registered_token", resp.Token)
 }
 
 // generateSelfSignedCert generates a self-signed TLS cert and key and writes to temp files
@@ -264,12 +167,105 @@ func minimalAuthServerWithRegister(t *testing.T, certFile, keyFile string) (*htt
 	return srv, baseURL
 }
 
-func TestNewRunHTTP_Register_Integration(t *testing.T) {
+func TestRegisterRegisterCommand_RunE(t *testing.T) {
+	runHTTPFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+		if username == "httpuser" && password == "httppass" {
+			return &models.AuthResponse{Token: "http_register_token"}, nil
+		}
+		return nil, errors.New("http registration failed")
+	}
+
+	runGRPCFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+		if username == "grpcuser" && password == "grpcpass" {
+			return &models.AuthResponse{Token: "grpc_register_token"}, nil
+		}
+		return nil, errors.New("grpc registration failed")
+	}
+
+	tests := []struct {
+		name        string
+		args        []string
+		wantOutput  string
+		wantErrPart string
+	}{
+		{
+			name:       "Successful gRPC registration",
+			args:       []string{"register", "--username", "grpcuser", "--password", "grpcpass", "--auth-url", "grpc://localhost", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
+			wantOutput: "grpc_register_token\n",
+		},
+		{
+			name:       "Successful HTTP registration",
+			args:       []string{"register", "--username", "httpuser", "--password", "httppass", "--auth-url", "https://example.com", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
+			wantOutput: "http_register_token\n",
+		},
+		{
+			name:        "Invalid scheme",
+			args:        []string{"register", "--username", "foo", "--password", "bar", "--auth-url", "ftp://invalid", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
+			wantErrPart: "unsupported auth URL scheme",
+		},
+		{
+			name:        "Missing required flag",
+			args:        []string{"register", "--username", "foo"},
+			wantErrPart: "required flag(s)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			root := &cobra.Command{Use: "root"}
+			RegisterRegisterCommand(root, runHTTPFunc, runGRPCFunc)
+
+			var output bytes.Buffer
+			root.SetOut(&output)
+			root.SetErr(&output)
+			root.SetArgs(tt.args)
+
+			err := root.Execute()
+
+			if tt.wantErrPart != "" {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErrPart)
+				assert.Contains(t, output.String(), "Usage:")
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.wantOutput, output.String())
+			}
+		})
+	}
+}
+
+func TestRunGRPC_Register_Integration(t *testing.T) {
+	// Clean up previous DB
+	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
+		t.Fatalf("failed to remove client.db: %v", err)
+	}
+	defer os.Remove("client.db")
+
+	// Generate self-signed certs
+	certFile, keyFile := generateSelfSignedCert(t)
+	defer os.Remove(certFile)
+	defer os.Remove(keyFile)
+
+	// Start gRPC server
+	server, addr := minimalGRPCAuthServerRegister(t, certFile, keyFile)
+	defer server.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	authURL := fmt.Sprintf("grpc://%s", addr)
+	resp, err := RunGRPC(ctx, authURL, certFile, keyFile, "testuser", "testpass")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, "registered_token", resp.Token)
+}
+
+func TestRunHTTP_Register_Integration(t *testing.T) {
 	// Remove old DB if exists
 	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("failed to remove client.db: %v", err)
 	}
-
 	defer func() {
 		if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
 			t.Fatalf("failed to remove client.db: %v", err)
@@ -286,9 +282,7 @@ func TestNewRunHTTP_Register_Integration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	run := NewRunHTTP(authURL, certFile, keyFile)
-
-	resp, err := run(ctx, "newuser", "newpass") // Assumes you support an option or flag to trigger register logic
+	resp, err := RunHTTP(ctx, authURL, certFile, keyFile, "newuser", "newpass")
 
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)

@@ -19,23 +19,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RegisterCommand adds the "login" subcommand to the provided Cobra root command.
-// This command allows a user to authenticate against an HTTP or gRPC service.
+// RegisterCommand adds the "login" subcommand to the root command.
 //
-// Parameters:
-//   - root: The root Cobra command to which the "login" subcommand will be added.
-//   - runHTTPFunc: A function that performs HTTP-based authentication using context, username, and password.
-//   - runGRPCFunc: A function that performs gRPC-based authentication using context, username, and password.
+// Flags:
 //
-// The subcommand accepts the following flags:
+//	--username
+//	--password
+//	--auth-url
+//	--tls-client-cert
+//	--tls-client-key
 //
-//	--username         Required: The username to login with.
-//	--password         Required: The password for the specified user.
-//	--auth-url         Required: The URL of the authentication service (must begin with grpc://, http://, or https://).
-//	--tls-client-cert  Required: Path to the client TLS certificate file.
-//	--tls-client-key   Required: Path to the client TLS key file.
-//
-// Example usage:
+// Example:
 //
 //	gophkeeper login \
 //	  --username alice \
@@ -45,8 +39,8 @@ import (
 //	  --tls-client-key key.pem
 func RegisterCommand(
 	root *cobra.Command,
-	runHTTPFunc func(ctx context.Context, username, password string) (*models.AuthResponse, error),
-	runGRPCFunc func(ctx context.Context, username, password string) (*models.AuthResponse, error),
+	runHTTPFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
+	runGRPCFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
 ) {
 	var (
 		username    string
@@ -68,9 +62,9 @@ func RegisterCommand(
 
 			switch {
 			case strings.HasPrefix(authURL, "grpc://"):
-				resp, err = runGRPCFunc(ctx, username, password)
+				resp, err = runGRPCFunc(ctx, authURL, tlsCertFile, tlsKeyFile, username, password)
 			case strings.HasPrefix(authURL, "http://"), strings.HasPrefix(authURL, "https://"):
-				resp, err = runHTTPFunc(ctx, username, password)
+				resp, err = runHTTPFunc(ctx, authURL, tlsCertFile, tlsKeyFile, username, password)
 			default:
 				return fmt.Errorf("unsupported auth URL scheme, must start with grpc://, http:// or https://")
 			}
@@ -99,132 +93,87 @@ func RegisterCommand(
 	root.AddCommand(cmd)
 }
 
-// NewRunGRPC returns a closure function that performs user authentication
-// via gRPC using the provided server address and TLS certificate files.
-//
-// Parameters:
-//   - authURL: The full gRPC service address (e.g., "grpc://localhost:50051").
-//   - tlsCertFile: Path to the TLS certificate file for the client.
-//   - tlsKeyFile: Path to the TLS key file for the client.
-//
-// The returned function accepts:
-//   - ctx: Context for timeout and cancellation control.
-//   - username: The username of the user attempting to authenticate.
-//   - password: The user's password.
-//
-// Returns:
-//   - *models.AuthResponse: Contains access and refresh tokens if authentication succeeds.
-//   - error: Any error encountered during DB setup, connection, or login process.
-func NewRunGRPC(authURL, tlsCertFile, tlsKeyFile string) func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-	return func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-		dbConn, err := db.NewDB("sqlite", "client.db")
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, fmt.Errorf("failed to create bankcard table: %w", err)
-		}
-		if err := text.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, fmt.Errorf("failed to create text table: %w", err)
-		}
-		if err := binary.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, fmt.Errorf("failed to create binary table: %w", err)
-		}
-		if err := user.CreateClientTable(ctx, dbConn); err != nil {
-			return nil, fmt.Errorf("failed to create user table: %w", err)
-		}
-
-		grpcConn, err := grpc.New(
-			strings.TrimPrefix(authURL, "grpc://"),
-			grpc.WithTLSCert(grpc.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
-			grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    2 * time.Second,
-				MaxWait: 10 * time.Second,
-			}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
-		}
-		defer grpcConn.Close()
-
-		grpcClient := pb.NewAuthServiceClient(grpcConn)
-		facade := auth.NewLoginGRPCFacade(grpcClient)
-
-		authReq := &models.AuthRequest{
-			Username: username,
-			Password: password,
-		}
-
-		resp, err := facade.Login(ctx, authReq)
-		if err != nil {
-			return nil, err
-		}
-
-		return resp, nil
+// RunGRPC performs user login via gRPC.
+func RunGRPC(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
+	defer dbConn.Close()
+
+	if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := text.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := binary.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := user.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+
+	conn, err := grpc.New(
+		strings.TrimPrefix(authURL, "grpc://"),
+		grpc.WithTLSCert(grpc.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
+		grpc.WithRetryPolicy(grpc.RetryPolicy{
+			Count:   3,
+			Wait:    2 * time.Second,
+			MaxWait: 10 * time.Second,
+		}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
+	}
+	defer conn.Close()
+
+	client := pb.NewAuthServiceClient(conn)
+	facade := auth.NewLoginGRPCFacade(client)
+
+	return facade.Login(ctx, &models.AuthRequest{
+		Username: username,
+		Password: password,
+	})
 }
 
-// NewRunHTTP returns a closure function that performs user authentication
-// via an HTTP client using the specified authentication server URL and TLS certificate files.
-//
-// Parameters:
-//   - authURL: The full URL of the authentication HTTP server (e.g., "https://auth.example.com").
-//   - tlsCertFile: Path to the TLS certificate file for the client.
-//   - tlsKeyFile: Path to the TLS key file for the client.
-//
-// The returned function accepts:
-//   - ctx: Context for managing request lifecycle (e.g., timeouts, cancellations).
-//   - username: The username of the user attempting to authenticate.
-//   - password: The user's password.
-//
-// Returns:
-//   - *models.AuthResponse: Contains access and refresh tokens if authentication is successful.
-//   - error: Any error encountered during database setup, HTTP client creation, or login process.
-func NewRunHTTP(authURL, tlsCertFile, tlsKeyFile string) func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-	return func(ctx context.Context, username, password string) (*models.AuthResponse, error) {
-		conn, err := db.NewDB("sqlite", "client.db")
-		if err != nil {
-			return nil, fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer conn.Close()
-
-		if err := bankcard.CreateClientTable(ctx, conn); err != nil {
-			return nil, err
-		}
-		if err := text.CreateClientTable(ctx, conn); err != nil {
-			return nil, err
-		}
-		if err := binary.CreateClientTable(ctx, conn); err != nil {
-			return nil, err
-		}
-		if err := user.CreateClientTable(ctx, conn); err != nil {
-			return nil, err
-		}
-
-		client, err := http.New(
-			authURL,
-			http.WithTLSCert(http.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
-			http.WithRetryPolicy(http.RetryPolicy{Count: 3, Wait: 2 * time.Second}),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create HTTP client: %w", err)
-		}
-
-		facade := auth.NewLoginHTTPFacade(client)
-
-		authReq := &models.AuthRequest{
-			Username: username,
-			Password: password,
-		}
-
-		resp, err := facade.Login(ctx, authReq)
-		if err != nil {
-			return nil, err
-		}
-
-		return resp, nil
+// RunHTTP performs user login via HTTP.
+func RunHTTP(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
+	dbConn, err := db.NewDB("sqlite", "client.db")
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
+	defer dbConn.Close()
+
+	if err := bankcard.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := text.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := binary.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+	if err := user.CreateClientTable(ctx, dbConn); err != nil {
+		return nil, err
+	}
+
+	client, err := http.New(
+		authURL,
+		http.WithTLSCert(http.TLSCert{CertFile: tlsCertFile, KeyFile: tlsKeyFile}),
+		http.WithRetryPolicy(http.RetryPolicy{
+			Count: 3,
+			Wait:  2 * time.Second,
+		}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
+	}
+
+	facade := auth.NewLoginHTTPFacade(client)
+
+	return facade.Login(ctx, &models.AuthRequest{
+		Username: username,
+		Password: password,
+	})
 }
