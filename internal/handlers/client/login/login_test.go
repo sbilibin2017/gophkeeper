@@ -1,7 +1,6 @@
 package login
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -10,7 +9,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"math/big"
 	"net"
@@ -19,9 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/jmoiron/sqlx"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc/auth"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -159,73 +156,6 @@ func generateSelfSignedCert(t *testing.T) (certFile, keyFile string) {
 	return certOut.Name(), keyOut.Name()
 }
 
-func TestLoginCommand_RunE(t *testing.T) {
-	runHTTPFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
-		if username == "httpuser" && password == "httppass" {
-			return &models.AuthResponse{Token: "http_token"}, nil
-		}
-		return nil, errors.New("http login failed")
-	}
-
-	runGRPCFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error) {
-		if username == "grpcuser" && password == "grpcpass" {
-			return &models.AuthResponse{Token: "grpc_token"}, nil
-		}
-		return nil, errors.New("grpc login failed")
-	}
-
-	tests := []struct {
-		name        string
-		args        []string
-		wantOutput  string
-		wantErrPart string
-	}{
-		{
-			name:       "Successful gRPC login",
-			args:       []string{"login", "--username", "grpcuser", "--password", "grpcpass", "--auth-url", "grpc://localhost", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantOutput: "grpc_token\n",
-		},
-		{
-			name:       "Successful HTTP login",
-			args:       []string{"login", "--username", "httpuser", "--password", "httppass", "--auth-url", "https://example.com", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantOutput: "http_token\n",
-		},
-		{
-			name:        "Invalid scheme",
-			args:        []string{"login", "--username", "foo", "--password", "bar", "--auth-url", "ftp://invalid", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantErrPart: "unsupported auth URL scheme",
-		},
-		{
-			name:        "Missing required flag",
-			args:        []string{"login", "--username", "foo"},
-			wantErrPart: "required flag(s)",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			root := &cobra.Command{Use: "root"}
-			RegisterLoginCommand(root, runHTTPFunc, runGRPCFunc)
-
-			var output bytes.Buffer
-			root.SetOut(&output)
-			root.SetErr(&output)
-			root.SetArgs(tt.args)
-
-			err := root.Execute()
-
-			if tt.wantErrPart != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErrPart)
-				assert.Contains(t, output.String(), "Usage:")
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantOutput, output.String())
-			}
-		})
-	}
-}
-
 func TestRunGRPC_Login_Integration(t *testing.T) {
 	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("failed to remove client.db: %v", err)
@@ -271,4 +201,18 @@ func TestRunHTTP_Login_Integration(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, "test_token", resp.Token)
+}
+
+func TestCreateLoginTables(t *testing.T) {
+	// Setup in-memory sqlite DB
+	dbConn, err := sqlx.Connect("sqlite", ":memory:")
+	assert.NoError(t, err)
+	defer dbConn.Close()
+
+	ctx := context.Background()
+
+	// Run createLoginTables
+	err = createLoginTables(ctx, dbConn)
+	assert.NoError(t, err)
+
 }

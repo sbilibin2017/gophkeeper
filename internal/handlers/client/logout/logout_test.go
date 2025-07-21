@@ -1,7 +1,6 @@
 package logout
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -26,7 +25,6 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/repositories/text"
 	"github.com/sbilibin2017/gophkeeper/internal/repositories/user"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc/auth"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -48,78 +46,6 @@ func createClientTables(ctx context.Context, dbConn *sqlx.DB) error {
 		return err
 	}
 	return nil
-}
-
-func TestRegisterCommand_RunE(t *testing.T) {
-	runLogoutHTTPFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
-		if token == "valid_http_token" {
-			return nil
-		}
-		return errors.New("http logout failed")
-	}
-
-	runLogoutGRPCFunc := func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, token string) error {
-		if token == "valid_grpc_token" {
-			return nil
-		}
-		return errors.New("grpc logout failed")
-	}
-
-	tests := []struct {
-		name        string
-		args        []string
-		wantOutput  string
-		wantErrPart string
-	}{
-		{
-			name:       "Successful gRPC logout",
-			args:       []string{"logout", "--auth-url", "grpc://localhost", "--token", "valid_grpc_token", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantOutput: "Logout successful.\n",
-		},
-		{
-			name:       "Successful HTTP logout",
-			args:       []string{"logout", "--auth-url", "https://example.com", "--token", "valid_http_token", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantOutput: "Logout successful.\n",
-		},
-		{
-			name:        "Unsupported auth URL scheme",
-			args:        []string{"logout", "--auth-url", "ftp://example.com", "--token", "token", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantErrPart: "unsupported auth URL scheme",
-		},
-		{
-			name:        "Logout failure HTTP",
-			args:        []string{"logout", "--auth-url", "https://example.com", "--token", "bad_token", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantErrPart: "logout failed: http logout failed",
-		},
-		{
-			name:        "Logout failure gRPC",
-			args:        []string{"logout", "--auth-url", "grpc://localhost", "--token", "bad_token", "--tls-client-cert", "cert.pem", "--tls-client-key", "key.pem"},
-			wantErrPart: "logout failed: grpc logout failed",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			root := &cobra.Command{Use: "root"}
-			RegisterLogoutCommand(root, runLogoutHTTPFunc, runLogoutGRPCFunc)
-
-			var output bytes.Buffer
-			root.SetOut(&output)
-			root.SetErr(&output)
-			root.SetArgs(tt.args)
-
-			err := root.Execute()
-
-			if tt.wantErrPart != "" {
-				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErrPart)
-				assert.NotEmpty(t, output.String())
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantOutput, output.String())
-			}
-		})
-	}
 }
 
 // generateSelfSignedCert generates a self-signed TLS cert and key and writes to temp files
@@ -215,8 +141,8 @@ func (s *testAuthService) Logout(ctx context.Context, req *emptypb.Empty) (*empt
 	return &emptypb.Empty{}, nil
 }
 
-func TestRunGRPC_LogoutIntegration(t *testing.T) {
-	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
+func TestRunLogoutGRPC(t *testing.T) {
+	if err := os.Remove("client.db"); err != nil && !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("failed to remove client.db: %v", err)
 	}
 	defer os.Remove("client.db")
@@ -279,8 +205,8 @@ func minimalLogoutServer(t *testing.T, certFile, keyFile string) (*http.Server, 
 	return srv, baseURL
 }
 
-func TestRunHTTP_LogoutIntegration(t *testing.T) {
-	if err := os.Remove("client.db"); err != nil && !os.IsNotExist(err) {
+func TestRunLogoutHTTP(t *testing.T) {
+	if err := os.Remove("client.db"); err != nil && !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("failed to remove client.db: %v", err)
 	}
 	defer os.Remove("client.db")

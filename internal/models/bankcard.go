@@ -19,3 +19,15 @@ type BankCardGetRequest struct {
 type BankCardDeleteRequest struct {
 	SecretName string `json:"secret_name,omitempty"` // Unique name of the secret to delete
 }
+
+// BankCardDB represents the stored bank card data including metadata and update time.
+type BankCardDB struct {
+	SecretName  string `json:"secret_name,omitempty" db:"secret_name"`   // Unique name of the secret
+	SecretOwner string `json:"secret_owner,omitempty" db:"secret_owner"` // Owner of the secret (usually user or client ID)
+	Number      string `json:"number,omitempty" db:"number"`             // Card number
+	Owner       string `json:"owner,omitempty" db:"owner"`               // Card owner name
+	Exp         string `json:"exp,omitempty" db:"exp"`                   // Expiration date (e.g., MM/YY)
+	CVV         string `json:"cvv,omitempty" db:"cvv"`                   // Card CVV code
+	Meta        string `json:"meta,omitempty" db:"meta"`                 // Additional metadata or notes
+	UpdatedAt   string `json:"updated_at,omitempty" db:"updated_at"`     // ISO8601 timestamp of last update
+}

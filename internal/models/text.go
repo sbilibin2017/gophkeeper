@@ -16,3 +16,12 @@ type TextGetRequest struct {
 type TextDeleteRequest struct {
 	SecretName string `json:"secret_name,omitempty"` // Unique name of the secret to delete
 }
+
+// TextDB represents a stored text secret.
+type TextDB struct {
+	SecretName  string `json:"secret_name" db:"secret_name"`   // Unique name of the secret
+	SecretOwner string `json:"secret_owner" db:"secret_owner"` // Owner of the secret
+	Content     string `json:"content" db:"content"`           // Text content of the secret
+	Meta        string `json:"meta,omitempty" db:"meta"`       // Optional metadata or notes
+	UpdatedAt   string `json:"updated_at" db:"updated_at"`     // Timestamp of last update
+}

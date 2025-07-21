@@ -17,3 +17,13 @@ type UserGetRequest struct {
 type UserDeleteRequest struct {
 	SecretName string `json:"secret_name,omitempty"` // Unique name of the secret to delete
 }
+
+// UserDB represents a stored user secret.
+type UserDB struct {
+	SecretName  string  `json:"secret_name,omitempty" db:"secret_name"`   // Unique name of the secret
+	SecretOwner string  `json:"secret_owner,omitempty" db:"secret_owner"` // Owner identifier (usually user ID)
+	Username    string  `json:"username,omitempty" db:"username"`         // Username stored in the secret
+	Password    string  `json:"password,omitempty" db:"password"`         // Password stored in the secret
+	Meta        *string `json:"meta,omitempty" db:"meta"`                 // Additional metadata or notes (optional)
+	UpdatedAt   string  `json:"updated_at,omitempty" db:"updated_at"`     // Timestamp of last update (string format)
+}
