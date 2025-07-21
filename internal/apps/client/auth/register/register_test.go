@@ -213,7 +213,7 @@ func TestRegisterRegisterCommand_RunE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := &cobra.Command{Use: "root"}
-			RegisterRegisterCommand(root, runHTTPFunc, runGRPCFunc)
+			RegisterCommand(root, runHTTPFunc, runGRPCFunc)
 
 			var output bytes.Buffer
 			root.SetOut(&output)

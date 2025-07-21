@@ -43,7 +43,7 @@ import (
 //	  --auth-url https://example.com \
 //	  --tls-client-cert cert.pem \
 //	  --tls-client-key key.pem
-func RegisterRegisterCommand(
+func RegisterCommand(
 	root *cobra.Command,
 	runHTTPFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
 	runGRPCFunc func(ctx context.Context, authURL, tlsCertFile, tlsKeyFile, username, password string) (*models.AuthResponse, error),
