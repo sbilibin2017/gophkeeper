@@ -11,8 +11,7 @@ import (
 func CreateClientTable(ctx context.Context, db *sqlx.DB) error {
 	query := `
 	CREATE TABLE binary_client (
-		secret_name TEXT PRIMARY KEY,
-		secret_owner TEXT NOT NULL,
+		secret_name TEXT PRIMARY KEY,		
 		data BLOB NOT NULL,
 		meta TEXT,
 		updated_at TEXT NOT NULL
