@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sbilibin2017/gophkeeper/internal/apps/client/register"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
-	"github.com/sbilibin2017/gophkeeper/internal/handlers/client/register"
 
 	"github.com/spf13/cobra"
 )
