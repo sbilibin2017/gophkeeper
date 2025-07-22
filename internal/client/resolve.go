@@ -36,11 +36,11 @@ func ResolveBankCardHTTP(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		// No action needed for "server" strategy here
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -60,7 +60,7 @@ func ResolveBankCardHTTP(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -96,9 +96,9 @@ func ResolveBankCardHTTP(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
+			case models.ResolveStrategyServer:
 				continue
-			case "client":
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toBankCardAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
@@ -137,10 +137,10 @@ func ResolveBankCardGRPC(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -160,7 +160,7 @@ func ResolveBankCardGRPC(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -197,9 +197,9 @@ func ResolveBankCardGRPC(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
+			case models.ResolveStrategyServer:
 				// Keep server version — do nothing
-			case "client":
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toBankCardAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
@@ -234,10 +234,10 @@ func ResolveTextHTTP(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -256,7 +256,7 @@ func ResolveTextHTTP(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -290,9 +290,9 @@ func ResolveTextHTTP(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
+			case models.ResolveStrategyServer:
 				// Keep server version — do nothing
-			case "client":
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toTextAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
@@ -327,10 +327,10 @@ func ResolveTextGRPC(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -352,7 +352,7 @@ func ResolveTextGRPC(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -384,9 +384,9 @@ func ResolveTextGRPC(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
+			case models.ResolveStrategyServer:
 				// Keep server version
-			case "client":
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toTextAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
@@ -421,10 +421,10 @@ func ResolveBinaryHTTP(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -436,7 +436,7 @@ func ResolveBinaryHTTP(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -468,9 +468,9 @@ func ResolveBinaryHTTP(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
+			case models.ResolveStrategyServer:
 				// Keep server version
-			case "client":
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toBinaryAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
@@ -505,10 +505,10 @@ func ResolveBinaryGRPC(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -529,7 +529,7 @@ func ResolveBinaryGRPC(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -563,9 +563,9 @@ func ResolveBinaryGRPC(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
+			case models.ResolveStrategyServer:
 				// Keep server version
-			case "client":
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toBinaryAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
@@ -601,10 +601,10 @@ func ResolveUserHTTP(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -616,7 +616,7 @@ func ResolveUserHTTP(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -650,9 +650,9 @@ func ResolveUserHTTP(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
+			case models.ResolveStrategyServer:
 				// Keep server version
-			case "client":
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toUserAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
@@ -688,10 +688,10 @@ func ResolveUserGRPC(
 	}
 
 	switch strategy {
-	case "server":
+	case models.ResolveStrategyServer:
 		return nil
 
-	case "client":
+	case models.ResolveStrategyClient:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -712,7 +712,7 @@ func ResolveUserGRPC(
 		}
 		return nil
 
-	case "interactive":
+	case models.ResolveStrategyInteractive:
 		secrets, err := listClientFunc(ctx, db)
 		if err != nil {
 			return fmt.Errorf("failed to list client secrets: %w", err)
@@ -744,9 +744,8 @@ func ResolveUserGRPC(
 			choice := strings.TrimSpace(choiceRaw)
 
 			switch choice {
-			case "server":
-				// Keep server version
-			case "client":
+			case models.ResolveStrategyServer:
+			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toUserAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
 				}
