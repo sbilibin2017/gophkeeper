@@ -35,3 +35,16 @@ func (s StringMap) Value() (driver.Value, error) {
 	}
 	return json.Marshal(s.Map)
 }
+
+// helper to parse meta
+func ParseMeta(meta string) (*StringMap, error) {
+	if meta == "" {
+		return nil, nil
+	}
+	var metaMap map[string]string
+	if err := json.Unmarshal([]byte(meta), &metaMap); err != nil {
+		return nil, fmt.Errorf("failed to parse meta JSON: %w", err)
+	}
+	sm := StringMap{Map: metaMap}
+	return &sm, nil
+}

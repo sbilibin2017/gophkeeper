@@ -9,6 +9,7 @@ const (
 	CommandAddText     = "add-text"
 	CommandAddUser     = "add-user"
 	CommandGet         = "get"
+	CommandList        = "list"
 	CommandSync        = "sync"
 	CommandVersion     = "version"
 )

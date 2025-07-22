@@ -10,8 +10,10 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/models/fields"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// TextAddClient inserts or updates a text secret in the local database.
 func TextAddClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -36,6 +38,7 @@ func TextAddClient(
 	return err
 }
 
+// TextGetClient retrieves a text secret from the local database by secret name.
 func TextGetClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -56,6 +59,7 @@ func TextGetClient(
 	return &text, nil
 }
 
+// TextListClient retrieves all text secrets from the local database.
 func TextListClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -74,6 +78,7 @@ func TextListClient(
 	return texts, nil
 }
 
+// TextGetHTTP retrieves a text secret from a remote HTTP server by secret name.
 func TextGetHTTP(
 	ctx context.Context,
 	client *resty.Client,
@@ -93,6 +98,7 @@ func TextGetHTTP(
 	return resp, nil
 }
 
+// TextGetGRPC retrieves a text secret from a remote gRPC server by secret name.
 func TextGetGRPC(
 	ctx context.Context,
 	client pb.TextServiceClient,
@@ -131,6 +137,7 @@ func TextGetGRPC(
 	}, nil
 }
 
+// TextAddGRPC sends a request to a gRPC server to add or update a text secret.
 func TextAddGRPC(
 	ctx context.Context,
 	client pb.TextServiceClient,
@@ -152,6 +159,7 @@ func TextAddGRPC(
 	return err
 }
 
+// TextAddHTTP sends a POST request to a remote HTTP server to add or update a text secret.
 func TextAddHTTP(
 	ctx context.Context,
 	client *resty.Client,
@@ -168,4 +176,73 @@ func TextAddHTTP(
 		return errors.New(r.Status())
 	}
 	return nil
+}
+
+// TextListHTTP fetches a list of all text secrets from the remote HTTP API.
+func TextListHTTP(
+	ctx context.Context,
+	client *resty.Client,
+) ([]models.TextDB, error) {
+	var resp []models.TextDB
+	r, err := client.R().
+		SetContext(ctx).
+		SetResult(&resp).
+		Get("/text/")
+	if err != nil {
+		return nil, err
+	}
+	if r.IsError() {
+		return nil, errors.New(r.Status())
+	}
+	return resp, nil
+}
+
+// TextListGRPC fetches a list of all text secrets from the remote gRPC service using stream.
+func TextListGRPC(
+	ctx context.Context,
+	client pb.TextServiceClient,
+) ([]models.TextDB, error) {
+	stream, err := client.List(ctx, &emptypb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	var texts []models.TextDB
+
+	for {
+		grpcText, err := stream.Recv()
+		if err != nil {
+			if err.Error() == "EOF" {
+				break // stream complete
+			}
+			return nil, err
+		}
+
+		var updatedAt time.Time
+		if grpcText.UpdatedAt != nil {
+			updatedAt = grpcText.UpdatedAt.AsTime()
+		}
+
+		var meta *fields.StringMap
+		if grpcText.Meta != nil {
+			sm := &fields.StringMap{
+				Map: make(map[string]string, len(grpcText.Meta)),
+			}
+			for k, v := range grpcText.Meta {
+				sm.Map[k] = v
+			}
+			meta = sm
+		}
+
+		text := models.TextDB{
+			SecretName: grpcText.SecretName,
+			Content:    grpcText.Content,
+			Meta:       meta,
+			UpdatedAt:  updatedAt,
+		}
+
+		texts = append(texts, text)
+	}
+
+	return texts, nil
 }

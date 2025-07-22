@@ -10,8 +10,10 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/models/fields"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+// UserAddClient inserts or updates a user credential secret in the local database.
 func UserAddClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -31,13 +33,14 @@ func UserAddClient(
 		req.SecretName,
 		req.Username,
 		req.Password,
-		req.Meta, // *fields.StringMap implements driver.Valuer
+		req.Meta,
 		time.Now().UTC(),
 	)
 
 	return err
 }
 
+// UserGetClient retrieves a user credential secret from the local database by secret name.
 func UserGetClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -58,6 +61,7 @@ func UserGetClient(
 	return &user, nil
 }
 
+// UserListClient retrieves all user credential secrets stored in the local database.
 func UserListClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -76,6 +80,7 @@ func UserListClient(
 	return users, nil
 }
 
+// UserGetHTTP fetches a user credential secret from a remote HTTP service by secret name.
 func UserGetHTTP(
 	ctx context.Context,
 	client *resty.Client,
@@ -95,6 +100,7 @@ func UserGetHTTP(
 	return resp, nil
 }
 
+// UserGetGRPC fetches a user credential secret from a remote gRPC service by secret name.
 func UserGetGRPC(
 	ctx context.Context,
 	client pb.UserServiceClient,
@@ -134,6 +140,7 @@ func UserGetGRPC(
 	}, nil
 }
 
+// UserAddGRPC sends a request to a gRPC service to add or update a user credential secret.
 func UserAddGRPC(
 	ctx context.Context,
 	client pb.UserServiceClient,
@@ -156,6 +163,7 @@ func UserAddGRPC(
 	return err
 }
 
+// UserAddHTTP sends a POST request to a remote HTTP service to add or update a user credential secret.
 func UserAddHTTP(
 	ctx context.Context,
 	client *resty.Client,
@@ -172,4 +180,74 @@ func UserAddHTTP(
 		return errors.New(r.Status())
 	}
 	return nil
+}
+
+// UserListHTTP fetches a list of all user credential secrets from the remote HTTP API.
+func UserListHTTP(
+	ctx context.Context,
+	client *resty.Client,
+) ([]models.UserDB, error) {
+	var resp []models.UserDB
+	r, err := client.R().
+		SetContext(ctx).
+		SetResult(&resp).
+		Get("/user/")
+	if err != nil {
+		return nil, err
+	}
+	if r.IsError() {
+		return nil, errors.New(r.Status())
+	}
+	return resp, nil
+}
+
+// UserListGRPC fetches a list of all user credential secrets from the remote gRPC service using a stream.
+func UserListGRPC(
+	ctx context.Context,
+	client pb.UserServiceClient,
+) ([]models.UserDB, error) {
+	stream, err := client.List(ctx, &emptypb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	var users []models.UserDB
+
+	for {
+		grpcUser, err := stream.Recv()
+		if err != nil {
+			if err.Error() == "EOF" {
+				break
+			}
+			return nil, err
+		}
+
+		var updatedAt time.Time
+		if grpcUser.UpdatedAt != nil {
+			updatedAt = grpcUser.UpdatedAt.AsTime()
+		}
+
+		var meta *fields.StringMap
+		if grpcUser.Meta != nil {
+			sm := &fields.StringMap{
+				Map: make(map[string]string, len(grpcUser.Meta)),
+			}
+			for k, v := range grpcUser.Meta {
+				sm.Map[k] = v
+			}
+			meta = sm
+		}
+
+		user := models.UserDB{
+			SecretName: grpcUser.SecretName,
+			Username:   grpcUser.Username,
+			Password:   grpcUser.Password,
+			Meta:       meta,
+			UpdatedAt:  updatedAt,
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
 }

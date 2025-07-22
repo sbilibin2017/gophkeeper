@@ -22,7 +22,7 @@ func ResolveBankCardHTTP(
 	addServerFunc func(ctx context.Context, client *resty.Client, req *models.BankCardAddRequest) error,
 	db *sqlx.DB,
 	client *resty.Client,
-	secretName string,
+
 ) error {
 	toBankCardAddRequest := func(secret models.BankCardDB) *models.BankCardAddRequest {
 		return &models.BankCardAddRequest{
@@ -122,7 +122,7 @@ func ResolveBankCardGRPC(
 	addServerFunc func(ctx context.Context, client pb.BankCardServiceClient, req *models.BankCardAddRequest) error,
 	db *sqlx.DB,
 	client pb.BankCardServiceClient,
-	secretName string,
+
 ) error {
 	// Conversion helper: BankCardDB → BankCardAddRequest
 	toBankCardAddRequest := func(secret models.BankCardDB) *models.BankCardAddRequest {
@@ -223,7 +223,7 @@ func ResolveTextHTTP(
 	addServerFunc func(ctx context.Context, client *resty.Client, req *models.TextAddRequest) error,
 	db *sqlx.DB,
 	client *resty.Client,
-	secretName string,
+
 ) error {
 	toTextAddRequest := func(secret models.TextDB) *models.TextAddRequest {
 		return &models.TextAddRequest{
@@ -316,7 +316,7 @@ func ResolveTextGRPC(
 	addServerFunc func(ctx context.Context, client pb.TextServiceClient, req *models.TextAddRequest) error,
 	db *sqlx.DB,
 	client pb.TextServiceClient,
-	secretName string,
+
 ) error {
 	toTextAddRequest := func(secret models.TextDB) *models.TextAddRequest {
 		return &models.TextAddRequest{
@@ -410,7 +410,7 @@ func ResolveBinaryHTTP(
 	addServerFunc func(ctx context.Context, client *resty.Client, req *models.BinaryAddRequest) error,
 	db *sqlx.DB,
 	client *resty.Client,
-	secretName string,
+
 ) error {
 	toBinaryAddRequest := func(secret models.BinaryDB) *models.BinaryAddRequest {
 		return &models.BinaryAddRequest{
@@ -494,7 +494,6 @@ func ResolveBinaryGRPC(
 	addServerFunc func(ctx context.Context, client pb.BinaryServiceClient, req *models.BinaryAddRequest) error,
 	db *sqlx.DB,
 	client pb.BinaryServiceClient,
-	secretName string,
 ) error {
 	toBinaryAddRequest := func(secret models.BinaryDB) *models.BinaryAddRequest {
 		return &models.BinaryAddRequest{
@@ -589,7 +588,6 @@ func ResolveUserHTTP(
 	addServerFunc func(ctx context.Context, client *resty.Client, req *models.UserAddRequest) error,
 	db *sqlx.DB,
 	client *resty.Client,
-	secretName string,
 ) error {
 	toUserAddRequest := func(user models.UserDB) *models.UserAddRequest {
 		return &models.UserAddRequest{
@@ -651,7 +649,7 @@ func ResolveUserHTTP(
 
 			switch choice {
 			case models.ResolveStrategyServer:
-				// Keep server version
+				continue
 			case models.ResolveStrategyClient:
 				if err := addServerFunc(ctx, client, toUserAddRequest(secretClient)); err != nil {
 					return fmt.Errorf("failed to add client secret to server: %w", err)
@@ -676,13 +674,12 @@ func ResolveUserGRPC(
 	addServerFunc func(ctx context.Context, client pb.UserServiceClient, req *models.UserAddRequest) error,
 	db *sqlx.DB,
 	client pb.UserServiceClient,
-	secretName string,
 ) error {
 	toUserAddRequest := func(user models.UserDB) *models.UserAddRequest {
 		return &models.UserAddRequest{
 			SecretName: user.SecretName,
 			Username:   user.Username,
-			Password:   user.Password, // make sure this field exists in UserDB
+			Password:   user.Password,
 			Meta:       user.Meta,
 		}
 	}

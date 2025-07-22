@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/go-resty/resty/v2"
@@ -10,9 +11,11 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/models/fields"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-// BankCardAddClient inserts or updates a bank card in the DB.
+// BankCardAddClient inserts a bank card into the local database,
+// or updates it if the secret name already exists.
 func BankCardAddClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -36,13 +39,14 @@ func BankCardAddClient(
 		req.Owner,
 		req.Exp,
 		req.CVV,
-		req.Meta, // *fields.StringMap implements driver.Valuer
+		req.Meta,
 		time.Now().UTC(),
 	)
 	return err
 }
 
-// BankCardGetClient retrieves a bank card from the DB by secret name.
+// BankCardGetClient retrieves a bank card from the local database
+// by its secret name.
 func BankCardGetClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -63,7 +67,8 @@ func BankCardGetClient(
 	return &card, nil
 }
 
-// BankCardListClient retrieves all bank cards from the DB.
+// BankCardListClient returns a list of all bank cards
+// stored in the local database.
 func BankCardListClient(
 	ctx context.Context,
 	db *sqlx.DB,
@@ -78,11 +83,84 @@ func BankCardListClient(
 	if err != nil {
 		return nil, err
 	}
+	return cards, nil
+}
+
+// BankCardListHTTP fetches a list of all bank cards from the remote HTTP API.
+func BankCardListHTTP(
+	ctx context.Context,
+	client *resty.Client,
+) ([]models.BankCardDB, error) {
+	var resp []models.BankCardDB
+	r, err := client.R().
+		SetContext(ctx).
+		SetResult(&resp).
+		Get("/bankcard/")
+	if err != nil {
+		return nil, err
+	}
+	if r.IsError() {
+		return nil, errors.New(r.Status())
+	}
+	return resp, nil
+}
+
+// BankCardListGRPC fetches a list of all bank cards from the remote gRPC service using stream.
+func BankCardListGRPC(
+	ctx context.Context,
+	client pb.BankCardServiceClient,
+) ([]models.BankCardDB, error) {
+	stream, err := client.List(ctx, &emptypb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	var cards []models.BankCardDB
+
+	for {
+		grpcCard, err := stream.Recv()
+		if err == io.EOF {
+			break // Stream finished
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		var updatedAt time.Time
+		if grpcCard.UpdatedAt != nil {
+			updatedAt = grpcCard.UpdatedAt.AsTime()
+		}
+
+		var meta *fields.StringMap
+		if grpcCard.Meta != nil {
+			sm := &fields.StringMap{
+				Map: make(map[string]string, len(grpcCard.Meta)),
+			}
+			for k, v := range grpcCard.Meta {
+				sm.Map[k] = v
+			}
+			meta = sm
+		}
+
+		card := models.BankCardDB{
+			SecretName:  grpcCard.SecretName,
+			SecretOwner: grpcCard.SecretOwner,
+			Number:      grpcCard.Number,
+			Owner:       grpcCard.Owner,
+			Exp:         grpcCard.Exp,
+			CVV:         grpcCard.Cvv,
+			Meta:        meta,
+			UpdatedAt:   updatedAt,
+		}
+
+		cards = append(cards, card)
+	}
 
 	return cards, nil
 }
 
-// BankCardGetHTTP gets a bank card via HTTP.
+// BankCardGetHTTP fetches a bank card from the remote HTTP API
+// by secret name using a GET request.
 func BankCardGetHTTP(
 	ctx context.Context,
 	client *resty.Client,
@@ -102,6 +180,8 @@ func BankCardGetHTTP(
 	return resp, nil
 }
 
+// BankCardGetGRPC fetches a bank card from the remote gRPC service
+// by secret name.
 func BankCardGetGRPC(
 	ctx context.Context,
 	client pb.BankCardServiceClient,
@@ -144,7 +224,8 @@ func BankCardGetGRPC(
 	}, nil
 }
 
-// BankCardAddHTTP adds a bank card via HTTP.
+// BankCardAddHTTP sends a POST request to the remote HTTP API
+// to add or update a bank card.
 func BankCardAddHTTP(
 	ctx context.Context,
 	client *resty.Client,
@@ -163,7 +244,8 @@ func BankCardAddHTTP(
 	return nil
 }
 
-// BankCardAddGRPC adds a bank card via gRPC.
+// BankCardAddGRPC sends a gRPC request to add or update a bank card
+// on the remote service.
 func BankCardAddGRPC(
 	ctx context.Context,
 	client pb.BankCardServiceClient,
