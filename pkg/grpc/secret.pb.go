@@ -27,11 +27,9 @@ type EncryptedSecret struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"` // Identifier for the secret
 	SecretType    string                 `protobuf:"bytes,2,opt,name=secret_type,json=secretType,proto3" json:"secret_type,omitempty"` // Type of secret (e.g., bankcard, user, text)
-	Ciphertext    []byte                 `protobuf:"bytes,3,opt,name=ciphertext,proto3" json:"ciphertext,omitempty"`                   // AES-GCM encrypted data
-	Hmac          []byte                 `protobuf:"bytes,4,opt,name=hmac,proto3" json:"hmac,omitempty"`                               // HMAC-SHA256 over ciphertext
-	AesKeyEnc     []byte                 `protobuf:"bytes,5,opt,name=aes_key_enc,json=aesKeyEnc,proto3" json:"aes_key_enc,omitempty"`  // AES key encrypted using RSA-OAEP
-	Nonce         []byte                 `protobuf:"bytes,6,opt,name=nonce,proto3" json:"nonce,omitempty"`                             // AES-GCM nonce
-	Timestamp     int64                  `protobuf:"varint,7,opt,name=timestamp,proto3" json:"timestamp,omitempty"`                    // Unix timestamp of encryption
+	Ciphertext    []byte                 `protobuf:"bytes,3,opt,name=ciphertext,proto3" json:"ciphertext,omitempty"`                   // AES-GCM encrypted data including nonce + ciphertext + tag
+	AesKeyEnc     []byte                 `protobuf:"bytes,4,opt,name=aes_key_enc,json=aesKeyEnc,proto3" json:"aes_key_enc,omitempty"`  // AES key encrypted using RSA-OAEP
+	Timestamp     int64                  `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`                    // Unix timestamp of encryption
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -87,23 +85,9 @@ func (x *EncryptedSecret) GetCiphertext() []byte {
 	return nil
 }
 
-func (x *EncryptedSecret) GetHmac() []byte {
-	if x != nil {
-		return x.Hmac
-	}
-	return nil
-}
-
 func (x *EncryptedSecret) GetAesKeyEnc() []byte {
 	if x != nil {
 		return x.AesKeyEnc
-	}
-	return nil
-}
-
-func (x *EncryptedSecret) GetNonce() []byte {
-	if x != nil {
-		return x.Nonce
 	}
 	return nil
 }
@@ -163,7 +147,7 @@ var File_secret_proto protoreflect.FileDescriptor
 
 const file_secret_proto_rawDesc = "" +
 	"\n" +
-	"\fsecret.proto\x12\bbankcard\x1a\x1bgoogle/protobuf/empty.proto\"\xdb\x01\n" +
+	"\fsecret.proto\x12\bbankcard\x1a\x1bgoogle/protobuf/empty.proto\"\xb1\x01\n" +
 	"\x0fEncryptedSecret\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
 	"secretName\x12\x1f\n" +
@@ -171,11 +155,9 @@ const file_secret_proto_rawDesc = "" +
 	"secretType\x12\x1e\n" +
 	"\n" +
 	"ciphertext\x18\x03 \x01(\fR\n" +
-	"ciphertext\x12\x12\n" +
-	"\x04hmac\x18\x04 \x01(\fR\x04hmac\x12\x1e\n" +
-	"\vaes_key_enc\x18\x05 \x01(\fR\taesKeyEnc\x12\x14\n" +
-	"\x05nonce\x18\x06 \x01(\fR\x05nonce\x12\x1c\n" +
-	"\ttimestamp\x18\a \x01(\x03R\ttimestamp\"3\n" +
+	"ciphertext\x12\x1e\n" +
+	"\vaes_key_enc\x18\x04 \x01(\fR\taesKeyEnc\x12\x1c\n" +
+	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"3\n" +
 	"\x10GetSecretRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
 	"secretName2N\n" +
