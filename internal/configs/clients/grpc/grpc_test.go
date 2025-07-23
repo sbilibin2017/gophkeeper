@@ -36,7 +36,7 @@ func startBufServer(t *testing.T) {
 	}()
 }
 
-// generateTestCertFiles creates temporary TLS cert and key files for testing
+// generateTestCertFiles creates a self-signed root CA cert for TLS testing
 func generateTestCertFiles() (certFile, keyFile string, err error) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
@@ -53,6 +53,7 @@ func generateTestCertFiles() (certFile, keyFile string, err error) {
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
+		IsCA:                  true,
 	}
 
 	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
@@ -103,26 +104,25 @@ func TestWithRetryPolicy(t *testing.T) {
 }
 
 func TestWithRetryPolicy_Empty(t *testing.T) {
-	opt := WithRetryPolicy()
+	opt := WithRetryPolicy(RetryPolicy{})
 	dialOpt, err := opt()
 	require.NoError(t, err)
 	assert.Nil(t, dialOpt)
 }
 
 func TestWithTLSCert_Success(t *testing.T) {
-	certFile, keyFile, err := generateTestCertFiles()
+	certFile, _, err := generateTestCertFiles()
 	require.NoError(t, err)
 	defer os.Remove(certFile)
-	defer os.Remove(keyFile)
 
-	opt := WithTLSCert(TLSCert{CertFile: certFile, KeyFile: keyFile})
+	opt := WithTLSCert(certFile)
 	dialOpt, err := opt()
 	require.NoError(t, err)
 	require.NotNil(t, dialOpt)
 }
 
 func TestWithTLSCert_Failure(t *testing.T) {
-	opt := WithTLSCert(TLSCert{CertFile: "invalid-cert.pem", KeyFile: "invalid-key.pem"})
+	opt := WithTLSCert("invalid-cert.pem")
 	dialOpt, err := opt()
 	require.Error(t, err)
 	assert.Nil(t, dialOpt)
@@ -138,21 +138,20 @@ func TestWithTLSCert_Empty(t *testing.T) {
 func TestNew_WithOptions(t *testing.T) {
 	startBufServer(t)
 
-	certFile, keyFile, err := generateTestCertFiles()
+	certFile, _, err := generateTestCertFiles()
 	require.NoError(t, err)
 	defer os.Remove(certFile)
-	defer os.Remove(keyFile)
 
 	conn, err := New("bufnet",
 		func() (gogrpc.DialOption, error) {
 			return gogrpc.WithContextDialer(bufDialer), nil
 		},
-		WithTLSCert(TLSCert{CertFile: certFile, KeyFile: keyFile}),
+		WithTLSCert(certFile),
 		WithAuthToken("abc123"),
 		WithRetryPolicy(RetryPolicy{
 			Count:   2,
-			Wait:    100 * time.Millisecond, // add valid initial backoff
-			MaxWait: 1 * time.Second,        // add valid max backoff
+			Wait:    100 * time.Millisecond,
+			MaxWait: 1 * time.Second,
 		}),
 	)
 	require.NoError(t, err)

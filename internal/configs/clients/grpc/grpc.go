@@ -29,7 +29,7 @@ func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 		}
 	}
 
-	conn, err := grpc.NewClient(target, dialOpts...)
+	conn, err := grpc.Dial(target, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -37,47 +37,35 @@ func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
-// TLSCert represents a certificate and key file pair.
-type TLSCert struct {
-	CertFile string
-	KeyFile  string
-}
-
-// WithTLSCert returns a DialOption for TLS credentials based on TLSCert.
-func WithTLSCert(opts ...TLSCert) Opt {
+// WithTLSCert returns a DialOption for TLS credentials using one or more root CA cert files.
+func WithTLSCert(certFiles ...string) Opt {
 	return func() (grpc.DialOption, error) {
-		for _, certPair := range opts {
-			if certPair.CertFile != "" {
-				// Load the cert file bytes
-				certPEM, err := os.ReadFile(certPair.CertFile)
-				if err != nil {
-					return nil, fmt.Errorf("failed to read cert file: %w", err)
-				}
+		if len(certFiles) == 0 {
+			return nil, nil
+		}
 
-				// Create a cert pool and append cert file to it as trusted root CA
-				certPool := x509.NewCertPool()
-				if !certPool.AppendCertsFromPEM(certPEM) {
-					return nil, fmt.Errorf("failed to append cert to pool")
-				}
+		certPool := x509.NewCertPool()
+		for _, certFile := range certFiles {
+			if certFile == "" {
+				continue
+			}
 
-				tlsConfig := &tls.Config{
-					RootCAs: certPool,
-				}
+			certPEM, err := os.ReadFile(certFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read cert file %q: %w", certFile, err)
+			}
 
-				// Optional: load client cert/key if both provided (for mTLS)
-				if certPair.KeyFile != "" {
-					clientCert, err := tls.LoadX509KeyPair(certPair.CertFile, certPair.KeyFile)
-					if err != nil {
-						return nil, fmt.Errorf("failed to load client cert/key: %w", err)
-					}
-					tlsConfig.Certificates = []tls.Certificate{clientCert}
-				}
-
-				creds := credentials.NewTLS(tlsConfig)
-				return grpc.WithTransportCredentials(creds), nil
+			if ok := certPool.AppendCertsFromPEM(certPEM); !ok {
+				return nil, fmt.Errorf("failed to append cert to pool from file %q", certFile)
 			}
 		}
-		return nil, nil
+
+		tlsConfig := &tls.Config{
+			RootCAs: certPool,
+		}
+
+		creds := credentials.NewTLS(tlsConfig)
+		return grpc.WithTransportCredentials(creds), nil
 	}
 }
 
@@ -97,14 +85,12 @@ func (t tokenAuth) RequireTransportSecurity() bool {
 }
 
 // WithAuthToken adds a bearer token as per-RPC credentials.
-func WithAuthToken(opts ...string) Opt {
+func WithAuthToken(token string) Opt {
 	return func() (grpc.DialOption, error) {
-		for _, token := range opts {
-			if token != "" {
-				return grpc.WithPerRPCCredentials(tokenAuth{token: token}), nil
-			}
+		if token == "" {
+			return nil, nil
 		}
-		return nil, nil
+		return grpc.WithPerRPCCredentials(tokenAuth{token: token}), nil
 	}
 }
 
@@ -116,34 +102,28 @@ type RetryPolicy struct {
 }
 
 // WithRetryPolicy sets retry configuration using the first valid RetryPolicy.
-func WithRetryPolicy(opts ...RetryPolicy) Opt {
+func WithRetryPolicy(rp RetryPolicy) Opt {
 	return func() (grpc.DialOption, error) {
-		for _, rp := range opts {
-			if rp.Count > 0 || rp.Wait > 0 || rp.MaxWait > 0 {
-				count := rp.Count
-				wait := rp.Wait
-				maxWait := rp.MaxWait
-
-				// Convert to gRPC JSON duration format
-				initialBackoff := fmt.Sprintf("%.3fs", wait.Seconds())
-				maxBackoff := fmt.Sprintf("%.3fs", maxWait.Seconds())
-
-				cfg := fmt.Sprintf(`{
-					"methodConfig": [{
-						"name": [{"service": ".*"}],
-						"retryPolicy": {
-							"maxAttempts": %d,
-							"initialBackoff": "%s",
-							"maxBackoff": "%s",
-							"backoffMultiplier": 2,
-							"retryableStatusCodes": ["UNAVAILABLE"]
-						}
-					}]
-				}`, count, initialBackoff, maxBackoff)
-
-				return grpc.WithDefaultServiceConfig(cfg), nil
-			}
+		if rp.Count <= 0 && rp.Wait <= 0 && rp.MaxWait <= 0 {
+			return nil, nil
 		}
-		return nil, nil
+
+		initialBackoff := fmt.Sprintf("%.3fs", rp.Wait.Seconds())
+		maxBackoff := fmt.Sprintf("%.3fs", rp.MaxWait.Seconds())
+
+		cfg := fmt.Sprintf(`{
+			"methodConfig": [{
+				"name": [{"service": ".*"}],
+				"retryPolicy": {
+					"maxAttempts": %d,
+					"initialBackoff": "%s",
+					"maxBackoff": "%s",
+					"backoffMultiplier": 2,
+					"retryableStatusCodes": ["UNAVAILABLE"]
+				}
+			}]
+		}`, rp.Count, initialBackoff, maxBackoff)
+
+		return grpc.WithDefaultServiceConfig(cfg), nil
 	}
 }
