@@ -21,18 +21,17 @@ var logoutCmd = &cobra.Command{
 
 		serverURL, _ := cmd.Flags().GetString("server-url")
 		certFile, _ := cmd.Flags().GetString("cert-file")
-		certKey, _ := cmd.Flags().GetString("cert-key")
 
 		schemeType := scheme.GetSchemeFromURL(serverURL)
 
 		switch schemeType {
 		case scheme.HTTP, scheme.HTTPS:
-			if err := runLogoutHTTP(ctx, serverURL, certFile, certKey); err != nil {
+			if err := runLogoutHTTP(ctx, serverURL, certFile); err != nil {
 				return err
 			}
 			cmd.Println("Logout successful")
 		case scheme.GRPC:
-			if err := runLogoutGRPC(ctx, serverURL, certFile, certKey); err != nil {
+			if err := runLogoutGRPC(ctx, serverURL, certFile); err != nil {
 				return err
 			}
 			cmd.Println("Logout successful")
@@ -44,10 +43,10 @@ var logoutCmd = &cobra.Command{
 	},
 }
 
-func runLogoutHTTP(ctx context.Context, serverURL, certFile, certKey string) error {
+func runLogoutHTTP(ctx context.Context, serverURL, certFile string) error {
 	client, err := http.New(
 		serverURL,
-		http.WithTLSCert(http.TLSCert{CertFile: certFile, KeyFile: certKey}),
+		http.WithTLSCert(certFile),
 		http.WithRetryPolicy(http.RetryPolicy{
 			Count:   3,
 			Wait:    500 * time.Millisecond,
@@ -66,10 +65,10 @@ func runLogoutHTTP(ctx context.Context, serverURL, certFile, certKey string) err
 	return nil
 }
 
-func runLogoutGRPC(ctx context.Context, serverURL, certFile, certKey string) error {
+func runLogoutGRPC(ctx context.Context, serverURL, certFile string) error {
 	conn, err := grpc.New(
 		serverURL,
-		grpc.WithTLSCert(grpc.TLSCert{CertFile: certFile, KeyFile: certKey}),
+		grpc.WithTLSCert(certFile),
 		grpc.WithRetryPolicy(grpc.RetryPolicy{
 			Count:   3,
 			Wait:    500 * time.Millisecond,
@@ -92,9 +91,7 @@ func runLogoutGRPC(ctx context.Context, serverURL, certFile, certKey string) err
 func init() {
 	logoutCmd.Flags().String("server-url", "", "Server URL (required)")
 	logoutCmd.Flags().String("cert-file", "", "Path to client certificate file (required)")
-	logoutCmd.Flags().String("cert-key", "", "Path to client private key file (required)")
 
 	_ = logoutCmd.MarkFlagRequired("server-url")
 	_ = logoutCmd.MarkFlagRequired("cert-file")
-	_ = logoutCmd.MarkFlagRequired("cert-key")
 }

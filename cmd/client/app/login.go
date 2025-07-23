@@ -16,7 +16,7 @@ import (
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Login as an existing user",
-	Long:  "Authenticate an existing user using credentials and TLS client authentication details",
+	Long:  "Authenticate an existing user using credentials and TLS certificate",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
@@ -24,19 +24,18 @@ var loginCmd = &cobra.Command{
 		password, _ := cmd.Flags().GetString("password")
 		serverURL, _ := cmd.Flags().GetString("server-url")
 		certFile, _ := cmd.Flags().GetString("cert-file")
-		certKey, _ := cmd.Flags().GetString("cert-key")
 
 		schemeType := scheme.GetSchemeFromURL(serverURL)
 
 		switch schemeType {
 		case scheme.HTTP, scheme.HTTPS:
-			token, err := runLoginHTTP(ctx, serverURL, certFile, certKey, username, password)
+			token, err := runLoginHTTP(ctx, serverURL, certFile, username, password)
 			if err != nil {
 				return err
 			}
 			cmd.Println(token)
 		case scheme.GRPC:
-			token, err := runLoginGRPC(ctx, serverURL, certFile, certKey, username, password)
+			token, err := runLoginGRPC(ctx, serverURL, certFile, username, password)
 			if err != nil {
 				return err
 			}
@@ -51,11 +50,11 @@ var loginCmd = &cobra.Command{
 
 func runLoginHTTP(
 	ctx context.Context,
-	serverURL, certFile, certKey, username, password string,
+	serverURL, certFile, username, password string,
 ) (string, error) {
 	client, err := http.New(
 		serverURL,
-		http.WithTLSCert(http.TLSCert{CertFile: certFile, KeyFile: certKey}),
+		http.WithTLSCert(certFile),
 		http.WithRetryPolicy(http.RetryPolicy{
 			Count:   3,
 			Wait:    500 * time.Millisecond,
@@ -78,11 +77,11 @@ func runLoginHTTP(
 
 func runLoginGRPC(
 	ctx context.Context,
-	serverURL, certFile, certKey, username, password string,
+	serverURL, certFile, username, password string,
 ) (string, error) {
 	conn, err := grpc.New(
 		serverURL,
-		grpc.WithTLSCert(grpc.TLSCert{CertFile: certFile, KeyFile: certKey}),
+		grpc.WithTLSCert(certFile),
 		grpc.WithRetryPolicy(grpc.RetryPolicy{
 			Count:   3,
 			Wait:    500 * time.Millisecond,
@@ -109,11 +108,9 @@ func init() {
 	loginCmd.Flags().StringP("password", "p", "", "Password (required)")
 	loginCmd.Flags().String("server-url", "", "Server URL (required)")
 	loginCmd.Flags().String("cert-file", "", "Path to client certificate file (required)")
-	loginCmd.Flags().String("cert-key", "", "Path to client private key file (required)")
 
 	_ = loginCmd.MarkFlagRequired("username")
 	_ = loginCmd.MarkFlagRequired("password")
 	_ = loginCmd.MarkFlagRequired("server-url")
 	_ = loginCmd.MarkFlagRequired("cert-file")
-	_ = loginCmd.MarkFlagRequired("cert-key")
 }

@@ -24,20 +24,19 @@ var registerCmd = &cobra.Command{
 		password, _ := cmd.Flags().GetString("password")
 		serverURL, _ := cmd.Flags().GetString("server-url")
 		certFile, _ := cmd.Flags().GetString("cert-file")
-		certKey, _ := cmd.Flags().GetString("cert-key")
 
 		schemeType := scheme.GetSchemeFromURL(serverURL)
 
 		switch schemeType {
 		case scheme.HTTP, scheme.HTTPS:
-			token, err := runRegisterHTTP(ctx, serverURL, certFile, certKey, username, password)
+			token, err := runRegisterHTTP(ctx, serverURL, certFile, username, password)
 			if err != nil {
 				return err
 			}
 			cmd.Println(token)
 
 		case scheme.GRPC:
-			token, err := runRegisterGRPC(ctx, serverURL, certFile, certKey, username, password)
+			token, err := runRegisterGRPC(ctx, serverURL, certFile, username, password)
 			if err != nil {
 				return err
 			}
@@ -53,11 +52,11 @@ var registerCmd = &cobra.Command{
 
 func runRegisterHTTP(
 	ctx context.Context,
-	serverURL, certFile, certKey, username, password string,
+	serverURL, certFile, username, password string,
 ) (string, error) {
 	client, err := http.New(
 		serverURL,
-		http.WithTLSCert(http.TLSCert{CertFile: certFile, KeyFile: certKey}),
+		http.WithTLSCert(certFile),
 		http.WithRetryPolicy(http.RetryPolicy{
 			Count:   3,
 			Wait:    500 * time.Millisecond,
@@ -80,11 +79,11 @@ func runRegisterHTTP(
 
 func runRegisterGRPC(
 	ctx context.Context,
-	serverURL, certFile, certKey, username, password string,
+	serverURL, certFile, username, password string,
 ) (string, error) {
 	conn, err := grpc.New(
 		serverURL,
-		grpc.WithTLSCert(grpc.TLSCert{CertFile: certFile, KeyFile: certKey}),
+		grpc.WithTLSCert(certFile),
 		grpc.WithRetryPolicy(grpc.RetryPolicy{
 			Count:   3,
 			Wait:    500 * time.Millisecond,
@@ -111,11 +110,9 @@ func init() {
 	registerCmd.Flags().StringP("password", "p", "", "Password (required)")
 	registerCmd.Flags().String("server-url", "", "Server URL (required)")
 	registerCmd.Flags().String("cert-file", "", "Path to client certificate file (required)")
-	registerCmd.Flags().String("cert-key", "", "Path to client private key file (required)")
 
 	_ = registerCmd.MarkFlagRequired("username")
 	_ = registerCmd.MarkFlagRequired("password")
 	_ = registerCmd.MarkFlagRequired("server-url")
 	_ = registerCmd.MarkFlagRequired("cert-file")
-	_ = registerCmd.MarkFlagRequired("cert-key")
 }
