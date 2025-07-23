@@ -53,47 +53,39 @@ func WithRetryPolicy(opts ...RetryPolicy) Opt {
 	}
 }
 
-// TLSCert represents a certificate and key file pair.
-type TLSCert struct {
-	CertFile string
-	KeyFile  string
-}
-
-// WithTLSCert sets TLS cert/key using the first valid TLSCert in opts.
-func WithTLSCert(opts ...TLSCert) Opt {
+// WithTLSCert loads one or more root CA cert files into the TLS config.
+func WithTLSCert(certFiles ...string) Opt {
 	return func(c *resty.Client) error {
-		for _, certPair := range opts {
-			if certPair.CertFile != "" && certPair.KeyFile != "" {
-				// Load client cert/key
-				cert, err := tls.LoadX509KeyPair(certPair.CertFile, certPair.KeyFile)
-				if err != nil {
-					return fmt.Errorf("failed to load TLS cert/key: %w", err)
-				}
+		if len(certFiles) == 0 {
+			return nil
+		}
 
-				// Load CA cert (server cert) to RootCAs
-				caCertPEM, err := os.ReadFile(certPair.CertFile)
-				if err != nil {
-					return fmt.Errorf("failed to read cert file: %w", err)
-				}
+		caCertPool, err := x509.SystemCertPool()
+		if err != nil || caCertPool == nil {
+			caCertPool = x509.NewCertPool()
+		}
 
-				caCertPool, err := x509.SystemCertPool()
-				if err != nil {
-					// fallback if SystemCertPool is not available
-					caCertPool = x509.NewCertPool()
-				}
+		for _, certFile := range certFiles {
+			if certFile == "" {
+				continue
+			}
 
-				if ok := caCertPool.AppendCertsFromPEM(caCertPEM); !ok {
-					return fmt.Errorf("failed to append cert to root CA pool")
-				}
+			caCertPEM, err := os.ReadFile(certFile)
+			if err != nil {
+				return fmt.Errorf("failed to read cert file %q: %w", certFile, err)
+			}
 
-				c.SetTLSClientConfig(&tls.Config{
-					Certificates: []tls.Certificate{cert},
-					RootCAs:      caCertPool,
-					MinVersion:   tls.VersionTLS12,
-				})
-				break
+			if ok := caCertPool.AppendCertsFromPEM(caCertPEM); !ok {
+				return fmt.Errorf("failed to append cert to root CA pool from file %q", certFile)
 			}
 		}
+
+		tlsConfig := &tls.Config{
+			RootCAs:    caCertPool,
+			MinVersion: tls.VersionTLS12,
+		}
+
+		c.SetTLSClientConfig(tlsConfig)
 		return nil
 	}
 }

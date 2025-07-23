@@ -102,35 +102,30 @@ func TestWithToken(t *testing.T) {
 	client, err := New(ts.URL, WithAuthToken(expectedToken))
 	require.NoError(t, err)
 
-	resp, err := client.R().
-		Get("/")
+	resp, err := client.R().Get("/")
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 }
 
 func TestWithTLSCert_Generated(t *testing.T) {
-	certPath, keyPath, err := generateTestTLSCert()
+	certPath, _, err := generateTestTLSCert()
 	require.NoError(t, err)
 	defer os.Remove(certPath)
-	defer os.Remove(keyPath)
 
-	client, err := New("https://tls.test", WithTLSCert(TLSCert{
-		CertFile: certPath,
-		KeyFile:  keyPath,
-	}))
+	client, err := New("https://tls.test", WithTLSCert(certPath))
 	require.NoError(t, err)
 
 	transport, ok := client.GetClient().Transport.(*http.Transport)
 	require.True(t, ok)
 	require.NotNil(t, transport.TLSClientConfig)
-	assert.Len(t, transport.TLSClientConfig.Certificates, 1)
+
+	rootCAs := transport.TLSClientConfig.RootCAs
+	require.NotNil(t, rootCAs)
+	assert.NotEmpty(t, rootCAs.Subjects())
 }
 
 func TestWithTLSCert_FileNotFound(t *testing.T) {
-	_, err := New("https://tls.test", WithTLSCert(TLSCert{
-		CertFile: "nonexistent-cert.pem",
-		KeyFile:  "nonexistent-key.pem",
-	}))
+	_, err := New("https://tls.test", WithTLSCert("nonexistent-cert.pem"))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to load TLS cert/key")
+	assert.Contains(t, err.Error(), "failed to read cert file")
 }
