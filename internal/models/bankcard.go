@@ -26,3 +26,13 @@ func (b *BankCard) GetSecretName() string {
 func (b *BankCard) GetUpdatedAt() time.Time {
 	return b.UpdatedAt
 }
+
+// BankCardData contains bank card details excluding secret ownership information.
+// It includes sensitive fields like number, owner, expiry date, CVV, and optional metadata.
+type BankCardData struct {
+	Number string  `json:"number"`         // Bank card number
+	Owner  string  `json:"owner"`          // Card owner name
+	Exp    string  `json:"exp"`            // Expiry date of the card
+	CVV    string  `json:"cvv"`            // Card CVV code
+	Meta   *string `json:"meta,omitempty"` // Optional metadata
+}
