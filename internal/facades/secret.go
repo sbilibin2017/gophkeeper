@@ -3,14 +3,12 @@ package facades
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/emptypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // SecretHTTPWriteFacade provides an HTTP client facade for writing secrets.
@@ -19,9 +17,7 @@ type SecretHTTPWriteFacade struct {
 }
 
 // Add sends a new encrypted secret to the server via HTTP POST.
-func (f *SecretHTTPWriteFacade) Add(
-	ctx context.Context, secret *models.EncrypedSecret,
-) error {
+func (f *SecretHTTPWriteFacade) Add(ctx context.Context, secret *models.EncryptedSecret) error {
 	resp, err := f.client.R().
 		SetContext(ctx).
 		SetBody(secret).
@@ -41,10 +37,8 @@ type SecretHTTPReadFacade struct {
 }
 
 // Get retrieves a single encrypted secret by its secret name via HTTP GET.
-func (f *SecretHTTPReadFacade) Get(
-	ctx context.Context, secretName string,
-) (*models.EncrypedSecret, error) {
-	var secret models.EncrypedSecret
+func (f *SecretHTTPReadFacade) Get(ctx context.Context, secretName string) (*models.EncryptedSecret, error) {
+	var secret models.EncryptedSecret
 
 	resp, err := f.client.R().
 		SetContext(ctx).
@@ -63,10 +57,8 @@ func (f *SecretHTTPReadFacade) Get(
 }
 
 // List fetches all encrypted secrets from the server via HTTP GET.
-func (f *SecretHTTPReadFacade) List(
-	ctx context.Context,
-) ([]*models.EncrypedSecret, error) {
-	var secrets []*models.EncrypedSecret
+func (f *SecretHTTPReadFacade) List(ctx context.Context) ([]*models.EncryptedSecret, error) {
+	var secrets []*models.EncryptedSecret
 
 	resp, err := f.client.R().
 		SetContext(ctx).
@@ -96,24 +88,19 @@ func NewSecretGRPCWriteFacade(conn *grpc.ClientConn) *SecretGRPCWriteFacade {
 }
 
 // Add sends a new encrypted secret to the gRPC service.
-func (f *SecretGRPCWriteFacade) Add(ctx context.Context, secret *models.EncrypedSecret) error {
-	req := &pb.EncrypedSecret{
+func (f *SecretGRPCWriteFacade) Add(ctx context.Context, secret *models.EncryptedSecret) error {
+	req := &pb.EncryptedSecret{
 		SecretName: secret.SecretName,
 		SecretType: secret.SecretType,
 		Ciphertext: secret.Ciphertext,
 		Hmac:       secret.HMAC,
+		AesKeyEnc:  secret.AESKeyEnc,
 		Nonce:      secret.Nonce,
-		KeyId:      secret.KeyID,
-	}
-	if secret.Timestamp != 0 {
-		req.Timestamp = timestamppb.New(time.Unix(secret.Timestamp, 0))
+		Timestamp:  secret.Timestamp, // plain int64 unix timestamp
 	}
 
 	_, err := f.client.Add(ctx, req)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // SecretGRPCReadFacade provides a gRPC client facade for reading secrets.
@@ -129,7 +116,7 @@ func NewSecretGRPCReadFacade(conn *grpc.ClientConn) *SecretGRPCReadFacade {
 }
 
 // Get retrieves a single encrypted secret by its name from the gRPC service.
-func (f *SecretGRPCReadFacade) Get(ctx context.Context, secretName string) (*models.EncrypedSecret, error) {
+func (f *SecretGRPCReadFacade) Get(ctx context.Context, secretName string) (*models.EncryptedSecret, error) {
 	req := &pb.GetSecretRequest{
 		SecretName: secretName,
 	}
@@ -139,30 +126,27 @@ func (f *SecretGRPCReadFacade) Get(ctx context.Context, secretName string) (*mod
 		return nil, err
 	}
 
-	var ts int64
-	if resp.Timestamp != nil {
-		ts = resp.Timestamp.Seconds
-	}
+	ts := resp.Timestamp // int64 from proto
 
-	return &models.EncrypedSecret{
+	return &models.EncryptedSecret{
 		SecretName: resp.SecretName,
 		SecretType: resp.SecretType,
 		Ciphertext: resp.Ciphertext,
 		HMAC:       resp.Hmac,
+		AESKeyEnc:  resp.AesKeyEnc,
 		Nonce:      resp.Nonce,
-		KeyID:      resp.KeyId,
 		Timestamp:  ts,
 	}, nil
 }
 
 // List streams all encrypted secrets from the gRPC service.
-func (f *SecretGRPCReadFacade) List(ctx context.Context) ([]*models.EncrypedSecret, error) {
+func (f *SecretGRPCReadFacade) List(ctx context.Context) ([]*models.EncryptedSecret, error) {
 	stream, err := f.client.List(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, err
 	}
 
-	var secrets []*models.EncrypedSecret
+	var secrets []*models.EncryptedSecret
 	for {
 		secretProto, err := stream.Recv()
 		if err != nil {
@@ -172,18 +156,15 @@ func (f *SecretGRPCReadFacade) List(ctx context.Context) ([]*models.EncrypedSecr
 			return nil, err
 		}
 
-		var ts int64
-		if secretProto.Timestamp != nil {
-			ts = secretProto.Timestamp.Seconds
-		}
+		ts := secretProto.Timestamp // int64 from proto
 
-		secrets = append(secrets, &models.EncrypedSecret{
+		secrets = append(secrets, &models.EncryptedSecret{
 			SecretName: secretProto.SecretName,
 			SecretType: secretProto.SecretType,
 			Ciphertext: secretProto.Ciphertext,
 			HMAC:       secretProto.Hmac,
+			AESKeyEnc:  secretProto.AesKeyEnc,
 			Nonce:      secretProto.Nonce,
-			KeyID:      secretProto.KeyId,
 			Timestamp:  ts,
 		})
 	}

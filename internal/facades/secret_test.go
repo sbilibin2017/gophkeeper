@@ -25,7 +25,7 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 	mux := http.NewServeMux()
 
 	// In-memory store for secrets
-	secretsStore := map[string]*models.EncrypedSecret{}
+	secretsStore := map[string]*models.EncryptedSecret{}
 
 	// Add secret handler - POST /secret
 	mux.HandleFunc("/secret", func(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +33,7 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		var secret models.EncrypedSecret
+		var secret models.EncryptedSecret
 		if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
@@ -65,7 +65,7 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		var list []*models.EncrypedSecret
+		var list []*models.EncryptedSecret
 		for _, secret := range secretsStore {
 			list = append(list, secret)
 		}
@@ -92,10 +92,10 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 
 type secretWriteServer struct {
 	pb.UnimplementedSecretWriteServiceServer
-	store map[string]*pb.EncrypedSecret
+	store map[string]*pb.EncryptedSecret
 }
 
-func (s *secretWriteServer) Add(ctx context.Context, req *pb.EncrypedSecret) (*emptypb.Empty, error) {
+func (s *secretWriteServer) Add(ctx context.Context, req *pb.EncryptedSecret) (*emptypb.Empty, error) {
 	if req.SecretName == "" {
 		return nil, errors.New("secretName required")
 	}
@@ -105,10 +105,10 @@ func (s *secretWriteServer) Add(ctx context.Context, req *pb.EncrypedSecret) (*e
 
 type secretReadServer struct {
 	pb.UnimplementedSecretReadServiceServer
-	store map[string]*pb.EncrypedSecret
+	store map[string]*pb.EncryptedSecret
 }
 
-func (s *secretReadServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.EncrypedSecret, error) {
+func (s *secretReadServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.EncryptedSecret, error) {
 	secret, ok := s.store[req.SecretName]
 	if !ok {
 		return nil, errors.New("secret not found")
@@ -125,11 +125,11 @@ func (s *secretReadServer) List(_ *emptypb.Empty, stream pb.SecretReadService_Li
 	return nil
 }
 
-func startTestGRPCServerForSecrets(t *testing.T) (*grpc.Server, net.Listener, map[string]*pb.EncrypedSecret) {
+func startTestGRPCServerForSecrets(t *testing.T) (*grpc.Server, net.Listener, map[string]*pb.EncryptedSecret) {
 	lis, err := net.Listen("tcp", ":9091")
 	require.NoError(t, err)
 
-	store := make(map[string]*pb.EncrypedSecret)
+	store := make(map[string]*pb.EncryptedSecret)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterSecretWriteServiceServer(grpcServer, &secretWriteServer{store: store})
@@ -173,13 +173,13 @@ func TestSecretFacades(t *testing.T) {
 	readGRPCFacade := NewSecretGRPCReadFacade(grpcConn)
 
 	// Sample secret to use in tests
-	sampleSecret := &models.EncrypedSecret{
+	sampleSecret := &models.EncryptedSecret{
 		SecretName: "test-secret",
 		SecretType: "type1",
 		Ciphertext: []byte("encrypted-data"),
 		HMAC:       []byte("hmac"),
 		Nonce:      []byte("nonce"),
-		KeyID:      "key123",
+		AESKeyEnc:  []byte("key123"),
 		Timestamp:  time.Now().Unix(),
 	}
 
@@ -266,7 +266,7 @@ type errorSecretWriteServer struct {
 	pb.UnimplementedSecretWriteServiceServer
 }
 
-func (s *errorSecretWriteServer) Add(ctx context.Context, req *pb.EncrypedSecret) (*emptypb.Empty, error) {
+func (s *errorSecretWriteServer) Add(ctx context.Context, req *pb.EncryptedSecret) (*emptypb.Empty, error) {
 	return nil, errors.New("write error")
 }
 
@@ -274,7 +274,7 @@ type errorSecretReadServer struct {
 	pb.UnimplementedSecretReadServiceServer
 }
 
-func (s *errorSecretReadServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.EncrypedSecret, error) {
+func (s *errorSecretReadServer) Get(ctx context.Context, req *pb.GetSecretRequest) (*pb.EncryptedSecret, error) {
 	return nil, errors.New("not found")
 }
 
@@ -325,13 +325,13 @@ func TestSecretFacades_ErrorCases(t *testing.T) {
 	writeGRPCFacade := NewSecretGRPCWriteFacade(grpcConn)
 	readGRPCFacade := NewSecretGRPCReadFacade(grpcConn)
 
-	secret := &models.EncrypedSecret{
+	secret := &models.EncryptedSecret{
 		SecretName: "err-secret",
 		SecretType: "type",
 		Ciphertext: []byte("cipher"),
 		HMAC:       []byte("hmac"),
 		Nonce:      []byte("nonce"),
-		KeyID:      "key",
+		AESKeyEnc:  []byte("key"),
 		Timestamp:  time.Now().Unix(),
 	}
 
