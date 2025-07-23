@@ -24,10 +24,8 @@ import (
 func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 	mux := http.NewServeMux()
 
-	// In-memory store for secrets
 	secretsStore := map[string]*models.EncryptedSecret{}
 
-	// Add secret handler - POST /secret
 	mux.HandleFunc("/secret", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -42,13 +40,11 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Get secret handler - GET /secret/{secretName}
 	mux.HandleFunc("/secret/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		// Extract secretName from URL path
 		secretName := r.URL.Path[len("/secret/"):]
 		secret, ok := secretsStore[secretName]
 		if !ok {
@@ -59,7 +55,6 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 		json.NewEncoder(w).Encode(secret)
 	})
 
-	// List secrets handler - GET /secrets/
 	mux.HandleFunc("/secrets/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -84,7 +79,7 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 		}
 	}()
 
-	time.Sleep(100 * time.Millisecond) // wait for server to start
+	time.Sleep(100 * time.Millisecond)
 	return srv
 }
 
@@ -141,7 +136,7 @@ func startTestGRPCServerForSecrets(t *testing.T) (*grpc.Server, net.Listener, ma
 		}
 	}()
 
-	time.Sleep(100 * time.Millisecond) // wait for server to start
+	time.Sleep(100 * time.Millisecond)
 	return grpcServer, lis, store
 }
 
@@ -159,12 +154,10 @@ func TestSecretFacades(t *testing.T) {
 		lis.Close()
 	}()
 
-	// Setup HTTP facades
 	httpClient := resty.New().SetBaseURL("http://localhost:8081")
 	writeHTTPFacade := &SecretHTTPWriteFacade{client: httpClient}
 	readHTTPFacade := &SecretHTTPReadFacade{client: httpClient}
 
-	// Setup gRPC facades
 	grpcConn, err := grpc.Dial("localhost:9091", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	defer grpcConn.Close()
@@ -172,49 +165,40 @@ func TestSecretFacades(t *testing.T) {
 	writeGRPCFacade := NewSecretGRPCWriteFacade(grpcConn)
 	readGRPCFacade := NewSecretGRPCReadFacade(grpcConn)
 
-	// Sample secret to use in tests
 	sampleSecret := &models.EncryptedSecret{
 		SecretName: "test-secret",
 		SecretType: "type1",
 		Ciphertext: []byte("encrypted-data"),
-		HMAC:       []byte("hmac"),
-		Nonce:      []byte("nonce"),
 		AESKeyEnc:  []byte("key123"),
 		Timestamp:  time.Now().Unix(),
 	}
 
-	// --- HTTP Add secret ---
 	err = writeHTTPFacade.Add(context.Background(), sampleSecret)
 	require.NoError(t, err)
 
-	// --- HTTP Get secret ---
 	gotSecret, err := readHTTPFacade.Get(context.Background(), sampleSecret.SecretName)
 	require.NoError(t, err)
 	require.Equal(t, sampleSecret.SecretName, gotSecret.SecretName)
 	require.Equal(t, sampleSecret.SecretType, gotSecret.SecretType)
 	require.Equal(t, sampleSecret.Ciphertext, gotSecret.Ciphertext)
 
-	// --- HTTP List secrets ---
 	secretsList, err := readHTTPFacade.List(context.Background())
 	require.NoError(t, err)
 	require.Len(t, secretsList, 1)
 	require.Equal(t, sampleSecret.SecretName, secretsList[0].SecretName)
 
-	// --- gRPC Add secret ---
 	err = writeGRPCFacade.Add(context.Background(), sampleSecret)
 	require.NoError(t, err)
 
-	// --- gRPC Get secret ---
 	gotGrpcSecret, err := readGRPCFacade.Get(context.Background(), sampleSecret.SecretName)
 	require.NoError(t, err)
 	require.Equal(t, sampleSecret.SecretName, gotGrpcSecret.SecretName)
 	require.Equal(t, sampleSecret.SecretType, gotGrpcSecret.SecretType)
 	require.Equal(t, sampleSecret.Ciphertext, gotGrpcSecret.Ciphertext)
 
-	// --- gRPC List secrets ---
 	grpcSecretsList, err := readGRPCFacade.List(context.Background())
 	require.NoError(t, err)
-	require.GreaterOrEqual(t, len(grpcSecretsList), 1) // at least one secret
+	require.GreaterOrEqual(t, len(grpcSecretsList), 1)
 	found := false
 	for _, s := range grpcSecretsList {
 		if s.SecretName == sampleSecret.SecretName {
@@ -230,17 +214,14 @@ func TestSecretFacades(t *testing.T) {
 func startErrorHTTPServer(t *testing.T) *http.Server {
 	mux := http.NewServeMux()
 
-	// Add secret - always return 500 error
 	mux.HandleFunc("/secret", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	})
 
-	// Get secret - always return 404 not found
 	mux.HandleFunc("/secret/", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "not found", http.StatusNotFound)
 	})
 
-	// List secrets - always return 500 error
 	mux.HandleFunc("/secrets/", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 	})
@@ -329,38 +310,30 @@ func TestSecretFacades_ErrorCases(t *testing.T) {
 		SecretName: "err-secret",
 		SecretType: "type",
 		Ciphertext: []byte("cipher"),
-		HMAC:       []byte("hmac"),
-		Nonce:      []byte("nonce"),
 		AESKeyEnc:  []byte("key"),
 		Timestamp:  time.Now().Unix(),
 	}
 
-	// HTTP Add error
 	err = writeHTTPFacade.Add(context.Background(), secret)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to add secret")
 
-	// HTTP Get error
 	_, err = readHTTPFacade.Get(context.Background(), secret.SecretName)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to get secret")
 
-	// HTTP List error
 	_, err = readHTTPFacade.List(context.Background())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to list secrets")
 
-	// gRPC Add error
 	err = writeGRPCFacade.Add(context.Background(), secret)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "write error")
 
-	// gRPC Get error
 	_, err = readGRPCFacade.Get(context.Background(), secret.SecretName)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not found")
 
-	// gRPC List error
 	_, err = readGRPCFacade.List(context.Background())
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "list error")

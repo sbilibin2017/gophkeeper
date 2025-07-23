@@ -93,10 +93,8 @@ func (f *SecretGRPCWriteFacade) Add(ctx context.Context, secret *models.Encrypte
 		SecretName: secret.SecretName,
 		SecretType: secret.SecretType,
 		Ciphertext: secret.Ciphertext,
-		Hmac:       secret.HMAC,
 		AesKeyEnc:  secret.AESKeyEnc,
-		Nonce:      secret.Nonce,
-		Timestamp:  secret.Timestamp, // plain int64 unix timestamp
+		Timestamp:  secret.Timestamp,
 	}
 
 	_, err := f.client.Add(ctx, req)
@@ -126,16 +124,12 @@ func (f *SecretGRPCReadFacade) Get(ctx context.Context, secretName string) (*mod
 		return nil, err
 	}
 
-	ts := resp.Timestamp // int64 from proto
-
 	return &models.EncryptedSecret{
 		SecretName: resp.SecretName,
 		SecretType: resp.SecretType,
 		Ciphertext: resp.Ciphertext,
-		HMAC:       resp.Hmac,
 		AESKeyEnc:  resp.AesKeyEnc,
-		Nonce:      resp.Nonce,
-		Timestamp:  ts,
+		Timestamp:  resp.Timestamp,
 	}, nil
 }
 
@@ -156,16 +150,12 @@ func (f *SecretGRPCReadFacade) List(ctx context.Context) ([]*models.EncryptedSec
 			return nil, err
 		}
 
-		ts := secretProto.Timestamp // int64 from proto
-
 		secrets = append(secrets, &models.EncryptedSecret{
 			SecretName: secretProto.SecretName,
 			SecretType: secretProto.SecretType,
 			Ciphertext: secretProto.Ciphertext,
-			HMAC:       secretProto.Hmac,
 			AESKeyEnc:  secretProto.AesKeyEnc,
-			Nonce:      secretProto.Nonce,
-			Timestamp:  ts,
+			Timestamp:  secretProto.Timestamp,
 		})
 	}
 
