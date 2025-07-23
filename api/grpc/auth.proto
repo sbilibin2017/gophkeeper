@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "pkg/grpc";
+
+import "google/protobuf/empty.proto";
+
+message AuthRequest {
+  string username = 1;
+  string password = 2;  
+}
+
+message AuthResponse {
+  string token = 1;
+}
+
+service AuthService {
+  rpc Register(AuthRequest) returns (AuthResponse);
+  rpc Login(AuthRequest) returns (AuthResponse);
+  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
