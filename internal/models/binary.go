@@ -22,3 +22,11 @@ func (b *Binary) GetSecretName() string {
 func (b *Binary) GetUpdatedAt() time.Time {
 	return b.UpdatedAt
 }
+
+// BinaryData contains the actual binary data, file path, optional metadata, and last update timestamp.
+// This struct can be used separately from Binary when you don't need to include secret ownership information.
+type BinaryData struct {
+	FilePath string  `json:"file_path"`      // Path to the binary file
+	Data     []byte  `json:"data"`           // Binary data content
+	Meta     *string `json:"meta,omitempty"` // Optional metadata
+}
