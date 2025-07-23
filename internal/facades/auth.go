@@ -16,6 +16,13 @@ type AuthHTTPFacade struct {
 	client *resty.Client
 }
 
+// NewAuthHTTPFacade creates a new HTTP facade for AuthService.
+func NewAuthHTTPFacade(client *resty.Client) *AuthHTTPFacade {
+	return &AuthHTTPFacade{
+		client: client,
+	}
+}
+
 // Register sends user registration data to the HTTP API and returns AuthResponse.
 func (f *AuthHTTPFacade) Register(
 	ctx context.Context, req *models.AuthRequest,

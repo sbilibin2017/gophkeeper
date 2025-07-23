@@ -101,7 +101,7 @@ func TestWithEmbeddedServers(t *testing.T) {
 	}()
 
 	// HTTP facade setup
-	httpFacade := &AuthHTTPFacade{client: resty.New().SetBaseURL("http://localhost:8080")}
+	httpFacade := NewAuthHTTPFacade(resty.New().SetBaseURL("http://localhost:8080"))
 
 	// gRPC facade setup
 	grpcConn, err := grpc.Dial("localhost:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
