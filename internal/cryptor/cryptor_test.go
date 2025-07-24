@@ -84,7 +84,7 @@ func TestCryptor_NewCryptor_WithOpts(t *testing.T) {
 
 	// Instead, let's test only WithPrivateKeyFromFile here, as example:
 
-	c, err := NewCryptor(
+	c, err := New(
 		WithPrivateKeyFromFile(privFile),
 	)
 	require.NoError(t, err)

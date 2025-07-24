@@ -10,42 +10,39 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// Getter defines the interface to retrieve a specific encrypted secret.
-type Getter interface {
+// Reader defines the interface to retrieve encrypted secrets.
+type Reader interface {
 	Get(ctx context.Context, secretName string) (*models.EncryptedSecret, error)
-}
-
-// Lister defines the interface to retrieve all encrypted secrets.
-type Lister interface {
 	List(ctx context.Context) ([]*models.EncryptedSecret, error)
 }
 
-// Decryptor defines the interface to decrypt data using the cryptographic layer.
+// Decryptor defines the interface to decrypt data.
 type Decryptor interface {
 	Decrypt(encrypted *cryptor.Encrypted) ([]byte, error)
 }
 
 // SecretReader provides methods to fetch and decrypt secrets.
 type SecretReader struct {
-	lister    Lister
-	getter    Getter
+	reader    Reader
 	decryptor Decryptor
 }
 
 // NewSecretReader constructs a new SecretReader.
-func NewSecretReader(getter Getter, lister Lister, decryptor Decryptor) *SecretReader {
+func NewSecretReader(reader Reader, decryptor Decryptor) *SecretReader {
 	return &SecretReader{
-		getter:    getter,
-		lister:    lister,
+		reader:    reader,
 		decryptor: decryptor,
 	}
 }
 
 // Get retrieves and decrypts a single secret by name.
 func (s *SecretReader) Get(ctx context.Context, secretName string) (*string, error) {
-	encryptedSecret, err := s.getter.Get(ctx, secretName)
+	encryptedSecret, err := s.reader.Get(ctx, secretName)
 	if err != nil {
 		return nil, err
+	}
+	if encryptedSecret == nil {
+		return nil, nil
 	}
 
 	enc := &cryptor.Encrypted{
@@ -103,7 +100,7 @@ func (s *SecretReader) Get(ctx context.Context, secretName string) (*string, err
 
 // List retrieves and decrypts all available secrets.
 func (s *SecretReader) List(ctx context.Context) ([]string, error) {
-	encryptedSecrets, err := s.lister.List(ctx)
+	encryptedSecrets, err := s.reader.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -166,13 +163,9 @@ func (s *SecretReader) List(ctx context.Context) ([]string, error) {
 	return secrets, nil
 }
 
-// Saver defines the interface to persist a secret.
-type Saver interface {
+// Writer defines the interface to persist or delete a secret.
+type Writer interface {
 	Save(ctx context.Context, secret *models.EncryptedSecret) error
-}
-
-// Deleter defines the interface to delete a secret.
-type Deleter interface {
 	Delete(ctx context.Context, secretName string) error
 }
 
@@ -183,16 +176,14 @@ type Encryptor interface {
 
 // SecretWriter provides methods to encrypt and store secrets.
 type SecretWriter struct {
-	saver     Saver
-	deleter   Deleter
+	writer    Writer
 	encryptor Encryptor
 }
 
 // NewSecretWriter constructs a new SecretWriter.
-func NewSecretWriter(saver Saver, deleter Deleter, encryptor Encryptor) *SecretWriter {
+func NewSecretWriter(writer Writer, encryptor Encryptor) *SecretWriter {
 	return &SecretWriter{
-		saver:     saver,
-		deleter:   deleter,
+		writer:    writer,
 		encryptor: encryptor,
 	}
 }
@@ -216,7 +207,7 @@ func (s *SecretWriter) AddBankCard(ctx context.Context, secretName string, paylo
 		AESKeyEnc:  enc.AESKeyEnc,
 	}
 
-	return s.saver.Save(ctx, secret)
+	return s.writer.Save(ctx, secret)
 }
 
 // AddBinary encrypts and stores a binary secret.
@@ -238,7 +229,7 @@ func (s *SecretWriter) AddBinary(ctx context.Context, secretName string, payload
 		AESKeyEnc:  enc.AESKeyEnc,
 	}
 
-	return s.saver.Save(ctx, secret)
+	return s.writer.Save(ctx, secret)
 }
 
 // AddText encrypts and stores a text secret.
@@ -260,7 +251,7 @@ func (s *SecretWriter) AddText(ctx context.Context, secretName string, payload m
 		AESKeyEnc:  enc.AESKeyEnc,
 	}
 
-	return s.saver.Save(ctx, secret)
+	return s.writer.Save(ctx, secret)
 }
 
 // AddUser encrypts and stores a user credential secret.
@@ -282,10 +273,10 @@ func (s *SecretWriter) AddUser(ctx context.Context, secretName string, payload m
 		AESKeyEnc:  enc.AESKeyEnc,
 	}
 
-	return s.saver.Save(ctx, secret)
+	return s.writer.Save(ctx, secret)
 }
 
 // Delete removes a secret by name.
 func (s *SecretWriter) Delete(ctx context.Context, secretName string) error {
-	return s.deleter.Delete(ctx, secretName)
+	return s.writer.Delete(ctx, secretName)
 }

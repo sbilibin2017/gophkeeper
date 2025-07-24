@@ -7,558 +7,536 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/sbilibin2017/gophkeeper/internal/cryptor"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSecretReader_Get(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	ctx := context.Background()
+	secretName := "mySecret"
 
-	tests := []struct {
-		name       string
-		secretType string
-		plaintext  []byte
-		expected   map[string]interface{}
-	}{
-		{
-			name:       "Successful_BankCard",
-			secretType: models.SecretTypeBankCard,
-			plaintext: mustMarshalJSON(t, models.BankCardPayload{
-				Number: "1234",
-				Owner:  "John Doe",
-				Exp:    "12/25",
-				CVV:    "123",
-				Meta:   nil,
-			}),
-			expected: map[string]interface{}{
-				"number":       "1234",
-				"owner":        "John Doe",
-				"exp":          "12/25",
-				"cvv":          "123",
-				"secret_name":  "",
-				"secret_owner": "",
-			},
-		},
-		{
-			name:       "Successful_Binary",
-			secretType: models.SecretTypeBinary,
-			plaintext: mustMarshalJSON(t, models.BinaryPayload{
-				FilePath: "/tmp/file.bin",
-				Data:     []byte("hello"),
-				Meta:     nil,
-			}),
-			expected: map[string]interface{}{
-				"file_path":    "/tmp/file.bin",
-				"data":         "aGVsbG8=",
-				"secret_name":  "",
-				"secret_owner": "",
-			},
-		},
-		{
-			name:       "Successful_Text",
-			secretType: models.SecretTypeText,
-			plaintext: mustMarshalJSON(t, models.TextPayload{
-				Data: "some secret text",
-				Meta: nil,
-			}),
-			expected: map[string]interface{}{
-				"data":         "some secret text",
-				"secret_name":  "",
-				"secret_owner": "",
-			},
-		},
-		{
-			name:       "Successful_User",
-			secretType: models.SecretTypeUser,
-			plaintext: mustMarshalJSON(t, models.UserPayload{
-				Login:    "user123",
-				Password: "pass123",
-				Meta:     nil,
-			}),
-			expected: map[string]interface{}{
-				"login":        "user123",
-				"password":     "pass123",
-				"secret_name":  "",
-				"secret_owner": "",
-			},
-		},
+	// Helper to build encryptedSecret and encryptedData for each test
+	makeEncryptedSecret := func(secretType string) (*models.EncryptedSecret, *cryptor.Encrypted) {
+		encryptedSecret := &models.EncryptedSecret{
+			SecretType: secretType,
+			Ciphertext: []byte("ciphertext"),
+			AESKeyEnc:  []byte("keyenc"),
+		}
+		encryptedData := &cryptor.Encrypted{
+			Ciphertext: encryptedSecret.Ciphertext,
+			AESKeyEnc:  encryptedSecret.AESKeyEnc,
+		}
+		return encryptedSecret, encryptedData
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockGetter := NewMockGetter(ctrl)
-			mockLister := NewMockLister(ctrl) // create mockLister
-			mockDecryptor := NewMockDecryptor(ctrl)
+	t.Run("success bank card secret", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
 
-			sr := NewSecretReader(mockGetter, mockLister, mockDecryptor)
+		payload := models.BankCard{
+			Number: "1234567890",
+			CVV:    "123",
+		}
+		plaintext, _ := json.Marshal(payload)
+		encryptedSecret, encryptedData := makeEncryptedSecret(models.SecretTypeBankCard)
 
-			encryptedSecret := &models.EncryptedSecret{
-				Ciphertext: tt.plaintext,
-				AESKeyEnc:  []byte("somekey"),
-				SecretType: tt.secretType,
-			}
+		mockReader.EXPECT().Get(ctx, secretName).Return(encryptedSecret, nil)
+		mockDecryptor.EXPECT().Decrypt(encryptedData).Return(plaintext, nil)
 
-			mockGetter.EXPECT().
-				Get(gomock.Any(), gomock.Any()).
-				Return(encryptedSecret, nil).
-				Times(1)
+		result, err := secretReader.Get(ctx, secretName)
+		assert.NoError(t, err)
 
-			mockDecryptor.EXPECT().
-				Decrypt(gomock.Any()).
-				Return(tt.plaintext, nil).
-				Times(1)
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Equal(t, string(expectedJSON), *result)
+	})
 
-			secretJSON, err := sr.Get(context.Background(), "any-secret")
-			require.NoError(t, err)
-			require.NotNil(t, secretJSON)
+	t.Run("success binary secret", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
 
-			var actual map[string]interface{}
-			err = json.Unmarshal([]byte(*secretJSON), &actual)
-			require.NoError(t, err)
+		payload := models.Binary{
+			FileName: "file.txt",
+			Data:     []byte{1, 2, 3},
+		}
+		plaintext, _ := json.Marshal(payload)
+		encryptedSecret, encryptedData := makeEncryptedSecret(models.SecretTypeBinary)
 
-			delete(actual, "updated_at")
+		mockReader.EXPECT().Get(ctx, secretName).Return(encryptedSecret, nil)
+		mockDecryptor.EXPECT().Decrypt(encryptedData).Return(plaintext, nil)
 
-			assert.Equal(t, tt.expected, actual)
-		})
-	}
+		result, err := secretReader.Get(ctx, secretName)
+		assert.NoError(t, err)
+
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Equal(t, string(expectedJSON), *result)
+	})
+
+	t.Run("success text secret", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+		payload := models.Text{
+			Data: "some text data",
+		}
+		plaintext, _ := json.Marshal(payload)
+		encryptedSecret, encryptedData := makeEncryptedSecret(models.SecretTypeText)
+
+		mockReader.EXPECT().Get(ctx, secretName).Return(encryptedSecret, nil)
+		mockDecryptor.EXPECT().Decrypt(encryptedData).Return(plaintext, nil)
+
+		result, err := secretReader.Get(ctx, secretName)
+		assert.NoError(t, err)
+
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Equal(t, string(expectedJSON), *result)
+	})
+
+	t.Run("success user secret", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+		payload := models.User{
+			Login:    "user1",
+			Password: "pass1",
+		}
+		plaintext, _ := json.Marshal(payload)
+		encryptedSecret, encryptedData := makeEncryptedSecret(models.SecretTypeUser)
+
+		mockReader.EXPECT().Get(ctx, secretName).Return(encryptedSecret, nil)
+		mockDecryptor.EXPECT().Decrypt(encryptedData).Return(plaintext, nil)
+
+		result, err := secretReader.Get(ctx, secretName)
+		assert.NoError(t, err)
+
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Equal(t, string(expectedJSON), *result)
+	})
+
+	t.Run("secret not found", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+		mockReader.EXPECT().Get(ctx, secretName).Return(nil, nil)
+
+		result, err := secretReader.Get(ctx, secretName)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("reader returns error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+		mockReader.EXPECT().Get(ctx, secretName).Return(nil, errors.New("db error"))
+
+		result, err := secretReader.Get(ctx, secretName)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("decryptor returns error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+		encryptedSecret, encryptedData := makeEncryptedSecret(models.SecretTypeBankCard)
+
+		mockReader.EXPECT().Get(ctx, secretName).Return(encryptedSecret, nil)
+		mockDecryptor.EXPECT().Decrypt(encryptedData).Return(nil, errors.New("decrypt error"))
+
+		result, err := secretReader.Get(ctx, secretName)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("unmarshal error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+		encryptedSecret, encryptedData := makeEncryptedSecret(models.SecretTypeBankCard)
+
+		mockReader.EXPECT().Get(ctx, secretName).Return(encryptedSecret, nil)
+		mockDecryptor.EXPECT().Decrypt(encryptedData).Return([]byte("invalid json"), nil)
+
+		result, err := secretReader.Get(ctx, secretName)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("unknown secret type returns nil", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockReader := NewMockReader(ctrl)
+		mockDecryptor := NewMockDecryptor(ctrl)
+		secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+		unknownSecret, encryptedData := makeEncryptedSecret("unknown-type")
+		mockReader.EXPECT().Get(ctx, secretName).Return(unknownSecret, nil)
+		// Expect Decrypt call even for unknown type (returns dummy valid JSON)
+		mockDecryptor.EXPECT().Decrypt(encryptedData).Return([]byte("{}"), nil)
+
+		result, err := secretReader.Get(ctx, secretName)
+		assert.NoError(t, err)
+		assert.Nil(t, result)
+	})
 }
-
-func mustMarshalJSON(t *testing.T, v interface{}) []byte {
-	t.Helper()
-	b, err := json.Marshal(v)
-	require.NoError(t, err)
-	return b
-}
-
 func TestSecretReader_List(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockLister := NewMockLister(ctrl)
+	mockReader := NewMockReader(ctrl)
 	mockDecryptor := NewMockDecryptor(ctrl)
 
-	reader := SecretReader{
-		lister:    mockLister,
-		decryptor: mockDecryptor,
+	secretReader := NewSecretReader(mockReader, mockDecryptor)
+
+	ctx := context.Background()
+
+	// Helper to create encrypted secret and plaintext for a secret type + payload
+	makeTestData := func(secretType string, payload interface{}) (*models.EncryptedSecret, *cryptor.Encrypted, []byte) {
+		plaintext, _ := json.Marshal(payload)
+		encryptedSecret := &models.EncryptedSecret{
+			SecretType: secretType,
+			SecretName: "secret1",
+			Ciphertext: []byte("ciphertext"),
+			AESKeyEnc:  []byte("keyenc"),
+		}
+		encryptedData := &cryptor.Encrypted{
+			Ciphertext: encryptedSecret.Ciphertext,
+			AESKeyEnc:  encryptedSecret.AESKeyEnc,
+		}
+		return encryptedSecret, encryptedData, plaintext
 	}
 
-	tests := []struct {
-		name             string
-		listerResp       []*models.EncryptedSecret
-		listerErr        error
-		decryptResponses map[string][]byte
-		decryptErr       error
-		expectedCount    int
-		expectedErr      bool
-	}{
-		{
-			name: "Successful list including Binary and User",
-			listerResp: []*models.EncryptedSecret{
-				{SecretType: models.SecretTypeBankCard, Ciphertext: []byte("c1"), AESKeyEnc: []byte("k1")},
-				{SecretType: models.SecretTypeBinary, Ciphertext: []byte("c2"), AESKeyEnc: []byte("k2")},
-				{SecretType: models.SecretTypeUser, Ciphertext: []byte("c3"), AESKeyEnc: []byte("k3")},
-				{SecretType: models.SecretTypeText, Ciphertext: []byte("c4"), AESKeyEnc: []byte("k4")},
-				{SecretType: "unknown", Ciphertext: []byte("c5"), AESKeyEnc: []byte("k5")},
-			},
-			decryptResponses: map[string][]byte{
-				models.SecretTypeBankCard: []byte(`{"number":"1234","owner":"John","exp":"12/25","cvv":"123"}`),
-				models.SecretTypeBinary:   []byte(`{"file_path":"/tmp/file.bin","data":"aGVsbG8="}`),
-				models.SecretTypeUser:     []byte(`{"login":"user123","password":"pass123"}`),
-				models.SecretTypeText:     []byte(`{"data":"some secret text"}`),
-			},
-			expectedCount: 4,
-		},
-		{
-			name:        "Lister returns error",
-			listerErr:   errors.New("list failed"),
-			expectedErr: true,
-		},
-		{
-			name: "Decrypt returns error",
-			listerResp: []*models.EncryptedSecret{
-				{SecretType: models.SecretTypeText, Ciphertext: []byte("c"), AESKeyEnc: []byte("k")},
-			},
-			decryptErr:  errors.New("decrypt failed"),
-			expectedErr: true,
-		},
-	}
+	t.Run("success list text secret", func(t *testing.T) {
+		payload := models.Text{Data: "Hello world"}
+		encryptedSecret, encryptedData, plaintext := makeTestData(models.SecretTypeText, payload)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+		mockReader.EXPECT().List(ctx).Return([]*models.EncryptedSecret{encryptedSecret}, nil)
+		mockDecryptor.EXPECT().Decrypt(gomock.Eq(encryptedData)).Return(plaintext, nil)
 
-			mockLister.EXPECT().
-				List(ctx).
-				Return(tt.listerResp, tt.listerErr).
-				Times(1)
+		result, err := secretReader.List(ctx)
+		assert.NoError(t, err)
 
-			if tt.listerErr == nil {
-				for _, es := range tt.listerResp {
-					if tt.decryptErr != nil {
-						mockDecryptor.EXPECT().
-							Decrypt(gomock.Any()).
-							Return(nil, tt.decryptErr).
-							Times(1)
-						break
-					}
-					resp, ok := tt.decryptResponses[es.SecretType]
-					if !ok {
-						resp = []byte(`{}`)
-					}
-					mockDecryptor.EXPECT().
-						Decrypt(gomock.Any()).
-						Return(resp, nil).
-						Times(1)
-				}
-			}
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Len(t, result, 1)
+		assert.Equal(t, string(expectedJSON), result[0])
+	})
 
-			result, err := reader.List(ctx)
+	t.Run("success list bank card secret", func(t *testing.T) {
+		payload := models.BankCard{Number: "1234567890", CVV: "123"}
+		encryptedSecret, encryptedData, plaintext := makeTestData(models.SecretTypeBankCard, payload)
 
-			if tt.expectedErr {
-				assert.Error(t, err)
-				assert.Nil(t, result)
-			} else {
-				assert.NoError(t, err)
-				expectedCount := 0
-				for _, s := range tt.listerResp {
-					switch s.SecretType {
-					case models.SecretTypeBankCard, models.SecretTypeBinary, models.SecretTypeUser, models.SecretTypeText:
-						expectedCount++
-					}
-				}
-				assert.Len(t, result, expectedCount)
-			}
-		})
-	}
+		mockReader.EXPECT().List(ctx).Return([]*models.EncryptedSecret{encryptedSecret}, nil)
+		mockDecryptor.EXPECT().Decrypt(gomock.Eq(encryptedData)).Return(plaintext, nil)
+
+		result, err := secretReader.List(ctx)
+		assert.NoError(t, err)
+
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Len(t, result, 1)
+		assert.Equal(t, string(expectedJSON), result[0])
+	})
+
+	t.Run("success list binary secret", func(t *testing.T) {
+		payload := models.Binary{FileName: "file.txt", Data: []byte{1, 2, 3}}
+		encryptedSecret, encryptedData, plaintext := makeTestData(models.SecretTypeBinary, payload)
+
+		mockReader.EXPECT().List(ctx).Return([]*models.EncryptedSecret{encryptedSecret}, nil)
+		mockDecryptor.EXPECT().Decrypt(gomock.Eq(encryptedData)).Return(plaintext, nil)
+
+		result, err := secretReader.List(ctx)
+		assert.NoError(t, err)
+
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Len(t, result, 1)
+		assert.Equal(t, string(expectedJSON), result[0])
+	})
+
+	t.Run("success list user secret", func(t *testing.T) {
+		payload := models.User{Login: "user1", Password: "pass1"}
+		encryptedSecret, encryptedData, plaintext := makeTestData(models.SecretTypeUser, payload)
+
+		mockReader.EXPECT().List(ctx).Return([]*models.EncryptedSecret{encryptedSecret}, nil)
+		mockDecryptor.EXPECT().Decrypt(gomock.Eq(encryptedData)).Return(plaintext, nil)
+
+		result, err := secretReader.List(ctx)
+		assert.NoError(t, err)
+
+		expectedJSON, _ := json.MarshalIndent(payload, "", "  ")
+		assert.Len(t, result, 1)
+		assert.Equal(t, string(expectedJSON), result[0])
+	})
+
+	// Existing error & edge cases
+	t.Run("reader returns error", func(t *testing.T) {
+		mockReader.EXPECT().List(ctx).Return(nil, errors.New("db error"))
+
+		result, err := secretReader.List(ctx)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("decryptor returns error", func(t *testing.T) {
+		payload := models.Text{Data: "fail decrypt"}
+		encryptedSecret, encryptedData, _ := makeTestData(models.SecretTypeText, payload)
+
+		mockReader.EXPECT().List(ctx).Return([]*models.EncryptedSecret{encryptedSecret}, nil)
+		mockDecryptor.EXPECT().Decrypt(gomock.Eq(encryptedData)).Return(nil, errors.New("decrypt error"))
+
+		result, err := secretReader.List(ctx)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("unmarshal error", func(t *testing.T) {
+		encryptedSecret := &models.EncryptedSecret{
+			SecretType: models.SecretTypeText,
+			SecretName: "secret1",
+			Ciphertext: []byte("ciphertext"),
+			AESKeyEnc:  []byte("keyenc"),
+		}
+		encryptedData := &cryptor.Encrypted{
+			Ciphertext: encryptedSecret.Ciphertext,
+			AESKeyEnc:  encryptedSecret.AESKeyEnc,
+		}
+
+		mockReader.EXPECT().List(ctx).Return([]*models.EncryptedSecret{encryptedSecret}, nil)
+		mockDecryptor.EXPECT().Decrypt(gomock.Eq(encryptedData)).Return([]byte("bad json"), nil)
+
+		result, err := secretReader.List(ctx)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("unknown secret type ignored", func(t *testing.T) {
+		unknownSecret := &models.EncryptedSecret{
+			SecretType: "unknown-type",
+			SecretName: "unknown",
+			Ciphertext: []byte("ct"),
+			AESKeyEnc:  []byte("key"),
+		}
+
+		mockReader.EXPECT().List(ctx).Return([]*models.EncryptedSecret{unknownSecret}, nil)
+		// If decryptor called, return nil plaintext and no error (should be ignored anyway)
+		mockDecryptor.EXPECT().Decrypt(gomock.Any()).AnyTimes().Return(nil, nil)
+
+		result, err := secretReader.List(ctx)
+		assert.NoError(t, err)
+		assert.Len(t, result, 0)
+	})
 }
 
-func TestSecretWriter_AddBankCard(t *testing.T) {
+func TestSecretWriter_AddBinaryTextUser(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockSaver := NewMockSaver(ctrl)
+	mockWriter := NewMockWriter(ctrl)
 	mockEncryptor := NewMockEncryptor(ctrl)
 
-	writer := SecretWriter{
-		saver:     mockSaver,
-		encryptor: mockEncryptor,
-	}
+	secretWriter := NewSecretWriter(mockWriter, mockEncryptor)
 
-	payload := models.BankCardPayload{
-		Number: "1234",
-		Owner:  "John Doe",
-	}
+	ctx := context.Background()
+	secretName := "mySecret"
 
-	tests := []struct {
-		name        string
-		encryptResp *cryptor.Encrypted
-		encryptErr  error
-		saveErr     error
-		expectedErr bool
-	}{
-		{
-			name: "Success",
-			encryptResp: &cryptor.Encrypted{
-				Ciphertext: []byte("cipher"),
-				AESKeyEnc:  []byte("key"),
-			},
-		},
-		{
-			name:        "Encrypt error",
-			encryptErr:  errors.New("encrypt failed"),
-			expectedErr: true,
-		},
-		{
-			name:        "Save error",
-			encryptResp: &cryptor.Encrypted{Ciphertext: []byte("cipher"), AESKeyEnc: []byte("key")},
-			saveErr:     errors.New("save failed"),
-			expectedErr: true,
-		},
-	}
+	t.Run("AddBinary success", func(t *testing.T) {
+		payload := models.BinaryPayload{
+			FileName: "file.bin",
+			Data:     []byte{1, 2, 3},
+		}
+		plaintext, _ := json.Marshal(payload)
+		encrypted := &cryptor.Encrypted{
+			Ciphertext: []byte("ciphertext"),
+			AESKeyEnc:  []byte("keyenc"),
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(encrypted, nil)
 
-			mockEncryptor.EXPECT().
-				Encrypt(gomock.Any()).
-				Return(tt.encryptResp, tt.encryptErr).
-				Times(1)
+		expectedSecret := &models.EncryptedSecret{
+			SecretType: models.SecretTypeBinary,
+			SecretName: secretName,
+			Ciphertext: encrypted.Ciphertext,
+			AESKeyEnc:  encrypted.AESKeyEnc,
+		}
 
-			if tt.encryptErr == nil {
-				mockSaver.EXPECT().
-					Save(ctx, gomock.AssignableToTypeOf(&models.EncryptedSecret{})).
-					Return(tt.saveErr).
-					Times(1)
-			}
+		mockWriter.EXPECT().Save(ctx, expectedSecret).Return(nil)
 
-			err := writer.AddBankCard(ctx, "secret1", payload)
+		err := secretWriter.AddBinary(ctx, secretName, payload)
+		assert.NoError(t, err)
+	})
 
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
+	t.Run("AddBinary encrypt error", func(t *testing.T) {
+		payload := models.BinaryPayload{
+			FileName: "file.bin",
+			Data:     []byte{4, 5, 6},
+		}
+		plaintext, _ := json.Marshal(payload)
 
-func TestSecretWriter_AddBinary(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(nil, errors.New("encrypt error"))
 
-	mockSaver := NewMockSaver(ctrl)
-	mockEncryptor := NewMockEncryptor(ctrl)
+		err := secretWriter.AddBinary(ctx, secretName, payload)
+		assert.Error(t, err)
+	})
 
-	writer := SecretWriter{
-		saver:     mockSaver,
-		encryptor: mockEncryptor,
-	}
+	t.Run("AddText success", func(t *testing.T) {
+		payload := models.TextPayload{
+			Data: "some text",
+		}
+		plaintext, _ := json.Marshal(payload)
+		encrypted := &cryptor.Encrypted{
+			Ciphertext: []byte("ciphertext-text"),
+			AESKeyEnc:  []byte("keyenc-text"),
+		}
 
-	payload := models.BinaryPayload{
-		Data: []byte{0x01, 0x02},
-	}
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(encrypted, nil)
 
-	tests := []struct {
-		name        string
-		encryptResp *cryptor.Encrypted
-		encryptErr  error
-		saveErr     error
-		expectedErr bool
-	}{
-		{
-			name: "Success",
-			encryptResp: &cryptor.Encrypted{
-				Ciphertext: []byte("cipher"),
-				AESKeyEnc:  []byte("key"),
-			},
-		},
-		{
-			name:        "Encrypt error",
-			encryptErr:  errors.New("encrypt failed"),
-			expectedErr: true,
-		},
-		{
-			name:        "Save error",
-			encryptResp: &cryptor.Encrypted{Ciphertext: []byte("cipher"), AESKeyEnc: []byte("key")},
-			saveErr:     errors.New("save failed"),
-			expectedErr: true,
-		},
-	}
+		expectedSecret := &models.EncryptedSecret{
+			SecretType: models.SecretTypeText,
+			SecretName: secretName,
+			Ciphertext: encrypted.Ciphertext,
+			AESKeyEnc:  encrypted.AESKeyEnc,
+		}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+		mockWriter.EXPECT().Save(ctx, expectedSecret).Return(nil)
 
-			mockEncryptor.EXPECT().
-				Encrypt(gomock.Any()).
-				Return(tt.encryptResp, tt.encryptErr).
-				Times(1)
+		err := secretWriter.AddText(ctx, secretName, payload)
+		assert.NoError(t, err)
+	})
 
-			if tt.encryptErr == nil {
-				mockSaver.EXPECT().
-					Save(ctx, gomock.AssignableToTypeOf(&models.EncryptedSecret{})).
-					Return(tt.saveErr).
-					Times(1)
-			}
+	t.Run("AddText encrypt error", func(t *testing.T) {
+		payload := models.TextPayload{
+			Data: "fail encrypt",
+		}
+		plaintext, _ := json.Marshal(payload)
 
-			err := writer.AddBinary(ctx, "secret1", payload)
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(nil, errors.New("encrypt error"))
 
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
+		err := secretWriter.AddText(ctx, secretName, payload)
+		assert.Error(t, err)
+	})
 
-func TestSecretWriter_AddText(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	t.Run("AddUser success", func(t *testing.T) {
+		payload := models.UserPayload{
+			Login:    "user1",
+			Password: "pass123",
+		}
+		plaintext, _ := json.Marshal(payload)
+		encrypted := &cryptor.Encrypted{
+			Ciphertext: []byte("ciphertext-user"),
+			AESKeyEnc:  []byte("keyenc-user"),
+		}
 
-	mockSaver := NewMockSaver(ctrl)
-	mockEncryptor := NewMockEncryptor(ctrl)
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(encrypted, nil)
 
-	writer := SecretWriter{
-		saver:     mockSaver,
-		encryptor: mockEncryptor,
-	}
+		expectedSecret := &models.EncryptedSecret{
+			SecretType: models.SecretTypeUser,
+			SecretName: secretName,
+			Ciphertext: encrypted.Ciphertext,
+			AESKeyEnc:  encrypted.AESKeyEnc,
+		}
 
-	payload := models.TextPayload{
-		Data: "some text",
-	}
+		mockWriter.EXPECT().Save(ctx, expectedSecret).Return(nil)
 
-	tests := []struct {
-		name        string
-		encryptResp *cryptor.Encrypted
-		encryptErr  error
-		saveErr     error
-		expectedErr bool
-	}{
-		{
-			name: "Success",
-			encryptResp: &cryptor.Encrypted{
-				Ciphertext: []byte("cipher"),
-				AESKeyEnc:  []byte("key"),
-			},
-		},
-		{
-			name:        "Encrypt error",
-			encryptErr:  errors.New("encrypt failed"),
-			expectedErr: true,
-		},
-		{
-			name:        "Save error",
-			encryptResp: &cryptor.Encrypted{Ciphertext: []byte("cipher"), AESKeyEnc: []byte("key")},
-			saveErr:     errors.New("save failed"),
-			expectedErr: true,
-		},
-	}
+		err := secretWriter.AddUser(ctx, secretName, payload)
+		assert.NoError(t, err)
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+	t.Run("AddUser encrypt error", func(t *testing.T) {
+		payload := models.UserPayload{
+			Login:    "user2",
+			Password: "failencrypt",
+		}
+		plaintext, _ := json.Marshal(payload)
 
-			mockEncryptor.EXPECT().
-				Encrypt(gomock.Any()).
-				Return(tt.encryptResp, tt.encryptErr).
-				Times(1)
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(nil, errors.New("encrypt error"))
 
-			if tt.encryptErr == nil {
-				mockSaver.EXPECT().
-					Save(ctx, gomock.AssignableToTypeOf(&models.EncryptedSecret{})).
-					Return(tt.saveErr).
-					Times(1)
-			}
+		err := secretWriter.AddUser(ctx, secretName, payload)
+		assert.Error(t, err)
+	})
 
-			err := writer.AddText(ctx, "secret1", payload)
+	t.Run("AddBankCard success", func(t *testing.T) {
+		payload := models.BankCardPayload{
+			Number: "1234567890",
+			CVV:    "123",
+		}
+		plaintext, _ := json.Marshal(payload)
+		encrypted := &cryptor.Encrypted{
+			Ciphertext: []byte("ciphertext-bankcard"),
+			AESKeyEnc:  []byte("keyenc-bankcard"),
+		}
 
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(encrypted, nil)
 
-func TestSecretWriter_AddUser(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		expectedSecret := &models.EncryptedSecret{
+			SecretType: models.SecretTypeBankCard,
+			SecretName: secretName,
+			Ciphertext: encrypted.Ciphertext,
+			AESKeyEnc:  encrypted.AESKeyEnc,
+		}
 
-	mockSaver := NewMockSaver(ctrl)
-	mockEncryptor := NewMockEncryptor(ctrl)
+		mockWriter.EXPECT().Save(ctx, expectedSecret).Return(nil)
 
-	writer := SecretWriter{
-		saver:     mockSaver,
-		encryptor: mockEncryptor,
-	}
+		err := secretWriter.AddBankCard(ctx, secretName, payload)
+		assert.NoError(t, err)
+	})
+	t.Run("AddBankCard encrypt error", func(t *testing.T) {
+		payload := models.BankCardPayload{
+			Number: "0000000000",
+			CVV:    "999",
+		}
+		plaintext, _ := json.Marshal(payload)
 
-	payload := models.UserPayload{
-		Login:    "login",
-		Password: "pass",
-	}
+		mockEncryptor.EXPECT().Encrypt(plaintext).Return(nil, errors.New("encrypt error"))
 
-	tests := []struct {
-		name        string
-		encryptResp *cryptor.Encrypted
-		encryptErr  error
-		saveErr     error
-		expectedErr bool
-	}{
-		{
-			name: "Success",
-			encryptResp: &cryptor.Encrypted{
-				Ciphertext: []byte("cipher"),
-				AESKeyEnc:  []byte("key"),
-			},
-		},
-		{
-			name:        "Encrypt error",
-			encryptErr:  errors.New("encrypt failed"),
-			expectedErr: true,
-		},
-		{
-			name:        "Save error",
-			encryptResp: &cryptor.Encrypted{Ciphertext: []byte("cipher"), AESKeyEnc: []byte("key")},
-			saveErr:     errors.New("save failed"),
-			expectedErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
-
-			mockEncryptor.EXPECT().
-				Encrypt(gomock.Any()).
-				Return(tt.encryptResp, tt.encryptErr).
-				Times(1)
-
-			if tt.encryptErr == nil {
-				mockSaver.EXPECT().
-					Save(ctx, gomock.AssignableToTypeOf(&models.EncryptedSecret{})).
-					Return(tt.saveErr).
-					Times(1)
-			}
-
-			err := writer.AddUser(ctx, "secret1", payload)
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
+		err := secretWriter.AddBankCard(ctx, secretName, payload)
+		assert.Error(t, err)
+	})
 }
 
 func TestSecretWriter_Delete(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockDeleter := NewMockDeleter(ctrl)
+	mockWriter := NewMockWriter(ctrl)
+	secretWriter := NewSecretWriter(mockWriter, nil)
 
-	writer := SecretWriter{
-		deleter: mockDeleter,
-	}
+	ctx := context.Background()
+	secretName := "mySecret"
 
-	tests := []struct {
-		name        string
-		deleteErr   error
-		expectedErr bool
-	}{
-		{
-			name: "Success",
-		},
-		{
-			name:        "Delete error",
-			deleteErr:   errors.New("delete failed"),
-			expectedErr: true,
-		},
-	}
+	t.Run("Delete success", func(t *testing.T) {
+		mockWriter.EXPECT().Delete(ctx, secretName).Return(nil)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := context.Background()
+		err := secretWriter.Delete(ctx, secretName)
+		assert.NoError(t, err)
+	})
 
-			mockDeleter.EXPECT().
-				Delete(ctx, "secret1").
-				Return(tt.deleteErr).
-				Times(1)
+	t.Run("Delete error", func(t *testing.T) {
+		mockWriter.EXPECT().Delete(ctx, secretName).Return(errors.New("delete error"))
 
-			err := writer.Delete(ctx, "secret1")
-
-			if tt.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
+		err := secretWriter.Delete(ctx, secretName)
+		assert.Error(t, err)
+	})
 }

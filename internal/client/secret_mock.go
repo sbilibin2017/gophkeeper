@@ -13,31 +13,31 @@ import (
 	models "github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// MockGetter is a mock of Getter interface.
-type MockGetter struct {
+// MockReader is a mock of Reader interface.
+type MockReader struct {
 	ctrl     *gomock.Controller
-	recorder *MockGetterMockRecorder
+	recorder *MockReaderMockRecorder
 }
 
-// MockGetterMockRecorder is the mock recorder for MockGetter.
-type MockGetterMockRecorder struct {
-	mock *MockGetter
+// MockReaderMockRecorder is the mock recorder for MockReader.
+type MockReaderMockRecorder struct {
+	mock *MockReader
 }
 
-// NewMockGetter creates a new mock instance.
-func NewMockGetter(ctrl *gomock.Controller) *MockGetter {
-	mock := &MockGetter{ctrl: ctrl}
-	mock.recorder = &MockGetterMockRecorder{mock}
+// NewMockReader creates a new mock instance.
+func NewMockReader(ctrl *gomock.Controller) *MockReader {
+	mock := &MockReader{ctrl: ctrl}
+	mock.recorder = &MockReaderMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockGetter) EXPECT() *MockGetterMockRecorder {
+func (m *MockReader) EXPECT() *MockReaderMockRecorder {
 	return m.recorder
 }
 
 // Get mocks base method.
-func (m *MockGetter) Get(ctx context.Context, secretName string) (*models.EncryptedSecret, error) {
+func (m *MockReader) Get(ctx context.Context, secretName string) (*models.EncryptedSecret, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, secretName)
 	ret0, _ := ret[0].(*models.EncryptedSecret)
@@ -46,36 +46,13 @@ func (m *MockGetter) Get(ctx context.Context, secretName string) (*models.Encryp
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockGetterMockRecorder) Get(ctx, secretName interface{}) *gomock.Call {
+func (mr *MockReaderMockRecorder) Get(ctx, secretName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockGetter)(nil).Get), ctx, secretName)
-}
-
-// MockLister is a mock of Lister interface.
-type MockLister struct {
-	ctrl     *gomock.Controller
-	recorder *MockListerMockRecorder
-}
-
-// MockListerMockRecorder is the mock recorder for MockLister.
-type MockListerMockRecorder struct {
-	mock *MockLister
-}
-
-// NewMockLister creates a new mock instance.
-func NewMockLister(ctrl *gomock.Controller) *MockLister {
-	mock := &MockLister{ctrl: ctrl}
-	mock.recorder = &MockListerMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockLister) EXPECT() *MockListerMockRecorder {
-	return m.recorder
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockReader)(nil).Get), ctx, secretName)
 }
 
 // List mocks base method.
-func (m *MockLister) List(ctx context.Context) ([]*models.EncryptedSecret, error) {
+func (m *MockReader) List(ctx context.Context) ([]*models.EncryptedSecret, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx)
 	ret0, _ := ret[0].([]*models.EncryptedSecret)
@@ -84,9 +61,9 @@ func (m *MockLister) List(ctx context.Context) ([]*models.EncryptedSecret, error
 }
 
 // List indicates an expected call of List.
-func (mr *MockListerMockRecorder) List(ctx interface{}) *gomock.Call {
+func (mr *MockReaderMockRecorder) List(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockLister)(nil).List), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockReader)(nil).List), ctx)
 }
 
 // MockDecryptor is a mock of Decryptor interface.
@@ -127,68 +104,31 @@ func (mr *MockDecryptorMockRecorder) Decrypt(encrypted interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Decrypt", reflect.TypeOf((*MockDecryptor)(nil).Decrypt), encrypted)
 }
 
-// MockSaver is a mock of Saver interface.
-type MockSaver struct {
+// MockWriter is a mock of Writer interface.
+type MockWriter struct {
 	ctrl     *gomock.Controller
-	recorder *MockSaverMockRecorder
+	recorder *MockWriterMockRecorder
 }
 
-// MockSaverMockRecorder is the mock recorder for MockSaver.
-type MockSaverMockRecorder struct {
-	mock *MockSaver
+// MockWriterMockRecorder is the mock recorder for MockWriter.
+type MockWriterMockRecorder struct {
+	mock *MockWriter
 }
 
-// NewMockSaver creates a new mock instance.
-func NewMockSaver(ctrl *gomock.Controller) *MockSaver {
-	mock := &MockSaver{ctrl: ctrl}
-	mock.recorder = &MockSaverMockRecorder{mock}
+// NewMockWriter creates a new mock instance.
+func NewMockWriter(ctrl *gomock.Controller) *MockWriter {
+	mock := &MockWriter{ctrl: ctrl}
+	mock.recorder = &MockWriterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockSaver) EXPECT() *MockSaverMockRecorder {
-	return m.recorder
-}
-
-// Save mocks base method.
-func (m *MockSaver) Save(ctx context.Context, secret *models.EncryptedSecret) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", ctx, secret)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Save indicates an expected call of Save.
-func (mr *MockSaverMockRecorder) Save(ctx, secret interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockSaver)(nil).Save), ctx, secret)
-}
-
-// MockDeleter is a mock of Deleter interface.
-type MockDeleter struct {
-	ctrl     *gomock.Controller
-	recorder *MockDeleterMockRecorder
-}
-
-// MockDeleterMockRecorder is the mock recorder for MockDeleter.
-type MockDeleterMockRecorder struct {
-	mock *MockDeleter
-}
-
-// NewMockDeleter creates a new mock instance.
-func NewMockDeleter(ctrl *gomock.Controller) *MockDeleter {
-	mock := &MockDeleter{ctrl: ctrl}
-	mock.recorder = &MockDeleterMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockDeleter) EXPECT() *MockDeleterMockRecorder {
+func (m *MockWriter) EXPECT() *MockWriterMockRecorder {
 	return m.recorder
 }
 
 // Delete mocks base method.
-func (m *MockDeleter) Delete(ctx context.Context, secretName string) error {
+func (m *MockWriter) Delete(ctx context.Context, secretName string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, secretName)
 	ret0, _ := ret[0].(error)
@@ -196,9 +136,23 @@ func (m *MockDeleter) Delete(ctx context.Context, secretName string) error {
 }
 
 // Delete indicates an expected call of Delete.
-func (mr *MockDeleterMockRecorder) Delete(ctx, secretName interface{}) *gomock.Call {
+func (mr *MockWriterMockRecorder) Delete(ctx, secretName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockDeleter)(nil).Delete), ctx, secretName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockWriter)(nil).Delete), ctx, secretName)
+}
+
+// Save mocks base method.
+func (m *MockWriter) Save(ctx context.Context, secret *models.EncryptedSecret) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Save", ctx, secret)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Save indicates an expected call of Save.
+func (mr *MockWriterMockRecorder) Save(ctx, secret interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockWriter)(nil).Save), ctx, secret)
 }
 
 // MockEncryptor is a mock of Encryptor interface.

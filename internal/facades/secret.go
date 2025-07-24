@@ -16,6 +16,13 @@ type SecretHTTPWriteFacade struct {
 	client *resty.Client
 }
 
+// NewSecretHTTPWriteFacade creates a new SecretHTTPWriteFacade with a resty.Client.
+func NewSecretHTTPWriteFacade(client *resty.Client) *SecretHTTPWriteFacade {
+	return &SecretHTTPWriteFacade{
+		client: client,
+	}
+}
+
 // Save sends a new encrypted secret to the server via HTTP POST.
 func (f *SecretHTTPWriteFacade) Save(ctx context.Context, secret *models.EncryptedSecret) error {
 	resp, err := f.client.R().
@@ -49,6 +56,13 @@ func (f *SecretHTTPWriteFacade) Delete(ctx context.Context, secretName string) e
 // SecretHTTPReadFacade provides an HTTP client facade for reading secrets.
 type SecretHTTPReadFacade struct {
 	client *resty.Client
+}
+
+// NewSecretHTTPReadFacade creates a new SecretHTTPReadFacade with a resty.Client.
+func NewSecretHTTPReadFacade(client *resty.Client) *SecretHTTPReadFacade {
+	return &SecretHTTPReadFacade{
+		client: client,
+	}
 }
 
 // Get retrieves a single encrypted secret by its secret name via HTTP GET.

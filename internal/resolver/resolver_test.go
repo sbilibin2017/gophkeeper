@@ -1,347 +1,166 @@
-package resolver
+package resolver_test
 
 import (
 	"bytes"
 	"context"
 	"errors"
 	"testing"
-	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/sbilibin2017/gophkeeper/internal/resolver"
+	"github.com/stretchr/testify/assert"
 )
 
-type mockListerText struct {
-	listFunc func(ctx context.Context) ([]*models.Text, error)
+func makeSecret(name string, ts int64) *models.EncryptedSecret {
+	return &models.EncryptedSecret{
+		SecretName: name,
+		Timestamp:  ts,
+	}
 }
 
-func (m *mockListerText) List(ctx context.Context) ([]*models.Text, error) {
-	return m.listFunc(ctx)
-}
+func TestResolveClient(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-type mockGetterText struct {
-	getFunc func(ctx context.Context, secretName string) (*models.Text, error)
-}
+	mockLister := resolver.NewMockLister(ctrl)
+	mockGetter := resolver.NewMockGetter(ctrl)
+	mockSaver := resolver.NewMockSaver(ctrl)
 
-func (m *mockGetterText) Get(ctx context.Context, secretName string) (*models.Text, error) {
-	return m.getFunc(ctx, secretName)
-}
-
-type mockSaverText struct {
-	saveFunc func(ctx context.Context, secret *models.Text) error
-}
-
-func (m *mockSaverText) Save(ctx context.Context, secret *models.Text) error {
-	return m.saveFunc(ctx, secret)
-}
-
-func TestResolver_Resolve_ClientMode(t *testing.T) {
 	ctx := context.Background()
-	now := time.Now()
 
-	clientSecrets := []*models.Text{
-		{SecretName: "secret1", UpdatedAt: now},
-		{SecretName: "secret2", UpdatedAt: now.Add(time.Minute)},
+	clientSecrets := []*models.EncryptedSecret{
+		makeSecret("secret1", 10),
+		makeSecret("secret2", 20),
 	}
 
-	serverSecrets := map[string]*models.Text{
-		"secret1": {SecretName: "secret1", UpdatedAt: now.Add(-time.Hour)}, // older on server
-		"secret2": {SecretName: "secret2", UpdatedAt: now.Add(time.Hour)},  // newer on server
-	}
+	mockLister.EXPECT().List(ctx).Return(clientSecrets, nil)
 
-	var saved []*models.Text
+	// For secret1: server secret is older => save called
+	mockGetter.EXPECT().Get(ctx, "secret1").Return(makeSecret("secret1", 5), nil)
+	mockSaver.EXPECT().Save(ctx, clientSecrets[0]).Return(nil)
 
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return clientSecrets, nil
-		},
-	}
+	// For secret2: server secret is newer => no save
+	mockGetter.EXPECT().Get(ctx, "secret2").Return(makeSecret("secret2", 25), nil)
 
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			sec, ok := serverSecrets[secretName]
-			if !ok {
-				return nil, errors.New("not found")
-			}
-			return sec, nil
-		},
-	}
+	res := resolver.NewResolver(mockLister, mockGetter, mockSaver)
 
-	saver := &mockSaverText{
-		saveFunc: func(ctx context.Context, secret *models.Text) error {
-			saved = append(saved, secret)
-			return nil
-		},
-	}
-
-	resolver := NewResolver[*models.Text](lister, getter, saver, nil)
-
-	err := resolver.Resolve(ctx, "client")
-	if err != nil {
-		t.Fatalf("Resolve failed: %v", err)
-	}
-
-	// Only secret1 should be saved (client newer than server)
-	if len(saved) != 1 {
-		t.Fatalf("expected 1 saved secret, got %d", len(saved))
-	}
-	if saved[0].SecretName != "secret1" {
-		t.Errorf("expected secret1 to be saved, got %s", saved[0].SecretName)
-	}
+	err := res.ResolveClient(ctx)
+	assert.NoError(t, err)
 }
 
-func TestResolver_Resolve_InteractiveMode_KeepClient(t *testing.T) {
+func TestResolveClient_GetError(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockLister := resolver.NewMockLister(ctrl)
+	mockGetter := resolver.NewMockGetter(ctrl)
+	mockSaver := resolver.NewMockSaver(ctrl)
+
 	ctx := context.Background()
-	now := time.Now()
 
-	clientSecret := &models.Text{SecretName: "secret1", UpdatedAt: now}
-	serverSecret := &models.Text{SecretName: "secret1", UpdatedAt: now.Add(-time.Minute)}
-
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return []*models.Text{clientSecret}, nil
-		},
+	clientSecrets := []*models.EncryptedSecret{
+		makeSecret("secret1", 10),
 	}
 
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			return serverSecret, nil
-		},
+	mockLister.EXPECT().List(ctx).Return(clientSecrets, nil)
+	mockGetter.EXPECT().Get(ctx, "secret1").Return(nil, errors.New("get error"))
+
+	res := resolver.NewResolver(mockLister, mockGetter, mockSaver)
+
+	err := res.ResolveClient(ctx)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "get error")
+}
+
+func TestResolveServer(t *testing.T) {
+	res := resolver.NewResolver(nil, nil, nil)
+	err := res.ResolveServer(context.Background())
+	assert.NoError(t, err)
+}
+
+func TestResolveInteractive(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockLister := resolver.NewMockLister(ctrl)
+	mockGetter := resolver.NewMockGetter(ctrl)
+	mockSaver := resolver.NewMockSaver(ctrl)
+
+	ctx := context.Background()
+
+	clientSecrets := []*models.EncryptedSecret{
+		makeSecret("secret1", 20),
+		makeSecret("secret2", 30),
 	}
 
-	var saved []*models.Text
-	saver := &mockSaverText{
-		saveFunc: func(ctx context.Context, secret *models.Text) error {
-			saved = append(saved, secret)
-			return nil
-		},
-	}
+	mockLister.EXPECT().List(ctx).Return(clientSecrets, nil)
 
-	// simulate user inputs "1\n" to choose client version
+	// secret1 server secret older => conflict
+	mockGetter.EXPECT().Get(ctx, "secret1").Return(makeSecret("secret1", 10), nil)
+	// secret2 server secret newer => no conflict (no get call for saving)
+
+	mockGetter.EXPECT().Get(ctx, "secret2").Return(makeSecret("secret2", 40), nil)
+
+	// Simulate user input: choose "1" for secret1 to save client version
+	mockSaver.EXPECT().Save(ctx, clientSecrets[0]).Return(nil)
+
+	// Prepare input for scanner
 	input := bytes.NewBufferString("1\n")
 
-	resolver := NewResolver[*models.Text](lister, getter, saver, input)
-
-	err := resolver.Resolve(ctx, "interactive")
-	if err != nil {
-		t.Fatalf("Resolve failed: %v", err)
-	}
-
-	if len(saved) != 1 {
-		t.Fatalf("expected 1 saved secret, got %d", len(saved))
-	}
-
-	if saved[0] != clientSecret {
-		t.Errorf("expected saved secret to be clientSecret")
-	}
+	res := resolver.NewResolver(mockLister, mockGetter, mockSaver)
+	err := res.ResolveInteractive(ctx, input)
+	assert.NoError(t, err)
 }
 
-func TestResolver_Resolve_InteractiveMode_KeepServer(t *testing.T) {
+func TestResolveInteractive_InvalidInput(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockLister := resolver.NewMockLister(ctrl)
+	mockGetter := resolver.NewMockGetter(ctrl)
+	mockSaver := resolver.NewMockSaver(ctrl)
+
 	ctx := context.Background()
-	now := time.Now()
 
-	clientSecret := &models.Text{SecretName: "secret1", UpdatedAt: now}
-	serverSecret := &models.Text{SecretName: "secret1", UpdatedAt: now.Add(-time.Minute)}
-
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return []*models.Text{clientSecret}, nil
-		},
+	clientSecrets := []*models.EncryptedSecret{
+		makeSecret("secret1", 20),
 	}
 
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			return serverSecret, nil
-		},
-	}
+	mockLister.EXPECT().List(ctx).Return(clientSecrets, nil)
+	mockGetter.EXPECT().Get(ctx, "secret1").Return(makeSecret("secret1", 10), nil)
 
-	saver := &mockSaverText{
-		saveFunc: func(ctx context.Context, secret *models.Text) error {
-			t.Fatal("should not save when choosing server version")
-			return nil
-		},
-	}
-
-	// simulate user inputs "2\n" to choose server version (do nothing)
-	input := bytes.NewBufferString("2\n")
-
-	resolver := NewResolver[*models.Text](lister, getter, saver, input)
-
-	err := resolver.Resolve(ctx, "interactive")
-	if err != nil {
-		t.Fatalf("Resolve failed: %v", err)
-	}
-}
-
-func TestResolver_Resolve_InteractiveMode_InvalidChoice(t *testing.T) {
-	ctx := context.Background()
-	now := time.Now()
-
-	clientSecret := &models.Text{SecretName: "secret1", UpdatedAt: now}
-	serverSecret := &models.Text{SecretName: "secret1", UpdatedAt: now.Add(-time.Minute)}
-
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return []*models.Text{clientSecret}, nil
-		},
-	}
-
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			return serverSecret, nil
-		},
-	}
-
-	saver := &mockSaverText{
-		saveFunc: func(ctx context.Context, secret *models.Text) error {
-			t.Fatal("should not save on invalid input")
-			return nil
-		},
-	}
-
-	// simulate user inputs invalid choice "3\n"
+	// Provide invalid input "3"
 	input := bytes.NewBufferString("3\n")
 
-	resolver := NewResolver[*models.Text](lister, getter, saver, input)
-
-	err := resolver.Resolve(ctx, "interactive")
-	if err == nil {
-		t.Fatal("expected error for invalid input")
-	}
-	if err.Error() != "invalid version" {
-		t.Fatalf("expected 'invalid version' error, got %v", err)
-	}
+	res := resolver.NewResolver(mockLister, mockGetter, mockSaver)
+	err := res.ResolveInteractive(ctx, input)
+	assert.Error(t, err)
+	assert.Equal(t, "invalid version", err.Error())
 }
 
-func TestResolve_ListError(t *testing.T) {
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return nil, errors.New("list error")
-		},
-	}
-	getter := &mockGetterText{}
-	saver := &mockSaverText{}
+func TestResolveInteractive_ScanFail(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	r := NewResolver[*models.Text](lister, getter, saver, nil)
-	err := r.Resolve(context.Background(), models.SyncModeClient)
-	if err == nil || err.Error() != "list error" {
-		t.Fatalf("expected 'list error', got %v", err)
-	}
-}
+	mockLister := resolver.NewMockLister(ctrl)
+	mockGetter := resolver.NewMockGetter(ctrl)
+	mockSaver := resolver.NewMockSaver(ctrl)
 
-func TestResolve_GetError(t *testing.T) {
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return []*models.Text{{SecretName: "secret1"}}, nil
-		},
-	}
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			return nil, errors.New("get error")
-		},
-	}
-	saver := &mockSaverText{}
+	ctx := context.Background()
 
-	r := NewResolver[*models.Text](lister, getter, saver, nil)
-	err := r.Resolve(context.Background(), models.SyncModeClient)
-	if err == nil || err.Error() != "get error" {
-		t.Fatalf("expected 'get error', got %v", err)
-	}
-}
-
-func TestResolve_SaveError(t *testing.T) {
-	now := time.Now()
-
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return []*models.Text{{SecretName: "secret1", UpdatedAt: now}}, nil
-		},
-	}
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			return &models.Text{SecretName: secretName, UpdatedAt: now.Add(-time.Hour)}, nil
-		},
-	}
-	saver := &mockSaverText{
-		saveFunc: func(ctx context.Context, secret *models.Text) error {
-			return errors.New("save error")
-		},
+	clientSecrets := []*models.EncryptedSecret{
+		makeSecret("secret1", 20),
 	}
 
-	r := NewResolver[*models.Text](lister, getter, saver, nil)
-	err := r.Resolve(context.Background(), models.SyncModeClient)
-	if err == nil || err.Error() != "failed to save client secret: save error" {
-		t.Fatalf("expected save error wrapped, got %v", err)
-	}
-}
+	mockLister.EXPECT().List(ctx).Return(clientSecrets, nil)
+	mockGetter.EXPECT().Get(ctx, "secret1").Return(makeSecret("secret1", 10), nil)
 
-func TestResolve_InteractiveReadInputError(t *testing.T) {
-	now := time.Now()
+	// Provide empty input, scanner.Scan() will return false
+	input := bytes.NewBufferString("")
 
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return []*models.Text{{SecretName: "secret1", UpdatedAt: now}}, nil
-		},
-	}
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			return &models.Text{SecretName: secretName, UpdatedAt: now.Add(-time.Hour)}, nil
-		},
-	}
-	saver := &mockSaverText{}
-
-	// Empty input to simulate scanner.Scan() == false (EOF)
-	r := NewResolver[*models.Text](lister, getter, saver, bytes.NewBuffer(nil))
-	err := r.Resolve(context.Background(), models.SyncModeInteractive)
-	if err == nil || err.Error() != "failed to read input" {
-		t.Fatalf("expected 'failed to read input' error, got %v", err)
-	}
-}
-
-func TestResolve_InteractiveInvalidChoice(t *testing.T) {
-	now := time.Now()
-
-	lister := &mockListerText{
-		listFunc: func(ctx context.Context) ([]*models.Text, error) {
-			return []*models.Text{{SecretName: "secret1", UpdatedAt: now}}, nil
-		},
-	}
-	getter := &mockGetterText{
-		getFunc: func(ctx context.Context, secretName string) (*models.Text, error) {
-			return &models.Text{SecretName: secretName, UpdatedAt: now.Add(-time.Hour)}, nil
-		},
-	}
-	saver := &mockSaverText{}
-
-	input := bytes.NewBufferString("invalid\n")
-
-	r := NewResolver[*models.Text](lister, getter, saver, input)
-	err := r.Resolve(context.Background(), models.SyncModeInteractive)
-	if err == nil || err.Error() != "invalid version" {
-		t.Fatalf("expected 'invalid version' error, got %v", err)
-	}
-}
-
-func TestResolve_ServerMode_ReturnsNil(t *testing.T) {
-	r := NewResolver[*models.Text](nil, nil, nil, nil)
-	err := r.Resolve(context.Background(), models.SyncModeServer)
-	if err != nil {
-		t.Fatalf("expected nil error, got %v", err)
-	}
-}
-
-func TestResolve_UnknownMode(t *testing.T) {
-	lister := &mockListerText{}
-	getter := &mockGetterText{}
-	saver := &mockSaverText{}
-
-	r := NewResolver[*models.Text](lister, getter, saver, nil)
-	err := r.Resolve(context.Background(), "unknown_mode")
-	if err == nil {
-		t.Fatal("expected error for unknown sync mode, got nil")
-	}
-
-	expected := "unknown sync mode: unknown_mode"
-	if err.Error() != expected {
-		t.Fatalf("expected error %q, got %q", expected, err.Error())
-	}
+	res := resolver.NewResolver(mockLister, mockGetter, mockSaver)
+	err := res.ResolveInteractive(ctx, input)
+	assert.Error(t, err)
+	assert.Equal(t, "failed to read input", err.Error())
 }

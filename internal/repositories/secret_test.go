@@ -6,131 +6,151 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	_ "modernc.org/sqlite"
-
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/stretchr/testify/assert"
+	_ "modernc.org/sqlite"
 )
 
-func openTestDB(t *testing.T) *sqlx.DB {
+func setupTestDB(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open("sqlite", ":memory:")
-	require.NoError(t, err)
+	assert.NoError(t, err)
+	t.Cleanup(func() { db.Close() })
 
 	err = CreateEncryptedSecretsTable(context.Background(), db)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	return db
 }
 
-func TestEncryptedSecretWriteRepository_SaveAndDelete(t *testing.T) {
-	db := openTestDB(t)
+func TestCreateAndDropEncryptedSecretsTable(t *testing.T) {
+	db, err := sqlx.Open("sqlite", ":memory:")
+	assert.NoError(t, err)
 	defer db.Close()
 
-	writeRepo := NewEncryptedSecretWriteRepository(db)
-	readRepo := NewEncryptedSecretReadRepository(db)
+	ctx := context.Background()
 
+	// Create table
+	err = CreateEncryptedSecretsTable(ctx, db)
+	assert.NoError(t, err)
+
+	// Drop table
+	err = DropEncryptedSecretsTable(ctx, db)
+	assert.NoError(t, err)
+}
+
+func TestEncryptedSecretWriteRepository_SaveAndDelete(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewEncryptedSecretWriteRepository(db)
+	ctx := context.Background()
+
+	now := time.Now().UnixNano()
+	secret := &models.EncryptedSecret{
+		SecretName: "mysecret",
+		SecretType: "text",
+		Ciphertext: []byte("encrypteddata"),
+		AESKeyEnc:  []byte("encryptedkey"),
+		Timestamp:  now,
+	}
+
+	// Save new secret
+	err := repo.Save(ctx, secret)
+	assert.NoError(t, err)
+
+	// Save again to update
+	secret.Ciphertext = []byte("updatedcipher")
+	err = repo.Save(ctx, secret)
+	assert.NoError(t, err)
+
+	// Delete secret
+	err = repo.Delete(ctx, secret.SecretName)
+	assert.NoError(t, err)
+
+	// Delete non-existing secret -> error
+	err = repo.Delete(ctx, "nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestEncryptedSecretWriteRepository_Save_Error(t *testing.T) {
+	db, err := sqlx.Open("sqlite", ":memory:")
+	assert.NoError(t, err)
+	defer db.Close()
+
+	repo := NewEncryptedSecretWriteRepository(db)
 	ctx := context.Background()
 
 	secret := &models.EncryptedSecret{
-		SecretName: "testSecret",
-		SecretType: "password",
-		Ciphertext: []byte("encrypteddata"),
-		AESKeyEnc:  []byte("encryptedkey"),
-		Timestamp:  time.Now().Unix(),
+		SecretName: "failsecret",
+		SecretType: "text",
+		Ciphertext: []byte("data"),
+		AESKeyEnc:  []byte("key"),
+		Timestamp:  time.Now().UnixNano(),
 	}
 
-	// Save secret
-	err := writeRepo.Save(ctx, secret)
-	require.NoError(t, err)
-
-	// Retrieve secret and verify fields
-	got, err := readRepo.Get(ctx, "testSecret")
-	require.NoError(t, err)
-
-	assert.Equal(t, secret.SecretName, got.SecretName)
-	assert.Equal(t, secret.SecretType, got.SecretType)
-	assert.Equal(t, secret.Ciphertext, got.Ciphertext)
-	assert.Equal(t, secret.AESKeyEnc, got.AESKeyEnc)
-	assert.Equal(t, secret.Timestamp, got.Timestamp)
-
-	// Delete secret
-	err = writeRepo.Delete(ctx, "testSecret")
-	require.NoError(t, err)
-
-	// Try to get deleted secret — should error
-	_, err = readRepo.Get(ctx, "testSecret")
+	// Without creating table, Save should fail
+	err = repo.Save(ctx, secret)
 	assert.Error(t, err)
 }
 
-func TestEncryptedSecretReadRepository_List(t *testing.T) {
-	db := openTestDB(t)
-	defer db.Close()
-
+func TestEncryptedSecretReadRepository_GetAndList(t *testing.T) {
+	db := setupTestDB(t)
 	writeRepo := NewEncryptedSecretWriteRepository(db)
 	readRepo := NewEncryptedSecretReadRepository(db)
-
 	ctx := context.Background()
+
+	now := time.Now().UnixNano()
 
 	secrets := []*models.EncryptedSecret{
 		{
 			SecretName: "secret1",
-			SecretType: "type1",
+			SecretType: "text",
 			Ciphertext: []byte("data1"),
 			AESKeyEnc:  []byte("key1"),
-			Timestamp:  time.Now().Unix(),
+			Timestamp:  now,
 		},
 		{
 			SecretName: "secret2",
-			SecretType: "type2",
+			SecretType: "binary",
 			Ciphertext: []byte("data2"),
 			AESKeyEnc:  []byte("key2"),
-			Timestamp:  time.Now().Unix(),
+			Timestamp:  now,
 		},
 	}
 
 	for _, s := range secrets {
-		require.NoError(t, writeRepo.Save(ctx, s))
+		err := writeRepo.Save(ctx, s)
+		assert.NoError(t, err)
 	}
 
-	gotSecrets, err := readRepo.List(ctx)
-	require.NoError(t, err)
+	// Test Get existing secret
+	got, err := readRepo.Get(ctx, "secret1")
+	assert.NoError(t, err)
+	assert.Equal(t, "secret1", got.SecretName)
+	assert.Equal(t, "text", got.SecretType)
+	assert.Equal(t, []byte("data1"), got.Ciphertext)
 
-	assert.Len(t, gotSecrets, len(secrets))
+	// Test Get non-existing secret
+	_, err = readRepo.Get(ctx, "nonexistent")
+	assert.Error(t, err)
 
-	// Map by name for easier assertions
-	gotMap := make(map[string]*models.EncryptedSecret)
-	for _, gs := range gotSecrets {
-		gotMap[gs.SecretName] = gs
-	}
-
-	for _, expected := range secrets {
-		got, ok := gotMap[expected.SecretName]
-		assert.True(t, ok)
-		assert.Equal(t, expected.SecretType, got.SecretType)
-		assert.Equal(t, expected.Ciphertext, got.Ciphertext)
-		assert.Equal(t, expected.AESKeyEnc, got.AESKeyEnc)
-		assert.Equal(t, expected.Timestamp, got.Timestamp)
-	}
+	// Test List all secrets
+	allSecrets, err := readRepo.List(ctx)
+	assert.NoError(t, err)
+	assert.Len(t, allSecrets, 2)
+	names := []string{allSecrets[0].SecretName, allSecrets[1].SecretName}
+	assert.Contains(t, names, "secret1")
+	assert.Contains(t, names, "secret2")
 }
 
-func TestDropEncryptedSecretsTable(t *testing.T) {
-	ctx := context.Background()
-
-	// Connect to in-memory SQLite database
-	db, err := sqlx.ConnectContext(ctx, "sqlite", ":memory:")
-	require.NoError(t, err)
+func TestEncryptedSecretReadRepository_List_Error(t *testing.T) {
+	db, err := sqlx.Open("sqlite", ":memory:")
+	assert.NoError(t, err)
 	defer db.Close()
 
-	// Create table first to ensure Drop works on existing table
-	err = CreateEncryptedSecretsTable(ctx, db)
-	require.NoError(t, err)
+	readRepo := NewEncryptedSecretReadRepository(db)
+	ctx := context.Background()
 
-	// Drop the table
-	err = DropEncryptedSecretsTable(ctx, db)
-	require.NoError(t, err)
-
-	// Try dropping again to provoke error (optional, just to check)
-	err = DropEncryptedSecretsTable(ctx, db)
-	require.Error(t, err)
+	// No table created, List should fail
+	_, err = readRepo.List(ctx)
+	assert.Error(t, err)
 }

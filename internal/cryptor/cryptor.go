@@ -28,7 +28,7 @@ type Cryptor struct {
 type Opt func(*Cryptor) error
 
 // NewCryptor creates a new HybridCrypto using the provided functional options.
-func NewCryptor(opts ...Opt) (*Cryptor, error) {
+func New(opts ...Opt) (*Cryptor, error) {
 	h := &Cryptor{}
 	for _, opt := range opts {
 		if err := opt(h); err != nil {

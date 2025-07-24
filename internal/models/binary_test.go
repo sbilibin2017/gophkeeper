@@ -28,12 +28,12 @@ func TestBinaryData_Fields(t *testing.T) {
 	meta := "some meta"
 	data := []byte{0x01, 0x02, 0x03}
 	bd := &BinaryPayload{
-		FilePath: "/tmp/file.bin",
+		FileName: "/tmp/file.bin",
 		Data:     data,
 		Meta:     &meta,
 	}
 
-	assert.Equal(t, "/tmp/file.bin", bd.FilePath)
+	assert.Equal(t, "/tmp/file.bin", bd.FileName)
 	assert.Equal(t, data, bd.Data)
 	assert.NotNil(t, bd.Meta)
 	assert.Equal(t, "some meta", *bd.Meta)
