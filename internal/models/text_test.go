@@ -24,7 +24,7 @@ func TestText_GetUpdatedAt(t *testing.T) {
 
 func TestTextData_Fields(t *testing.T) {
 	meta := "some metadata"
-	data := &TextData{
+	data := &TextPayload{
 		Data: "this is some secret text",
 		Meta: &meta,
 	}

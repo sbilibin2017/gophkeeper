@@ -27,7 +27,7 @@ func TestBinary_GetUpdatedAt(t *testing.T) {
 func TestBinaryData_Fields(t *testing.T) {
 	meta := "some meta"
 	data := []byte{0x01, 0x02, 0x03}
-	bd := &BinaryData{
+	bd := &BinaryPayload{
 		FilePath: "/tmp/file.bin",
 		Data:     data,
 		Meta:     &meta,

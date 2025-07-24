@@ -24,7 +24,7 @@ func TestUser_GetUpdatedAt(t *testing.T) {
 
 func TestUserData_Fields(t *testing.T) {
 	meta := "user metadata"
-	userData := &UserData{
+	userData := &UserPayload{
 		Login:    "testuser",
 		Password: "securepassword",
 		Meta:     &meta,

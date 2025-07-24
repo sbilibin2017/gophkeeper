@@ -24,7 +24,7 @@ func TestBankCard_GetUpdatedAt(t *testing.T) {
 
 func TestBankCardData_Fields(t *testing.T) {
 	meta := "metadata info"
-	data := &BankCardData{
+	data := &BankCardPayload{
 		Number: "1234-5678-9012-3456",
 		Owner:  "John Doe",
 		Exp:    "12/25",
