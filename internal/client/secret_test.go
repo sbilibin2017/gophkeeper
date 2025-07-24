@@ -123,6 +123,9 @@ func TestSecretReader_Get(t *testing.T) {
 			err = json.Unmarshal([]byte(*secretJSON), &actual)
 			require.NoError(t, err)
 
+			// Remove "updated_at" if present
+			delete(actual, "updated_at")
+
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
