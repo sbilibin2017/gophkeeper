@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/http"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
+	"github.com/sbilibin2017/gophkeeper/internal/cryptor"
 	"github.com/sbilibin2017/gophkeeper/internal/facades"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/repositories"
@@ -81,7 +83,18 @@ func NewSyncCommand() *cobra.Command {
 					serverWriter := facades.NewSecretHTTPWriteFacade(httpClient)
 					serverReader := facades.NewSecretHTTPReadFacade(httpClient)
 
-					r := resolver.NewResolver(clientReader, serverReader, serverWriter)
+					cryptor, err := cryptor.New(
+						cryptor.WithPublicKeyFromCert(clientPubKeyFile),
+					)
+					if err != nil {
+						return fmt.Errorf("failed to init cryptor: %w", err)
+					}
+
+					clientSecretReader := client.NewSecretReader(clientReader, cryptor)
+					serverSecretReader := client.NewSecretReader(serverReader, cryptor)
+					serverSecretWriter := client.NewSecretWriter(serverWriter, cryptor)
+
+					r := resolver.NewResolver(clientSecretReader, serverSecretReader, serverSecretWriter)
 
 					switch mode {
 					case models.SyncModeClient:
