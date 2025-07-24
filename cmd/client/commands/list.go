@@ -16,6 +16,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewListCommand returns a cobra command that lists all secrets.
+//
+// The command supports both local and remote secret listing. If no --server flag is provided,
+// the secrets are fetched from the local SQLite database using the private key for decryption.
+// If the --server flag is provided, the secrets are fetched from the server (HTTP or gRPC),
+// using the provided public key file for cryptographic operations.
+//
+// Supported flags:
+// - --server: server URL to fetch secrets from (optional; if empty, local mode is used)
+// - --pubkey: path to the client public or private key file (required for both modes)
+// - --token: authorization token for server requests (optional; used only in remote mode)
 func NewListCommand() *cobra.Command {
 	var (
 		serverURL        string

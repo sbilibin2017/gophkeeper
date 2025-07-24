@@ -16,6 +16,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewSyncCommand creates a Cobra command for syncing secrets between the client and server.
+//
+// The sync operation can run in multiple modes:
+//   - "client": Synchronizes secrets from the client to the server.
+//   - "server": Currently a no-op (reserved for future server-side sync implementation).
+//   - "interactive": Provides an interactive mode for resolving sync conflicts.
+//
+// The command supports communication with the server over HTTP(S) or gRPC,
+// determined by the scheme in the server URL. It uses a local SQLite database
+// ("client.db") for storing client secrets during synchronization.
+//
+// Flags:
+//
+//	--server: URL of the server including scheme (e.g., http://, https://, grpc://).
+//	--pubkey: Path to the client's public key file used for encryption/decryption.
+//	--token:  Optional authorization token for server requests.
+//	--mode:   Sync mode to operate in; one of "client", "server", or "interactive" (default "client").
+//
+// Returns an error if initialization fails or if the sync process encounters issues.
 func NewSyncCommand() *cobra.Command {
 	var (
 		serverURL        string

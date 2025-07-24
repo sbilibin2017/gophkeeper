@@ -14,6 +14,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewAddBankCardCommand creates a new Cobra command to add a bank card secret to the local client storage.
+// It accepts various flags like secret name, card number, owner, expiration, and CVV.
+// The bank card is encrypted using the RSA public certificate provided via the --cert flag.
 func NewAddBankCardCommand() *cobra.Command {
 	var (
 		certPath   string
@@ -92,6 +95,8 @@ func NewAddBankCardCommand() *cobra.Command {
 	return cmd
 }
 
+// NewAddBinaryCommand creates a Cobra command to add binary file data as a secret.
+// Requires input of file name, data path, and encryption certificate. Optionally accepts metadata.
 func NewAddBinaryCommand() *cobra.Command {
 	var (
 		certPath   string
@@ -167,6 +172,8 @@ func NewAddBinaryCommand() *cobra.Command {
 	return cmd
 }
 
+// NewAddTextCommand creates a Cobra command to store plain text secrets in the client database.
+// Requires secret name and text content. Supports optional metadata.
 func NewAddTextCommand() *cobra.Command {
 	var (
 		certPath   string
@@ -233,6 +240,8 @@ func NewAddTextCommand() *cobra.Command {
 	return cmd
 }
 
+// NewAddUserCommand creates a Cobra command to add user credentials (login and password) as a secret.
+// Requires RSA public key, secret name, login, and password. Metadata is optional.
 func NewAddUserCommand() *cobra.Command {
 	var (
 		certPath   string

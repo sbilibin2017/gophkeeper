@@ -17,6 +17,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewGetCommand returns a cobra command that retrieves a secret by name.
+//
+// The command supports both local and remote secret retrieval. If no --server flag is provided,
+// the secret is fetched from the local SQLite database using the private key for decryption.
+// If the --server flag is provided, the secret is fetched from the server (HTTP or gRPC),
+// using the provided public key file for cryptographic operations.
+//
+// Supported flags:
+// - --secret-name / -n: name of the secret to retrieve (required)
+// - --server: server URL to fetch secret from (optional; if empty, local mode is used)
+// - --pubkey: path to the client public or private key file (required for both modes)
+// - --token: authorization token for server requests (optional; used only in remote mode)
 func NewGetCommand() *cobra.Command {
 	var (
 		secretName       string
@@ -83,7 +95,6 @@ func NewGetCommand() *cobra.Command {
 				}
 
 				httpReader := facades.NewSecretHTTPReadFacade(httpClient)
-
 				secretReader := client.NewSecretReader(httpReader, cryptor)
 
 				secret, err := secretReader.Get(ctx, secretName)
@@ -119,7 +130,6 @@ func NewGetCommand() *cobra.Command {
 				}
 
 				grpcReader := facades.NewSecretGRPCReadFacade(grpcClient)
-
 				secretReader := client.NewSecretReader(grpcReader, cryptor)
 
 				secret, err := secretReader.Get(ctx, secretName)
@@ -139,7 +149,7 @@ func NewGetCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&secretName, "secret-name", "n", "", "Name of the secret to retrieve")
+	cmd.Flags().StringVar(&secretName, "secret-name", "", "Name of the secret to retrieve")
 	cmd.Flags().StringVar(&serverURL, "server", "", "Server URL (http://, https://, grpc://)")
 	cmd.Flags().StringVar(&clientPubKeyFile, "pubkey", "", "Client public key file path")
 	cmd.Flags().StringVar(&authToken, "token", "", "Authorization token for server requests (optional)")
