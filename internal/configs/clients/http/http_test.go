@@ -1,105 +1,31 @@
 package http
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// generateTestTLSCert creates a self-signed TLS certificate and key, writes them to temp files, and returns their paths.
-func generateTestTLSCert() (certPath, keyPath string, err error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", "", err
-	}
-
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			CommonName:   "localhost",
-			Organization: []string{"TestOrg"},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
-	if err != nil {
-		return "", "", err
-	}
-
-	certFile, err := os.CreateTemp("", "cert-*.pem")
-	if err != nil {
-		return "", "", err
-	}
-	defer certFile.Close()
-	err = pem.Encode(certFile, &pem.Block{Type: "CERTIFICATE", Bytes: certDER})
-	if err != nil {
-		return "", "", err
-	}
-
-	keyFile, err := os.CreateTemp("", "key-*.pem")
-	if err != nil {
-		return "", "", err
-	}
-	defer keyFile.Close()
-	err = pem.Encode(keyFile, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
-	if err != nil {
-		return "", "", err
-	}
-
-	return certFile.Name(), keyFile.Name(), nil
-}
-
-func TestNewClient_Default(t *testing.T) {
-	client, err := New("https://api.example.com")
+func TestNewBasicClient(t *testing.T) {
+	baseURL := "https://example.com"
+	client, err := New(baseURL)
 	require.NoError(t, err)
-	require.NotNil(t, client)
-
-	assert.Equal(t, "https://api.example.com", client.BaseURL)
+	assert.Equal(t, baseURL, client.BaseURL)
 }
 
-func TestWithRetryPolicy(t *testing.T) {
-	policy := RetryPolicy{
-		Count:   3,
-		Wait:    100 * time.Millisecond,
-		MaxWait: 500 * time.Millisecond,
-	}
-
-	client, err := New("https://retry.test", WithRetryPolicy(policy))
-	require.NoError(t, err)
-
-	assert.Equal(t, 3, client.RetryCount)
-	assert.Equal(t, 100*time.Millisecond, client.RetryWaitTime)
-	assert.Equal(t, 500*time.Millisecond, client.RetryMaxWaitTime)
-}
-
-func TestWithToken(t *testing.T) {
-	expectedToken := "sometoken123"
-
-	// Start a test server that asserts Authorization header
+func TestWithAuthToken(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auth := r.Header.Get("Authorization")
-		assert.Equal(t, "Bearer "+expectedToken, auth)
+		assert.Equal(t, "Bearer token1", r.Header.Get("Authorization"))
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 
-	client, err := New(ts.URL, WithAuthToken(expectedToken))
+	client, err := New(ts.URL, WithAuthToken("", "token1", "token2"))
 	require.NoError(t, err)
 
 	resp, err := client.R().Get("/")
@@ -107,25 +33,41 @@ func TestWithToken(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode())
 }
 
-func TestWithTLSCert_Generated(t *testing.T) {
-	certPath, _, err := generateTestTLSCert()
-	require.NoError(t, err)
-	defer os.Remove(certPath)
-
-	client, err := New("https://tls.test", WithTLSCert(certPath))
+func TestWithRetryPolicy(t *testing.T) {
+	rp := RetryPolicy{Count: 3, Wait: time.Second, MaxWait: 5 * time.Second}
+	client, err := New("https://example.com", WithRetryPolicy(rp))
 	require.NoError(t, err)
 
-	transport, ok := client.GetClient().Transport.(*http.Transport)
-	require.True(t, ok)
-	require.NotNil(t, transport.TLSClientConfig)
-
-	rootCAs := transport.TLSClientConfig.RootCAs
-	require.NotNil(t, rootCAs)
-	assert.NotEmpty(t, rootCAs.Subjects())
+	assert.Equal(t, 3, client.RetryCount)
+	assert.Equal(t, time.Second, client.RetryWaitTime)
+	assert.Equal(t, 5*time.Second, client.RetryMaxWaitTime)
 }
 
-func TestWithTLSCert_FileNotFound(t *testing.T) {
-	_, err := New("https://tls.test", WithTLSCert("nonexistent-cert.pem"))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to read cert file")
+func TestMultipleOpts(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer abc123", r.Header.Get("Authorization"))
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	rp := RetryPolicy{Count: 2, Wait: 200 * time.Millisecond}
+	client, err := New(
+		ts.URL,
+		WithAuthToken("abc123"),
+		WithRetryPolicy(rp),
+	)
+	require.NoError(t, err)
+
+	resp, err := client.R().Get("/")
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode())
+}
+
+func TestOptWithError(t *testing.T) {
+	errOpt := func(c *resty.Client) error {
+		return assert.AnError
+	}
+	client, err := New("https://example.com", errOpt)
+	assert.Nil(t, client)
+	assert.ErrorIs(t, err, assert.AnError)
 }

@@ -1,18 +1,19 @@
+// Пакет http предоставляет обёртку над resty-клиентом
+// с возможностью настройки политики повторов и авторизации.
 package http
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"fmt"
-	"os"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 )
 
-// Opt defines a function type to configure resty.Client and potentially return an error.
+// Opt определяет функцию, которая настраивает *resty.Client и может вернуть ошибку.
+// Используется для модульной конфигурации клиента.
 type Opt func(*resty.Client) error
 
+// New создаёт и возвращает новый экземпляр resty.Client с заданным базовым URL и опциями.
+// Опции передаются в виде слайса функций типа Opt.
 func New(baseURL string, opts ...Opt) (*resty.Client, error) {
 	client := resty.New().SetBaseURL(baseURL)
 
@@ -25,17 +26,18 @@ func New(baseURL string, opts ...Opt) (*resty.Client, error) {
 	return client, nil
 }
 
-// RetryPolicy defines retry configuration for HTTP requests.
+// RetryPolicy описывает параметры политики повторных попыток HTTP-запросов.
 type RetryPolicy struct {
-	Count   int
-	Wait    time.Duration
-	MaxWait time.Duration
+	Count   int           // Количество повторных попыток
+	Wait    time.Duration // Время ожидания между попытками
+	MaxWait time.Duration // Максимальное время ожидания между попытками
 }
 
-// WithRetryPolicy applies the first valid RetryPolicy in opts.
-func WithRetryPolicy(opts ...RetryPolicy) Opt {
+// WithRetryPolicy возвращает опцию Opt, которая применяет первую валидную политику повторов из переданных.
+// Если ни одна из политик невалидна, опция не делает изменений.
+func WithRetryPolicy(policies ...RetryPolicy) Opt {
 	return func(c *resty.Client) error {
-		for _, policy := range opts {
+		for _, policy := range policies {
 			if policy.Count > 0 || policy.Wait > 0 || policy.MaxWait > 0 {
 				if policy.Count > 0 {
 					c.SetRetryCount(policy.Count)
@@ -53,47 +55,11 @@ func WithRetryPolicy(opts ...RetryPolicy) Opt {
 	}
 }
 
-// WithTLSCert loads one or more root CA cert files into the TLS config.
-func WithTLSCert(certFiles ...string) Opt {
+// WithAuthToken возвращает опцию Opt, которая устанавливает Bearer-токен авторизации
+// в заголовки HTTP-запросов. Используется первый непустой токен из переданных.
+func WithAuthToken(tokens ...string) Opt {
 	return func(c *resty.Client) error {
-		if len(certFiles) == 0 {
-			return nil
-		}
-
-		caCertPool, err := x509.SystemCertPool()
-		if err != nil || caCertPool == nil {
-			caCertPool = x509.NewCertPool()
-		}
-
-		for _, certFile := range certFiles {
-			if certFile == "" {
-				continue
-			}
-
-			caCertPEM, err := os.ReadFile(certFile)
-			if err != nil {
-				return fmt.Errorf("failed to read cert file %q: %w", certFile, err)
-			}
-
-			if ok := caCertPool.AppendCertsFromPEM(caCertPEM); !ok {
-				return fmt.Errorf("failed to append cert to root CA pool from file %q", certFile)
-			}
-		}
-
-		tlsConfig := &tls.Config{
-			RootCAs:    caCertPool,
-			MinVersion: tls.VersionTLS12,
-		}
-
-		c.SetTLSClientConfig(tlsConfig)
-		return nil
-	}
-}
-
-// WithAuthToken sets the Authorization header with a Bearer token.
-func WithAuthToken(opts ...string) Opt {
-	return func(c *resty.Client) error {
-		for _, token := range opts {
+		for _, token := range tokens {
 			if token != "" {
 				c.SetAuthToken(token)
 				break

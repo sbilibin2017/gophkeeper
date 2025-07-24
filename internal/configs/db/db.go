@@ -12,7 +12,7 @@ import (
 type Opt func(*sqlx.DB)
 
 // NewDB establishes a connection to the database and applies any given options.
-func NewDB(driver string, dsn string, opts ...Opt) (*sqlx.DB, error) {
+func New(driver string, dsn string, opts ...Opt) (*sqlx.DB, error) {
 	db, err := sqlx.Connect(driver, dsn)
 	if err != nil {
 		return nil, err

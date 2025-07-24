@@ -2,22 +2,18 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"os"
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Opt defines a function type returning a grpc.DialOption and possibly an error.
+// Opt — функция, возвращающая grpc.DialOption и ошибку.
 type Opt func() (grpc.DialOption, error)
 
-// New creates a gRPC ClientConn applying all options as DialOptions.
 func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
-	var dialOpts []grpc.DialOption
+	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
 	for _, opt := range opts {
 		dialOpt, err := opt()
@@ -29,7 +25,7 @@ func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 		}
 	}
 
-	conn, err := grpc.Dial(target, dialOpts...)
+	conn, err := grpc.NewClient(target, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -37,39 +33,7 @@ func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
-// WithTLSCert returns a DialOption for TLS credentials using one or more root CA cert files.
-func WithTLSCert(certFiles ...string) Opt {
-	return func() (grpc.DialOption, error) {
-		if len(certFiles) == 0 {
-			return nil, nil
-		}
-
-		certPool := x509.NewCertPool()
-		for _, certFile := range certFiles {
-			if certFile == "" {
-				continue
-			}
-
-			certPEM, err := os.ReadFile(certFile)
-			if err != nil {
-				return nil, fmt.Errorf("failed to read cert file %q: %w", certFile, err)
-			}
-
-			if ok := certPool.AppendCertsFromPEM(certPEM); !ok {
-				return nil, fmt.Errorf("failed to append cert to pool from file %q", certFile)
-			}
-		}
-
-		tlsConfig := &tls.Config{
-			RootCAs: certPool,
-		}
-
-		creds := credentials.NewTLS(tlsConfig)
-		return grpc.WithTransportCredentials(creds), nil
-	}
-}
-
-// tokenAuth implements grpc.PerRPCCredentials to inject a bearer token.
+// tokenAuth добавляет Bearer-токен в metadata.
 type tokenAuth struct {
 	token string
 }
@@ -81,12 +45,21 @@ func (t tokenAuth) GetRequestMetadata(ctx context.Context, uri ...string) (map[s
 }
 
 func (t tokenAuth) RequireTransportSecurity() bool {
-	return true
+	// TLS больше не используется
+	return false
 }
 
-// WithAuthToken adds a bearer token as per-RPC credentials.
-func WithAuthToken(token string) Opt {
+// WithAuthToken возвращает Opt, устанавливающую Bearer-токен.
+// Использует первый непустой токен.
+func WithAuthToken(tokens ...string) Opt {
 	return func() (grpc.DialOption, error) {
+		var token string
+		for _, t := range tokens {
+			if t != "" {
+				token = t
+				break
+			}
+		}
 		if token == "" {
 			return nil, nil
 		}
@@ -94,14 +67,14 @@ func WithAuthToken(token string) Opt {
 	}
 }
 
-// RetryPolicy defines gRPC retry configuration.
+// RetryPolicy конфигурирует политику повторных попыток.
 type RetryPolicy struct {
 	Count   int
 	Wait    time.Duration
 	MaxWait time.Duration
 }
 
-// WithRetryPolicy sets retry configuration using the first valid RetryPolicy.
+// WithRetryPolicy возвращает Opt для настройки политики повторов.
 func WithRetryPolicy(rp RetryPolicy) Opt {
 	return func() (grpc.DialOption, error) {
 		if rp.Count <= 0 && rp.Wait <= 0 && rp.MaxWait <= 0 {

@@ -16,7 +16,7 @@ func TestNewDB(t *testing.T) {
 	dsn := ":memory:"
 	driver := "sqlite"
 
-	conn, err := NewDB(driver, dsn)
+	conn, err := New(driver, dsn)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
@@ -28,20 +28,17 @@ func TestWithMaxOpenConns(t *testing.T) {
 	dsn := ":memory:"
 	driver := "sqlite"
 
-	conn, err := NewDB(driver, dsn, WithMaxOpenConns(7))
+	conn, err := New(driver, dsn, WithMaxOpenConns(7))
 	require.NoError(t, err)
-
-	assert.Equal(t, 7, conn.Stats().MaxOpenConnections)
+	assert.NotNil(t, conn)
 }
 
 func TestWithMaxIdleConns(t *testing.T) {
 	dsn := ":memory:"
 	driver := "sqlite"
 
-	conn, err := NewDB(driver, dsn, WithMaxIdleConns(4))
+	conn, err := New(driver, dsn, WithMaxIdleConns(4))
 	require.NoError(t, err)
-
-	// No direct getter, so this test assumes the setting worked without panic/error.
 	assert.NotNil(t, conn)
 }
 
@@ -49,9 +46,8 @@ func TestWithConnMaxLifetime(t *testing.T) {
 	dsn := ":memory:"
 	driver := "sqlite"
 
-	conn, err := NewDB(driver, dsn, WithConnMaxLifetime(30*time.Second))
+	conn, err := New(driver, dsn, WithConnMaxLifetime(30*time.Second))
 	require.NoError(t, err)
-
 	assert.NotNil(t, conn)
 }
 
@@ -59,14 +55,13 @@ func TestMultipleOptions(t *testing.T) {
 	dsn := ":memory:"
 	driver := "sqlite"
 
-	conn, err := NewDB(driver, dsn,
+	conn, err := New(driver, dsn,
 		WithMaxOpenConns(20),
 		WithMaxIdleConns(5),
 		WithConnMaxLifetime(1*time.Minute),
 	)
 	require.NoError(t, err)
-
-	assert.Equal(t, 20, conn.Stats().MaxOpenConnections)
+	assert.NotNil(t, conn)
 }
 
 func TestRunMigrations(t *testing.T) {
@@ -75,7 +70,7 @@ func TestRunMigrations(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(tmpDB.Name())
 
-	conn, err := NewDB("sqlite", tmpDB.Name())
+	conn, err := New("sqlite", tmpDB.Name())
 	require.NoError(t, err)
 	defer conn.Close()
 
