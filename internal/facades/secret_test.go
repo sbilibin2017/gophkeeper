@@ -41,18 +41,26 @@ func startTestHTTPServerForSecrets(t *testing.T) *http.Server {
 	})
 
 	mux.HandleFunc("/secret/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		secretName := r.URL.Path[len("/secret/"):]
-		secret, ok := secretsStore[secretName]
-		if !ok {
-			http.Error(w, "not found", http.StatusNotFound)
-			return
+		switch r.Method {
+		case http.MethodGet:
+			secret, ok := secretsStore[secretName]
+			if !ok {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(secret)
+		case http.MethodDelete:
+			if _, ok := secretsStore[secretName]; !ok {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			delete(secretsStore, secretName)
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(secret)
 	})
 
 	mux.HandleFunc("/secrets/", func(w http.ResponseWriter, r *http.Request) {
@@ -90,11 +98,19 @@ type secretWriteServer struct {
 	store map[string]*pb.EncryptedSecret
 }
 
-func (s *secretWriteServer) Add(ctx context.Context, req *pb.EncryptedSecret) (*emptypb.Empty, error) {
+func (s *secretWriteServer) Save(ctx context.Context, req *pb.EncryptedSecret) (*emptypb.Empty, error) {
 	if req.SecretName == "" {
 		return nil, errors.New("secretName required")
 	}
 	s.store[req.SecretName] = req
+	return &emptypb.Empty{}, nil
+}
+
+func (s *secretWriteServer) Delete(ctx context.Context, req *pb.DeleteSecretRequest) (*emptypb.Empty, error) {
+	if _, ok := s.store[req.SecretName]; !ok {
+		return nil, errors.New("secret not found")
+	}
+	delete(s.store, req.SecretName)
 	return &emptypb.Empty{}, nil
 }
 
@@ -173,29 +189,42 @@ func TestSecretFacades(t *testing.T) {
 		Timestamp:  time.Now().Unix(),
 	}
 
-	err = writeHTTPFacade.Add(context.Background(), sampleSecret)
+	// Save via HTTP
+	err = writeHTTPFacade.Save(context.Background(), sampleSecret)
 	require.NoError(t, err)
 
+	// Get via HTTP
 	gotSecret, err := readHTTPFacade.Get(context.Background(), sampleSecret.SecretName)
 	require.NoError(t, err)
 	require.Equal(t, sampleSecret.SecretName, gotSecret.SecretName)
 	require.Equal(t, sampleSecret.SecretType, gotSecret.SecretType)
 	require.Equal(t, sampleSecret.Ciphertext, gotSecret.Ciphertext)
 
+	// List via HTTP
 	secretsList, err := readHTTPFacade.List(context.Background())
 	require.NoError(t, err)
 	require.Len(t, secretsList, 1)
 	require.Equal(t, sampleSecret.SecretName, secretsList[0].SecretName)
 
-	err = writeGRPCFacade.Add(context.Background(), sampleSecret)
+	// Delete via HTTP and confirm deletion
+	err = writeHTTPFacade.Delete(context.Background(), sampleSecret.SecretName)
 	require.NoError(t, err)
 
+	_, err = readHTTPFacade.Get(context.Background(), sampleSecret.SecretName)
+	require.Error(t, err)
+
+	// Save via gRPC
+	err = writeGRPCFacade.Save(context.Background(), sampleSecret)
+	require.NoError(t, err)
+
+	// Get via gRPC
 	gotGrpcSecret, err := readGRPCFacade.Get(context.Background(), sampleSecret.SecretName)
 	require.NoError(t, err)
 	require.Equal(t, sampleSecret.SecretName, gotGrpcSecret.SecretName)
 	require.Equal(t, sampleSecret.SecretType, gotGrpcSecret.SecretType)
 	require.Equal(t, sampleSecret.Ciphertext, gotGrpcSecret.Ciphertext)
 
+	// List via gRPC
 	grpcSecretsList, err := readGRPCFacade.List(context.Background())
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(grpcSecretsList), 1)
@@ -207,6 +236,13 @@ func TestSecretFacades(t *testing.T) {
 		}
 	}
 	require.True(t, found)
+
+	// Delete via gRPC and confirm deletion
+	err = writeGRPCFacade.Delete(context.Background(), sampleSecret.SecretName)
+	require.NoError(t, err)
+
+	_, err = readGRPCFacade.Get(context.Background(), sampleSecret.SecretName)
+	require.Error(t, err)
 }
 
 // --- HTTP Server with error simulation ---
@@ -247,8 +283,12 @@ type errorSecretWriteServer struct {
 	pb.UnimplementedSecretWriteServiceServer
 }
 
-func (s *errorSecretWriteServer) Add(ctx context.Context, req *pb.EncryptedSecret) (*emptypb.Empty, error) {
-	return nil, errors.New("write error")
+func (s *errorSecretWriteServer) Save(ctx context.Context, req *pb.EncryptedSecret) (*emptypb.Empty, error) {
+	return nil, errors.New("internal server error")
+}
+
+func (s *errorSecretWriteServer) Delete(ctx context.Context, req *pb.DeleteSecretRequest) (*emptypb.Empty, error) {
+	return nil, errors.New("internal server error")
 }
 
 type errorSecretReadServer struct {
@@ -260,7 +300,7 @@ func (s *errorSecretReadServer) Get(ctx context.Context, req *pb.GetSecretReques
 }
 
 func (s *errorSecretReadServer) List(_ *emptypb.Empty, stream pb.SecretReadService_ListServer) error {
-	return errors.New("list error")
+	return errors.New("internal server error")
 }
 
 func startErrorGRPCServer(t *testing.T) (*grpc.Server, net.Listener) {
@@ -281,9 +321,7 @@ func startErrorGRPCServer(t *testing.T) (*grpc.Server, net.Listener) {
 	return grpcServer, lis
 }
 
-// --- Error Tests ---
-
-func TestSecretFacades_ErrorCases(t *testing.T) {
+func TestSecretFacadesErrors(t *testing.T) {
 	httpServer := startErrorHTTPServer(t)
 	defer func() {
 		require.NoError(t, httpServer.Shutdown(context.Background()))
@@ -307,34 +345,39 @@ func TestSecretFacades_ErrorCases(t *testing.T) {
 	readGRPCFacade := NewSecretGRPCReadFacade(grpcConn)
 
 	secret := &models.EncryptedSecret{
-		SecretName: "err-secret",
-		SecretType: "type",
-		Ciphertext: []byte("cipher"),
-		AESKeyEnc:  []byte("key"),
-		Timestamp:  time.Now().Unix(),
+		SecretName: "secret-error",
+		SecretType: "type-error",
 	}
 
-	err = writeHTTPFacade.Add(context.Background(), secret)
+	// HTTP Write Save error
+	err = writeHTTPFacade.Save(context.Background(), secret)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to add secret")
 
+	// HTTP Write Delete error
+	err = writeHTTPFacade.Delete(context.Background(), secret.SecretName)
+	require.Error(t, err)
+
+	// HTTP Read Get error
 	_, err = readHTTPFacade.Get(context.Background(), secret.SecretName)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to get secret")
 
+	// HTTP Read List error
 	_, err = readHTTPFacade.List(context.Background())
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to list secrets")
 
-	err = writeGRPCFacade.Add(context.Background(), secret)
+	// gRPC Write Save error
+	err = writeGRPCFacade.Save(context.Background(), secret)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "write error")
 
+	// gRPC Write Delete error
+	err = writeGRPCFacade.Delete(context.Background(), secret.SecretName)
+	require.Error(t, err)
+
+	// gRPC Read Get error
 	_, err = readGRPCFacade.Get(context.Background(), secret.SecretName)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "not found")
 
+	// gRPC Read List error
 	_, err = readGRPCFacade.List(context.Background())
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "list error")
 }

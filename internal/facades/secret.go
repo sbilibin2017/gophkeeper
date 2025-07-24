@@ -16,8 +16,8 @@ type SecretHTTPWriteFacade struct {
 	client *resty.Client
 }
 
-// Add sends a new encrypted secret to the server via HTTP POST.
-func (f *SecretHTTPWriteFacade) Add(ctx context.Context, secret *models.EncryptedSecret) error {
+// Save sends a new encrypted secret to the server via HTTP POST.
+func (f *SecretHTTPWriteFacade) Save(ctx context.Context, secret *models.EncryptedSecret) error {
 	resp, err := f.client.R().
 		SetContext(ctx).
 		SetBody(secret).
@@ -27,6 +27,21 @@ func (f *SecretHTTPWriteFacade) Add(ctx context.Context, secret *models.Encrypte
 	}
 	if resp.IsError() {
 		return fmt.Errorf("failed to add secret: status %d, body: %s", resp.StatusCode(), resp.String())
+	}
+	return nil
+}
+
+// Delete sends a request to delete a secret by name via HTTP DELETE.
+func (f *SecretHTTPWriteFacade) Delete(ctx context.Context, secretName string) error {
+	resp, err := f.client.R().
+		SetContext(ctx).
+		SetPathParam("secretName", secretName).
+		Delete("/secret/{secretName}")
+	if err != nil {
+		return err
+	}
+	if resp.IsError() {
+		return fmt.Errorf("failed to delete secret '%s': status %d, body: %s", secretName, resp.StatusCode(), resp.String())
 	}
 	return nil
 }
@@ -88,7 +103,7 @@ func NewSecretGRPCWriteFacade(conn *grpc.ClientConn) *SecretGRPCWriteFacade {
 }
 
 // Add sends a new encrypted secret to the gRPC service.
-func (f *SecretGRPCWriteFacade) Add(ctx context.Context, secret *models.EncryptedSecret) error {
+func (f *SecretGRPCWriteFacade) Save(ctx context.Context, secret *models.EncryptedSecret) error {
 	req := &pb.EncryptedSecret{
 		SecretName: secret.SecretName,
 		SecretType: secret.SecretType,
@@ -97,7 +112,17 @@ func (f *SecretGRPCWriteFacade) Add(ctx context.Context, secret *models.Encrypte
 		Timestamp:  secret.Timestamp,
 	}
 
-	_, err := f.client.Add(ctx, req)
+	_, err := f.client.Save(ctx, req)
+	return err
+}
+
+// Delete requests the gRPC service to delete a secret by name.
+func (f *SecretGRPCWriteFacade) Delete(ctx context.Context, secretName string) error {
+	req := &pb.DeleteSecretRequest{
+		SecretName: secretName,
+	}
+
+	_, err := f.client.Delete(ctx, req)
 	return err
 }
 
