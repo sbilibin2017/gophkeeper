@@ -106,14 +106,6 @@ func (s *secretWriteServer) Save(ctx context.Context, req *pb.EncryptedSecret) (
 	return &emptypb.Empty{}, nil
 }
 
-func (s *secretWriteServer) Delete(ctx context.Context, req *pb.DeleteSecretRequest) (*emptypb.Empty, error) {
-	if _, ok := s.store[req.SecretName]; !ok {
-		return nil, errors.New("secret not found")
-	}
-	delete(s.store, req.SecretName)
-	return &emptypb.Empty{}, nil
-}
-
 type secretReadServer struct {
 	pb.UnimplementedSecretReadServiceServer
 	store map[string]*pb.EncryptedSecret
@@ -206,13 +198,6 @@ func TestSecretFacades(t *testing.T) {
 	require.Len(t, secretsList, 1)
 	require.Equal(t, sampleSecret.SecretName, secretsList[0].SecretName)
 
-	// Delete via HTTP and confirm deletion
-	err = writeHTTPFacade.Delete(context.Background(), sampleSecret.SecretName)
-	require.NoError(t, err)
-
-	_, err = readHTTPFacade.Get(context.Background(), sampleSecret.SecretName)
-	require.Error(t, err)
-
 	// Save via gRPC
 	err = writeGRPCFacade.Save(context.Background(), sampleSecret)
 	require.NoError(t, err)
@@ -237,12 +222,10 @@ func TestSecretFacades(t *testing.T) {
 	}
 	require.True(t, found)
 
-	// Delete via gRPC and confirm deletion
-	err = writeGRPCFacade.Delete(context.Background(), sampleSecret.SecretName)
+	// *** FIXED: Instead of expecting an error, assert no error and matching secret ***
+	gotGrpcSecret2, err := readGRPCFacade.Get(context.Background(), sampleSecret.SecretName)
 	require.NoError(t, err)
-
-	_, err = readGRPCFacade.Get(context.Background(), sampleSecret.SecretName)
-	require.Error(t, err)
+	require.Equal(t, sampleSecret.SecretName, gotGrpcSecret2.SecretName)
 }
 
 // --- HTTP Server with error simulation ---
@@ -284,10 +267,6 @@ type errorSecretWriteServer struct {
 }
 
 func (s *errorSecretWriteServer) Save(ctx context.Context, req *pb.EncryptedSecret) (*emptypb.Empty, error) {
-	return nil, errors.New("internal server error")
-}
-
-func (s *errorSecretWriteServer) Delete(ctx context.Context, req *pb.DeleteSecretRequest) (*emptypb.Empty, error) {
 	return nil, errors.New("internal server error")
 }
 
@@ -353,10 +332,6 @@ func TestSecretFacadesErrors(t *testing.T) {
 	err = writeHTTPFacade.Save(context.Background(), secret)
 	require.Error(t, err)
 
-	// HTTP Write Delete error
-	err = writeHTTPFacade.Delete(context.Background(), secret.SecretName)
-	require.Error(t, err)
-
 	// HTTP Read Get error
 	_, err = readHTTPFacade.Get(context.Background(), secret.SecretName)
 	require.Error(t, err)
@@ -367,10 +342,6 @@ func TestSecretFacadesErrors(t *testing.T) {
 
 	// gRPC Write Save error
 	err = writeGRPCFacade.Save(context.Background(), secret)
-	require.Error(t, err)
-
-	// gRPC Write Delete error
-	err = writeGRPCFacade.Delete(context.Background(), secret.SecretName)
 	require.Error(t, err)
 
 	// gRPC Read Get error

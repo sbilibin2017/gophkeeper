@@ -42,26 +42,6 @@ func (r *EncryptedSecretWriteRepository) Save(ctx context.Context, secret *model
 	return nil
 }
 
-// Delete removes an encrypted secret by name from the database.
-func (r *EncryptedSecretWriteRepository) Delete(ctx context.Context, secretName string) error {
-	query := `DELETE FROM encrypted_secrets WHERE secret_name = $1`
-
-	result, err := r.db.ExecContext(ctx, query, secretName)
-	if err != nil {
-		return fmt.Errorf("failed to delete secret '%s': %w", secretName, err)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("failed to check rows affected when deleting secret '%s': %w", secretName, err)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("secret '%s' not found", secretName)
-	}
-
-	return nil
-}
-
 // EncryptedSecretReadRepository handles read operations for EncryptedSecret using sqlx.
 type EncryptedSecretReadRepository struct {
 	db *sqlx.DB

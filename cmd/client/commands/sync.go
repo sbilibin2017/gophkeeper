@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/http"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
@@ -19,24 +18,6 @@ import (
 )
 
 // NewSyncCommand creates a Cobra command for syncing secrets between the client and server.
-//
-// The sync operation can run in multiple modes:
-//   - "client": Synchronizes secrets from the client to the server.
-//   - "server": Currently a no-op (reserved for future server-side sync implementation).
-//   - "interactive": Provides an interactive mode for resolving sync conflicts.
-//
-// The command supports communication with the server over HTTP(S) or gRPC,
-// determined by the scheme in the server URL. It uses a local SQLite database
-// ("client.db") for storing client secrets during synchronization.
-//
-// Flags:
-//
-//	--server: URL of the server including scheme (e.g., http://, https://, grpc://).
-//	--pubkey: Path to the client's public key file used for encryption/decryption.
-//	--token:  Optional authorization token for server requests.
-//	--mode:   Sync mode to operate in; one of "client", "server", or "interactive" (default "client").
-//
-// Returns an error if initialization fails or if the sync process encounters issues.
 func NewSyncCommand() *cobra.Command {
 	var (
 		serverURL        string
@@ -57,17 +38,26 @@ func NewSyncCommand() *cobra.Command {
 
 			case models.SyncModeClient, models.SyncModeInteractive:
 				schm := scheme.GetSchemeFromURL(serverURL)
+				if schm == "" {
+					return fmt.Errorf("invalid or missing scheme in server URL: %s", serverURL)
+				}
+
+				dbConn, err := db.New("sqlite", "client.db")
+				if err != nil {
+					return fmt.Errorf("failed to open local DB: %w", err)
+				}
+				defer dbConn.Close()
+
+				clientReader := repositories.NewEncryptedSecretReadRepository(dbConn)
+
+				var (
+					serverReader resolver.ServerSecretReader
+					serverWriter resolver.ServerSecretWriter
+					crypt        resolver.Cryptor
+				)
 
 				switch schm {
 				case scheme.HTTP:
-					dbConn, err := db.New("sqlite", "client.db")
-					if err != nil {
-						return fmt.Errorf("failed to open local DB: %w", err)
-					}
-					defer dbConn.Close()
-
-					clientReader := repositories.NewEncryptedSecretReadRepository(dbConn)
-
 					httpClient, err := http.New(serverURL,
 						http.WithAuthToken(authToken),
 						http.WithRetryPolicy(http.RetryPolicy{
@@ -80,47 +70,17 @@ func NewSyncCommand() *cobra.Command {
 						return fmt.Errorf("failed to create HTTP client: %w", err)
 					}
 
-					serverWriter := facades.NewSecretHTTPWriteFacade(httpClient)
-					serverReader := facades.NewSecretHTTPReadFacade(httpClient)
+					serverWriter = facades.NewSecretHTTPWriteFacade(httpClient)
+					serverReader = facades.NewSecretHTTPReadFacade(httpClient)
 
-					cryptor, err := cryptor.New(
+					crypt, err = cryptor.New(
 						cryptor.WithPublicKeyFromCert(clientPubKeyFile),
 					)
 					if err != nil {
-						return fmt.Errorf("failed to init cryptor: %w", err)
-					}
-
-					clientSecretReader := client.NewSecretReader(clientReader, cryptor)
-					serverSecretReader := client.NewSecretReader(serverReader, cryptor)
-					serverSecretWriter := client.NewSecretWriter(serverWriter, cryptor)
-
-					r := resolver.NewResolver(clientSecretReader, serverSecretReader, serverSecretWriter)
-
-					switch mode {
-					case models.SyncModeClient:
-						if err := r.ResolveClient(ctx); err != nil {
-							return fmt.Errorf("client sync failed: %w", err)
-						}
-					case models.SyncModeInteractive:
-						if err := r.ResolveInteractive(ctx, cmd.InOrStdin()); err != nil {
-							return fmt.Errorf("interactive sync failed: %w", err)
-						}
-					}
-
-					err = repositories.DropEncryptedSecretsTable(cmd.Context(), dbConn)
-					if err != nil {
-						return err
+						return fmt.Errorf("failed to initialize cryptor: %w", err)
 					}
 
 				case scheme.GRPC:
-					dbConn, err := db.New("sqlite", "client.db")
-					if err != nil {
-						return fmt.Errorf("failed to open local DB: %w", err)
-					}
-					defer dbConn.Close()
-
-					clientReader := repositories.NewEncryptedSecretReadRepository(dbConn)
-
 					grpcClient, err := grpc.New(serverURL,
 						grpc.WithAuthToken(authToken),
 						grpc.WithRetryPolicy(grpc.RetryPolicy{
@@ -130,32 +90,38 @@ func NewSyncCommand() *cobra.Command {
 						}),
 					)
 					if err != nil {
-						return fmt.Errorf("failed to create HTTP client: %w", err)
+						return fmt.Errorf("failed to create gRPC client: %w", err)
 					}
 
-					serverWriter := facades.NewSecretGRPCWriteFacade(grpcClient)
-					serverReader := facades.NewSecretGRPCReadFacade(grpcClient)
+					serverWriter = facades.NewSecretGRPCWriteFacade(grpcClient)
+					serverReader = facades.NewSecretGRPCReadFacade(grpcClient)
 
-					r := resolver.NewResolver(clientReader, serverReader, serverWriter)
-
-					switch mode {
-					case models.SyncModeClient:
-						if err := r.ResolveClient(ctx); err != nil {
-							return fmt.Errorf("client sync failed: %w", err)
-						}
-					case models.SyncModeInteractive:
-						if err := r.ResolveInteractive(ctx, cmd.InOrStdin()); err != nil {
-							return fmt.Errorf("interactive sync failed: %w", err)
-						}
-					}
-
-					err = repositories.DropEncryptedSecretsTable(cmd.Context(), dbConn)
+					crypt, err = cryptor.New(
+						cryptor.WithPublicKeyFromCert(clientPubKeyFile),
+					)
 					if err != nil {
-						return err
+						return fmt.Errorf("failed to initialize cryptor: %w", err)
 					}
 
 				default:
 					return fmt.Errorf("unsupported scheme: %s", schm)
+				}
+
+				r := resolver.NewResolver(clientReader, serverReader, serverWriter, crypt)
+
+				switch mode {
+				case models.SyncModeClient:
+					if err := r.ResolveClient(ctx); err != nil {
+						return fmt.Errorf("client sync failed: %w", err)
+					}
+				case models.SyncModeInteractive:
+					if err := r.ResolveInteractive(ctx, cmd.InOrStdin()); err != nil {
+						return fmt.Errorf("interactive sync failed: %w", err)
+					}
+				}
+
+				if err := repositories.DropEncryptedSecretsTable(ctx, dbConn); err != nil {
+					return fmt.Errorf("failed to drop secrets table: %w", err)
 				}
 
 			default:

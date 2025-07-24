@@ -38,21 +38,6 @@ func (f *SecretHTTPWriteFacade) Save(ctx context.Context, secret *models.Encrypt
 	return nil
 }
 
-// Delete sends a request to delete a secret by name via HTTP DELETE.
-func (f *SecretHTTPWriteFacade) Delete(ctx context.Context, secretName string) error {
-	resp, err := f.client.R().
-		SetContext(ctx).
-		SetPathParam("secretName", secretName).
-		Delete("/secret/{secretName}")
-	if err != nil {
-		return err
-	}
-	if resp.IsError() {
-		return fmt.Errorf("failed to delete secret '%s': status %d, body: %s", secretName, resp.StatusCode(), resp.String())
-	}
-	return nil
-}
-
 // SecretHTTPReadFacade provides an HTTP client facade for reading secrets.
 type SecretHTTPReadFacade struct {
 	client *resty.Client
@@ -127,16 +112,6 @@ func (f *SecretGRPCWriteFacade) Save(ctx context.Context, secret *models.Encrypt
 	}
 
 	_, err := f.client.Save(ctx, req)
-	return err
-}
-
-// Delete requests the gRPC service to delete a secret by name.
-func (f *SecretGRPCWriteFacade) Delete(ctx context.Context, secretName string) error {
-	req := &pb.DeleteSecretRequest{
-		SecretName: secretName,
-	}
-
-	_, err := f.client.Delete(ctx, req)
 	return err
 }
 

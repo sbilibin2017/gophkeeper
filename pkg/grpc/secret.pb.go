@@ -143,50 +143,6 @@ func (x *GetSecretRequest) GetSecretName() string {
 	return ""
 }
 
-type DeleteSecretRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeleteSecretRequest) Reset() {
-	*x = DeleteSecretRequest{}
-	mi := &file_secret_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeleteSecretRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeleteSecretRequest) ProtoMessage() {}
-
-func (x *DeleteSecretRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_secret_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeleteSecretRequest.ProtoReflect.Descriptor instead.
-func (*DeleteSecretRequest) Descriptor() ([]byte, []int) {
-	return file_secret_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *DeleteSecretRequest) GetSecretName() string {
-	if x != nil {
-		return x.SecretName
-	}
-	return ""
-}
-
 var File_secret_proto protoreflect.FileDescriptor
 
 const file_secret_proto_rawDesc = "" +
@@ -204,13 +160,9 @@ const file_secret_proto_rawDesc = "" +
 	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"3\n" +
 	"\x10GetSecretRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
-	"secretName\"6\n" +
-	"\x13DeleteSecretRequest\x12\x1f\n" +
-	"\vsecret_name\x18\x01 \x01(\tR\n" +
-	"secretName2\x90\x01\n" +
+	"secretName2O\n" +
 	"\x12SecretWriteService\x129\n" +
-	"\x04Save\x12\x19.bankcard.EncryptedSecret\x1a\x16.google.protobuf.Empty\x12?\n" +
-	"\x06Delete\x12\x1d.bankcard.DeleteSecretRequest\x1a\x16.google.protobuf.Empty2\x8e\x01\n" +
+	"\x04Save\x12\x19.bankcard.EncryptedSecret\x1a\x16.google.protobuf.Empty2\x8e\x01\n" +
 	"\x11SecretReadService\x12<\n" +
 	"\x03Get\x12\x1a.bankcard.GetSecretRequest\x1a\x19.bankcard.EncryptedSecret\x12;\n" +
 	"\x04List\x12\x16.google.protobuf.Empty\x1a\x19.bankcard.EncryptedSecret0\x01B-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
@@ -227,24 +179,21 @@ func file_secret_proto_rawDescGZIP() []byte {
 	return file_secret_proto_rawDescData
 }
 
-var file_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_secret_proto_goTypes = []any{
-	(*EncryptedSecret)(nil),     // 0: bankcard.EncryptedSecret
-	(*GetSecretRequest)(nil),    // 1: bankcard.GetSecretRequest
-	(*DeleteSecretRequest)(nil), // 2: bankcard.DeleteSecretRequest
-	(*emptypb.Empty)(nil),       // 3: google.protobuf.Empty
+	(*EncryptedSecret)(nil),  // 0: bankcard.EncryptedSecret
+	(*GetSecretRequest)(nil), // 1: bankcard.GetSecretRequest
+	(*emptypb.Empty)(nil),    // 2: google.protobuf.Empty
 }
 var file_secret_proto_depIdxs = []int32{
 	0, // 0: bankcard.SecretWriteService.Save:input_type -> bankcard.EncryptedSecret
-	2, // 1: bankcard.SecretWriteService.Delete:input_type -> bankcard.DeleteSecretRequest
-	1, // 2: bankcard.SecretReadService.Get:input_type -> bankcard.GetSecretRequest
-	3, // 3: bankcard.SecretReadService.List:input_type -> google.protobuf.Empty
-	3, // 4: bankcard.SecretWriteService.Save:output_type -> google.protobuf.Empty
-	3, // 5: bankcard.SecretWriteService.Delete:output_type -> google.protobuf.Empty
-	0, // 6: bankcard.SecretReadService.Get:output_type -> bankcard.EncryptedSecret
-	0, // 7: bankcard.SecretReadService.List:output_type -> bankcard.EncryptedSecret
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
+	1, // 1: bankcard.SecretReadService.Get:input_type -> bankcard.GetSecretRequest
+	2, // 2: bankcard.SecretReadService.List:input_type -> google.protobuf.Empty
+	2, // 3: bankcard.SecretWriteService.Save:output_type -> google.protobuf.Empty
+	0, // 4: bankcard.SecretReadService.Get:output_type -> bankcard.EncryptedSecret
+	0, // 5: bankcard.SecretReadService.List:output_type -> bankcard.EncryptedSecret
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -261,7 +210,7 @@ func file_secret_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_proto_rawDesc), len(file_secret_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

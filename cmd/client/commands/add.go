@@ -1,11 +1,11 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/internal/client"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
 	"github.com/sbilibin2017/gophkeeper/internal/cryptor"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
@@ -16,7 +16,6 @@ import (
 
 // NewAddBankCardCommand creates a new Cobra command to add a bank card secret to the local client storage.
 // It accepts various flags like secret name, card number, owner, expiration, and CVV.
-// The bank card is encrypted using the RSA public certificate provided via the --cert flag.
 func NewAddBankCardCommand() *cobra.Command {
 	var (
 		certPath   string
@@ -44,7 +43,7 @@ func NewAddBankCardCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			writeRepo := repositories.NewEncryptedSecretWriteRepository(db)
+			writer := repositories.NewEncryptedSecretWriteRepository(db)
 
 			cryptor, err := cryptor.New(
 				cryptor.WithPublicKeyFromCert(certPath),
@@ -53,14 +52,12 @@ func NewAddBankCardCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize cryptor: %w", err)
 			}
 
-			secretWriter := client.NewSecretWriter(writeRepo, cryptor)
-
 			var metaPtr *string
 			if meta != "" {
 				metaPtr = &meta
 			}
 
-			bankCardPayload := models.BankCardPayload{
+			payload := models.BankCardPayload{
 				Number: number,
 				Owner:  owner,
 				Exp:    exp,
@@ -68,8 +65,25 @@ func NewAddBankCardCommand() *cobra.Command {
 				Meta:   metaPtr,
 			}
 
-			if err := secretWriter.AddBankCard(ctx, secretName, bankCardPayload); err != nil {
-				return fmt.Errorf("failed to add bank card secret: %w", err)
+			plaintext, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("failed to marshal bank card payload: %w", err)
+			}
+
+			enc, err := cryptor.Encrypt(plaintext)
+			if err != nil {
+				return fmt.Errorf("encryption failed: %w", err)
+			}
+
+			secret := &models.EncryptedSecret{
+				SecretType: models.SecretTypeBankCard,
+				SecretName: secretName,
+				Ciphertext: enc.Ciphertext,
+				AESKeyEnc:  enc.AESKeyEnc,
+			}
+
+			if err := writer.Save(ctx, secret); err != nil {
+				return fmt.Errorf("failed to save bank card secret: %w", err)
 			}
 
 			fmt.Println("Bank card secret added successfully")
@@ -127,7 +141,7 @@ func NewAddBinaryCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			writeRepo := repositories.NewEncryptedSecretWriteRepository(db)
+			writer := repositories.NewEncryptedSecretWriteRepository(db)
 
 			cryptor, err := cryptor.New(
 				cryptor.WithPublicKeyFromCert(certPath),
@@ -136,21 +150,36 @@ func NewAddBinaryCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize cryptor: %w", err)
 			}
 
-			secretWriter := client.NewSecretWriter(writeRepo, cryptor)
-
 			var metaPtr *string
 			if meta != "" {
 				metaPtr = &meta
 			}
 
-			binaryPayload := models.BinaryPayload{
+			payload := models.BinaryPayload{
 				FileName: filePath,
 				Data:     data,
 				Meta:     metaPtr,
 			}
 
-			if err := secretWriter.AddBinary(ctx, secretName, binaryPayload); err != nil {
-				return fmt.Errorf("failed to add binary secret: %w", err)
+			plaintext, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("failed to marshal binary payload: %w", err)
+			}
+
+			enc, err := cryptor.Encrypt(plaintext)
+			if err != nil {
+				return fmt.Errorf("encryption failed: %w", err)
+			}
+
+			secret := &models.EncryptedSecret{
+				SecretType: models.SecretTypeBinary,
+				SecretName: secretName,
+				Ciphertext: enc.Ciphertext,
+				AESKeyEnc:  enc.AESKeyEnc,
+			}
+
+			if err := writer.Save(ctx, secret); err != nil {
+				return fmt.Errorf("failed to save binary secret: %w", err)
 			}
 
 			fmt.Println("Binary secret added successfully")
@@ -198,7 +227,7 @@ func NewAddTextCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			writeRepo := repositories.NewEncryptedSecretWriteRepository(db)
+			writer := repositories.NewEncryptedSecretWriteRepository(db)
 
 			cryptor, err := cryptor.New(
 				cryptor.WithPublicKeyFromCert(certPath),
@@ -207,20 +236,35 @@ func NewAddTextCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize cryptor: %w", err)
 			}
 
-			secretWriter := client.NewSecretWriter(writeRepo, cryptor)
-
 			var metaPtr *string
 			if meta != "" {
 				metaPtr = &meta
 			}
 
-			textPayload := models.TextPayload{
+			payload := models.TextPayload{
 				Data: data,
 				Meta: metaPtr,
 			}
 
-			if err := secretWriter.AddText(ctx, secretName, textPayload); err != nil {
-				return fmt.Errorf("failed to add text secret: %w", err)
+			plaintext, err := json.Marshal(payload)
+			if err != nil {
+				return fmt.Errorf("failed to marshal text payload: %w", err)
+			}
+
+			enc, err := cryptor.Encrypt(plaintext)
+			if err != nil {
+				return fmt.Errorf("encryption failed: %w", err)
+			}
+
+			secret := &models.EncryptedSecret{
+				SecretType: models.SecretTypeText,
+				SecretName: secretName,
+				Ciphertext: enc.Ciphertext,
+				AESKeyEnc:  enc.AESKeyEnc,
+			}
+
+			if err := writer.Save(ctx, secret); err != nil {
+				return fmt.Errorf("failed to save text secret: %w", err)
 			}
 
 			fmt.Println("Text secret added successfully")
@@ -267,7 +311,7 @@ func NewAddUserCommand() *cobra.Command {
 			}
 			defer db.Close()
 
-			writeRepo := repositories.NewEncryptedSecretWriteRepository(db)
+			writer := repositories.NewEncryptedSecretWriteRepository(db)
 
 			cryptor, err := cryptor.New(
 				cryptor.WithPublicKeyFromCert(certPath),
@@ -276,20 +320,35 @@ func NewAddUserCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize cryptor: %w", err)
 			}
 
-			secretWriter := client.NewSecretWriter(writeRepo, cryptor)
-
 			var metaPtr *string
 			if meta != "" {
 				metaPtr = &meta
 			}
 
-			userPayload := models.UserPayload{
+			payload := models.UserPayload{
 				Login:    login,
 				Password: password,
 				Meta:     metaPtr,
 			}
 
-			if err := secretWriter.AddUser(ctx, secretName, userPayload); err != nil {
+			plaintext, err := json.Marshal(payload)
+			if err != nil {
+				return err
+			}
+
+			enc, err := cryptor.Encrypt(plaintext)
+			if err != nil {
+				return err
+			}
+
+			secret := &models.EncryptedSecret{
+				SecretType: models.SecretTypeUser,
+				SecretName: secretName,
+				Ciphertext: enc.Ciphertext,
+				AESKeyEnc:  enc.AESKeyEnc,
+			}
+
+			if err := writer.Save(ctx, secret); err != nil {
 				return fmt.Errorf("failed to add user secret: %w", err)
 			}
 

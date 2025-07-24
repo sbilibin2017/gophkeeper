@@ -1,32 +1,21 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/internal/client"
+	"github.com/spf13/cobra"
+
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/http"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/cryptor"
 	"github.com/sbilibin2017/gophkeeper/internal/facades"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/repositories"
-	"github.com/spf13/cobra"
 )
 
-// NewListCommand returns a cobra command that lists all secrets.
-//
-// The command supports both local and remote secret listing. If no --server flag is provided,
-// the secrets are fetched from the local SQLite database using the private key for decryption.
-// If the --server flag is provided, the secrets are fetched from the server (HTTP or gRPC),
-// using the provided public key file for cryptographic operations.
-//
-// Supported flags:
-// - --server: server URL to fetch secrets from (optional; if empty, local mode is used)
-// - --pubkey: path to the client public or private key file (required for both modes)
-// - --token: authorization token for server requests (optional; used only in remote mode)
 func NewListCommand() *cobra.Command {
 	var (
 		serverURL        string
@@ -38,125 +27,113 @@ func NewListCommand() *cobra.Command {
 		Use:   "list",
 		Short: "Lists all secrets",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			if serverURL == "" || clientPubKeyFile == "" {
-				db, err := db.New("sqlite", "client.db")
+			var (
+				secrets []*models.EncryptedSecret
+				crypt   *cryptor.Cryptor
+				err     error
+			)
+
+			if serverURL == "" {
+				// Local mode
+				dbConn, err := db.New("sqlite", "client.db")
 				if err != nil {
 					return fmt.Errorf("failed to connect to DB: %w", err)
 				}
-				defer db.Close()
+				defer dbConn.Close()
 
-				reader := repositories.NewEncryptedSecretReadRepository(db)
+				reader := repositories.NewEncryptedSecretReadRepository(dbConn)
 
-				cryptor, err := cryptor.New(
+				crypt, err = cryptor.New(
 					cryptor.WithPrivateKeyFromFile(clientPubKeyFile),
 				)
 				if err != nil {
-					return fmt.Errorf("failed to init local decryptor: %w", err)
+					return fmt.Errorf("failed to init decryptor: %w", err)
 				}
 
-				secretReader := client.NewSecretReader(reader, cryptor)
-
-				secrets, err := secretReader.List(ctx)
+				secrets, err = reader.List(ctx)
 				if err != nil {
-					return fmt.Errorf("failed to list secrets: %w", err)
+					return fmt.Errorf("failed to list secrets locally: %w", err)
 				}
-				if len(secrets) == 0 {
-					fmt.Println("No secrets found")
-					return nil
-				}
-				for _, s := range secrets {
-					fmt.Println(s)
-				}
-				return nil
-			}
-
-			schemeType := scheme.GetSchemeFromURL(serverURL)
-			switch schemeType {
-			case scheme.HTTP, scheme.HTTPS:
-				httpClient, err := http.New(serverURL,
-					http.WithAuthToken(authToken),
-					http.WithRetryPolicy(http.RetryPolicy{
-						Count:   3,
-						Wait:    500 * time.Millisecond,
-						MaxWait: 5 * time.Second,
-					}),
-				)
-				if err != nil {
-					return fmt.Errorf("failed to create HTTP client: %w", err)
-				}
-
-				cryptor, err := cryptor.New(
+			} else {
+				// Remote mode
+				crypt, err = cryptor.New(
 					cryptor.WithPublicKeyFromCert(clientPubKeyFile),
 				)
 				if err != nil {
 					return fmt.Errorf("failed to init cryptor: %w", err)
 				}
 
-				httpReader := facades.NewSecretHTTPReadFacade(httpClient)
+				schemeType := scheme.GetSchemeFromURL(serverURL)
+				switch schemeType {
+				case scheme.HTTP, scheme.HTTPS:
+					httpClient, err := http.New(serverURL,
+						http.WithAuthToken(authToken),
+						http.WithRetryPolicy(http.RetryPolicy{
+							Count:   3,
+							Wait:    500 * time.Millisecond,
+							MaxWait: 5 * time.Second,
+						}),
+					)
+					if err != nil {
+						return fmt.Errorf("failed to create HTTP client: %w", err)
+					}
 
-				secretReader := client.NewSecretReader(httpReader, cryptor)
+					facade := facades.NewSecretHTTPReadFacade(httpClient)
+					secrets, err = facade.List(ctx)
+					if err != nil {
+						return fmt.Errorf("failed to list secrets via HTTP: %w", err)
+					}
 
-				secrets, err := secretReader.List(ctx)
-				if err != nil {
-					return fmt.Errorf("failed to list secrets via HTTP: %w", err)
-				}
-				if len(secrets) == 0 {
-					fmt.Println("No secrets found")
-					return nil
-				}
-				for _, s := range secrets {
-					fmt.Println(s)
-				}
-				return nil
+				case scheme.GRPC:
+					grpcConn, err := grpc.New(serverURL,
+						grpc.WithAuthToken(authToken),
+						grpc.WithRetryPolicy(grpc.RetryPolicy{
+							Count:   3,
+							Wait:    500 * time.Millisecond,
+							MaxWait: 5 * time.Second,
+						}),
+					)
+					if err != nil {
+						return fmt.Errorf("failed to create gRPC connection: %w", err)
+					}
+					defer grpcConn.Close()
 
-			case scheme.GRPC:
-				grpcClient, err := grpc.New(serverURL,
-					grpc.WithAuthToken(authToken),
-					grpc.WithRetryPolicy(grpc.RetryPolicy{
-						Count:   3,
-						Wait:    500 * time.Millisecond,
-						MaxWait: 5 * time.Second,
-					}),
-				)
-				if err != nil {
-					return fmt.Errorf("failed to create gRPC connection: %w", err)
-				}
-				defer grpcClient.Close()
+					facade := facades.NewSecretGRPCReadFacade(grpcConn)
+					secrets, err = facade.List(ctx)
+					if err != nil {
+						return fmt.Errorf("failed to list secrets via gRPC: %w", err)
+					}
 
-				cryptor, err := cryptor.New(
-					cryptor.WithPublicKeyFromCert(clientPubKeyFile),
-				)
-				if err != nil {
-					return fmt.Errorf("failed to init cryptor: %w", err)
+				default:
+					return fmt.Errorf("unsupported or missing scheme in server URL")
 				}
-
-				grpcReader := facades.NewSecretGRPCReadFacade(grpcClient)
-
-				secretReader := client.NewSecretReader(grpcReader, cryptor)
-
-				secrets, err := secretReader.List(ctx)
-				if err != nil {
-					return fmt.Errorf("failed to list secrets via gRPC: %w", err)
-				}
-				if len(secrets) == 0 {
-					fmt.Println("No secrets found")
-					return nil
-				}
-				for _, s := range secrets {
-					fmt.Println(s)
-				}
-				return nil
-
-			default:
-				return fmt.Errorf("unsupported or missing scheme in server URL")
 			}
+
+			if len(secrets) == 0 {
+				fmt.Println("No secrets found")
+				return nil
+			}
+
+			for _, s := range secrets {
+				enc := &cryptor.Encrypted{
+					Ciphertext: s.Ciphertext,
+					AESKeyEnc:  s.AESKeyEnc,
+				}
+				plaintext, err := crypt.Decrypt(enc)
+				if err != nil {
+					continue
+				}
+				cmd.Println(plaintext)
+			}
+
+			return nil
 		},
 	}
 
 	cmd.Flags().StringVar(&serverURL, "server", "", "Server URL (http://, https://, grpc://)")
-	cmd.Flags().StringVar(&clientPubKeyFile, "pubkey", "", "Client public key file path")
+	cmd.Flags().StringVar(&clientPubKeyFile, "pubkey", "", "Client public/private key file path (required)")
 	cmd.Flags().StringVar(&authToken, "token", "", "Authorization token for server requests (optional)")
 
 	return cmd

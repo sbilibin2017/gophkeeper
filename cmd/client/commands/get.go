@@ -1,34 +1,20 @@
 package commands
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"github.com/sbilibin2017/gophkeeper/internal/client"
-	"github.com/sbilibin2017/gophkeeper/internal/facades"
+	"github.com/spf13/cobra"
 
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/http"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/cryptor"
+	"github.com/sbilibin2017/gophkeeper/internal/facades"
 	"github.com/sbilibin2017/gophkeeper/internal/repositories"
-	"github.com/spf13/cobra"
 )
 
-// NewGetCommand returns a cobra command that retrieves a secret by name.
-//
-// The command supports both local and remote secret retrieval. If no --server flag is provided,
-// the secret is fetched from the local SQLite database using the private key for decryption.
-// If the --server flag is provided, the secret is fetched from the server (HTTP or gRPC),
-// using the provided public key file for cryptographic operations.
-//
-// Supported flags:
-// - --secret-name / -n: name of the secret to retrieve (required)
-// - --server: server URL to fetch secret from (optional; if empty, local mode is used)
-// - --pubkey: path to the client public or private key file (required for both modes)
-// - --token: authorization token for server requests (optional; used only in remote mode)
 func NewGetCommand() *cobra.Command {
 	var (
 		secretName       string
@@ -41,38 +27,69 @@ func NewGetCommand() *cobra.Command {
 		Use:   "get",
 		Short: "Gets secret",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := context.Background()
+			ctx := cmd.Context()
 
-			if serverURL == "" || clientPubKeyFile == "" {
-				db, err := db.New("sqlite", "client.db")
+			if secretName == "" {
+				return fmt.Errorf("--secret-name is required")
+			}
+
+			if serverURL == "" {
+				// Local mode
+				if clientPubKeyFile == "" {
+					return fmt.Errorf("--pubkey is required in local mode")
+				}
+
+				sqlite, err := db.New("sqlite", "client.db")
 				if err != nil {
 					return fmt.Errorf("failed to connect to DB: %w", err)
 				}
-				defer db.Close()
+				defer sqlite.Close()
 
-				reader := repositories.NewEncryptedSecretReadRepository(db)
+				reader := repositories.NewEncryptedSecretReadRepository(sqlite)
 
-				cryptor, err := cryptor.New(
+				crypt, err := cryptor.New(
 					cryptor.WithPrivateKeyFromFile(clientPubKeyFile),
 				)
 				if err != nil {
-					return fmt.Errorf("failed to init local decryptor: %w", err)
+					return fmt.Errorf("failed to init decryptor: %w", err)
 				}
 
-				secretReader := client.NewSecretReader(reader, cryptor)
-				secret, err := secretReader.Get(ctx, secretName)
+				secret, err := reader.Get(ctx, secretName)
 				if err != nil {
-					return fmt.Errorf("failed to get secret: %w", err)
+					return fmt.Errorf("failed to read secret: %w", err)
 				}
 				if secret == nil {
 					fmt.Println("Secret not found")
 					return nil
 				}
-				fmt.Println(*secret)
+
+				enc := &cryptor.Encrypted{
+					Ciphertext: secret.Ciphertext,
+					AESKeyEnc:  secret.AESKeyEnc,
+				}
+				plaintext, err := crypt.Decrypt(enc)
+				if err != nil {
+					return fmt.Errorf("failed to decrypt secret: %w", err)
+				}
+
+				fmt.Println(string(plaintext))
 				return nil
 			}
 
+			// Remote mode
+			if clientPubKeyFile == "" {
+				return fmt.Errorf("--pubkey is required in remote mode")
+			}
+
+			crypt, err := cryptor.New(
+				cryptor.WithPublicKeyFromCert(clientPubKeyFile),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to init cryptor: %w", err)
+			}
+
 			schemeType := scheme.GetSchemeFromURL(serverURL)
+
 			switch schemeType {
 			case scheme.HTTP, scheme.HTTPS:
 				httpClient, err := http.New(serverURL,
@@ -87,17 +104,9 @@ func NewGetCommand() *cobra.Command {
 					return fmt.Errorf("failed to create HTTP client: %w", err)
 				}
 
-				cryptor, err := cryptor.New(
-					cryptor.WithPublicKeyFromCert(clientPubKeyFile),
-				)
-				if err != nil {
-					return fmt.Errorf("failed to init cryptor: %w", err)
-				}
+				facade := facades.NewSecretHTTPReadFacade(httpClient)
 
-				httpReader := facades.NewSecretHTTPReadFacade(httpClient)
-				secretReader := client.NewSecretReader(httpReader, cryptor)
-
-				secret, err := secretReader.Get(ctx, secretName)
+				secret, err := facade.Get(ctx, secretName)
 				if err != nil {
 					return fmt.Errorf("failed to get secret via HTTP: %w", err)
 				}
@@ -105,11 +114,21 @@ func NewGetCommand() *cobra.Command {
 					fmt.Println("Secret not found")
 					return nil
 				}
-				fmt.Println(*secret)
+
+				enc := &cryptor.Encrypted{
+					Ciphertext: secret.Ciphertext,
+					AESKeyEnc:  secret.AESKeyEnc,
+				}
+				plaintext, err := crypt.Decrypt(enc)
+				if err != nil {
+					return fmt.Errorf("failed to decrypt secret: %w", err)
+				}
+
+				fmt.Println(string(plaintext))
 				return nil
 
 			case scheme.GRPC:
-				grpcClient, err := grpc.New(serverURL,
+				grpcConn, err := grpc.New(serverURL,
 					grpc.WithAuthToken(authToken),
 					grpc.WithRetryPolicy(grpc.RetryPolicy{
 						Count:   3,
@@ -118,21 +137,13 @@ func NewGetCommand() *cobra.Command {
 					}),
 				)
 				if err != nil {
-					return fmt.Errorf("failed to create gRPC connection: %w", err)
+					return fmt.Errorf("failed to create gRPC client: %w", err)
 				}
-				defer grpcClient.Close()
+				defer grpcConn.Close()
 
-				cryptor, err := cryptor.New(
-					cryptor.WithPublicKeyFromCert(clientPubKeyFile),
-				)
-				if err != nil {
-					return fmt.Errorf("failed to init cryptor: %w", err)
-				}
+				facade := facades.NewSecretGRPCReadFacade(grpcConn)
 
-				grpcReader := facades.NewSecretGRPCReadFacade(grpcClient)
-				secretReader := client.NewSecretReader(grpcReader, cryptor)
-
-				secret, err := secretReader.Get(ctx, secretName)
+				secret, err := facade.Get(ctx, secretName)
 				if err != nil {
 					return fmt.Errorf("failed to get secret via gRPC: %w", err)
 				}
@@ -140,19 +151,29 @@ func NewGetCommand() *cobra.Command {
 					fmt.Println("Secret not found")
 					return nil
 				}
-				fmt.Println(*secret)
+
+				enc := &cryptor.Encrypted{
+					Ciphertext: secret.Ciphertext,
+					AESKeyEnc:  secret.AESKeyEnc,
+				}
+				plaintext, err := crypt.Decrypt(enc)
+				if err != nil {
+					return fmt.Errorf("failed to decrypt secret: %w", err)
+				}
+
+				fmt.Println(string(plaintext))
 				return nil
 
 			default:
-				return fmt.Errorf("unsupported or missing scheme in server URL")
+				return fmt.Errorf("unsupported scheme: %s", schemeType)
 			}
 		},
 	}
 
-	cmd.Flags().StringVar(&secretName, "secret-name", "", "Name of the secret to retrieve")
-	cmd.Flags().StringVar(&serverURL, "server", "", "Server URL (http://, https://, grpc://)")
-	cmd.Flags().StringVar(&clientPubKeyFile, "pubkey", "", "Client public key file path")
-	cmd.Flags().StringVar(&authToken, "token", "", "Authorization token for server requests (optional)")
+	cmd.Flags().StringVar(&secretName, "secret-name", "", "Name of the secret to retrieve (required)")
+	cmd.Flags().StringVar(&serverURL, "server", "", "Server URL (e.g., http://localhost:8080 or grpc://localhost:50051)")
+	cmd.Flags().StringVar(&clientPubKeyFile, "pubkey", "", "Path to public/private key file (required)")
+	cmd.Flags().StringVar(&authToken, "token", "", "Bearer token for remote server (optional)")
 
 	return cmd
 }

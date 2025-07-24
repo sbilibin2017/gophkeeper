@@ -20,8 +20,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SecretWriteService_Save_FullMethodName   = "/bankcard.SecretWriteService/Save"
-	SecretWriteService_Delete_FullMethodName = "/bankcard.SecretWriteService/Delete"
+	SecretWriteService_Save_FullMethodName = "/bankcard.SecretWriteService/Save"
 )
 
 // SecretWriteServiceClient is the client API for SecretWriteService service.
@@ -31,7 +30,6 @@ const (
 // Write service
 type SecretWriteServiceClient interface {
 	Save(ctx context.Context, in *EncryptedSecret, opts ...grpc.CallOption) (*emptypb.Empty, error)
-	Delete(ctx context.Context, in *DeleteSecretRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type secretWriteServiceClient struct {
@@ -52,16 +50,6 @@ func (c *secretWriteServiceClient) Save(ctx context.Context, in *EncryptedSecret
 	return out, nil
 }
 
-func (c *secretWriteServiceClient) Delete(ctx context.Context, in *DeleteSecretRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(emptypb.Empty)
-	err := c.cc.Invoke(ctx, SecretWriteService_Delete_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // SecretWriteServiceServer is the server API for SecretWriteService service.
 // All implementations must embed UnimplementedSecretWriteServiceServer
 // for forward compatibility.
@@ -69,7 +57,6 @@ func (c *secretWriteServiceClient) Delete(ctx context.Context, in *DeleteSecretR
 // Write service
 type SecretWriteServiceServer interface {
 	Save(context.Context, *EncryptedSecret) (*emptypb.Empty, error)
-	Delete(context.Context, *DeleteSecretRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedSecretWriteServiceServer()
 }
 
@@ -82,9 +69,6 @@ type UnimplementedSecretWriteServiceServer struct{}
 
 func (UnimplementedSecretWriteServiceServer) Save(context.Context, *EncryptedSecret) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Save not implemented")
-}
-func (UnimplementedSecretWriteServiceServer) Delete(context.Context, *DeleteSecretRequest) (*emptypb.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Delete not implemented")
 }
 func (UnimplementedSecretWriteServiceServer) mustEmbedUnimplementedSecretWriteServiceServer() {}
 func (UnimplementedSecretWriteServiceServer) testEmbeddedByValue()                            {}
@@ -125,24 +109,6 @@ func _SecretWriteService_Save_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _SecretWriteService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteSecretRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(SecretWriteServiceServer).Delete(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: SecretWriteService_Delete_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecretWriteServiceServer).Delete(ctx, req.(*DeleteSecretRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // SecretWriteService_ServiceDesc is the grpc.ServiceDesc for SecretWriteService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -153,10 +119,6 @@ var SecretWriteService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Save",
 			Handler:    _SecretWriteService_Save_Handler,
-		},
-		{
-			MethodName: "Delete",
-			Handler:    _SecretWriteService_Delete_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

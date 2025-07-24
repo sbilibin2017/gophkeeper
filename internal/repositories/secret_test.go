@@ -61,14 +61,6 @@ func TestEncryptedSecretWriteRepository_SaveAndDelete(t *testing.T) {
 	err = repo.Save(ctx, secret)
 	assert.NoError(t, err)
 
-	// Delete secret
-	err = repo.Delete(ctx, secret.SecretName)
-	assert.NoError(t, err)
-
-	// Delete non-existing secret -> error
-	err = repo.Delete(ctx, "nonexistent")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestEncryptedSecretWriteRepository_Save_Error(t *testing.T) {
