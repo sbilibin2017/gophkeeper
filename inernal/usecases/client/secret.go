@@ -32,7 +32,7 @@ type SecretServerReader interface {
 
 // SecretServerWriter defines methods for saving secrets to the remote server.
 type SecretServerWriter interface {
-	Save(ctx context.Context, secret *models.SecretSaveRequest) error
+	Save(ctx context.Context, req *models.SecretSaveRequest) error
 }
 
 // Encryptor defines decryption operations for encrypted secrets.
@@ -45,17 +45,47 @@ type Decryptor interface {
 	Decrypt(enc *cryptor.Encrypted) ([]byte, error)
 }
 
-// SecretClientAddUsecase handles logic for transforming and saving secrets on the client side.
-type SecretClientAddUsecase struct {
-	writer    SecretClientWriter
-	encryptor Encryptor
+type LuhnValidator interface {
+	Validate(number string) error
 }
 
-func (uc *SecretClientAddUsecase) AddBankCard(
+type CVVValidator interface {
+	Validate(cvv string) error
+}
+
+type BankCardSecretAddUsecase struct {
+	luhnValidator LuhnValidator
+	cvvValidator  CVVValidator
+	writer        SecretClientWriter
+	encryptor     Encryptor
+}
+
+func NewBankCardSecretAddUsecase(
+	luhnValidator LuhnValidator,
+	cvvValidator CVVValidator,
+	writer SecretClientWriter,
+	encryptor Encryptor,
+) *BankCardSecretAddUsecase {
+	return &BankCardSecretAddUsecase{
+		luhnValidator: luhnValidator,
+		cvvValidator:  cvvValidator,
+		writer:        writer,
+		encryptor:     encryptor,
+	}
+}
+
+func (uc *BankCardSecretAddUsecase) Execute(
 	ctx context.Context,
 	secret *models.BankcardSecretAdd,
 	token string,
 ) error {
+	if err := uc.luhnValidator.Validate(secret.Number); err != nil {
+		return err
+	}
+	if err := uc.cvvValidator.Validate(secret.CVV); err != nil {
+		return err
+	}
+
 	secretJSON, err := json.Marshal(secret)
 	if err != nil {
 		return fmt.Errorf("failed to marshal secret: %w", err)
@@ -67,8 +97,7 @@ func (uc *SecretClientAddUsecase) AddBankCard(
 	}
 
 	now := time.Now()
-
-	secretDB := &models.SecretDB{
+	return uc.writer.Save(ctx, &models.SecretDB{
 		SecretName:  secret.SecretName,
 		SecretType:  models.SecretTypeBankCard,
 		SecretOwner: token,
@@ -76,13 +105,25 @@ func (uc *SecretClientAddUsecase) AddBankCard(
 		AESKeyEnc:   enc.AESKeyEnc,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	}
-
-	return uc.writer.Save(ctx, secretDB)
+	})
 }
 
-// AddUserSecret encrypts and saves a UserSecretAdd.
-func (uc *SecretClientAddUsecase) AddUserSecret(
+type UserSecretAddUsecase struct {
+	writer    SecretClientWriter
+	encryptor Encryptor
+}
+
+func NewUserSecretAddUsecase(
+	writer SecretClientWriter,
+	encryptor Encryptor,
+) *UserSecretAddUsecase {
+	return &UserSecretAddUsecase{
+		writer:    writer,
+		encryptor: encryptor,
+	}
+}
+
+func (uc *UserSecretAddUsecase) Execute(
 	ctx context.Context,
 	secret *models.UserSecretAdd,
 	token string,
@@ -98,8 +139,7 @@ func (uc *SecretClientAddUsecase) AddUserSecret(
 	}
 
 	now := time.Now()
-
-	secretDB := &models.SecretDB{
+	return uc.writer.Save(ctx, &models.SecretDB{
 		SecretName:  secret.SecretName,
 		SecretType:  models.SecretTypeUser,
 		SecretOwner: token,
@@ -107,13 +147,25 @@ func (uc *SecretClientAddUsecase) AddUserSecret(
 		AESKeyEnc:   enc.AESKeyEnc,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	}
-
-	return uc.writer.Save(ctx, secretDB)
+	})
 }
 
-// AddBinarySecret encrypts and saves a BinarySecretAdd.
-func (uc *SecretClientAddUsecase) AddBinarySecret(
+type BinarySecretAddUsecase struct {
+	writer    SecretClientWriter
+	encryptor Encryptor
+}
+
+func NewBinarySecretAddUsecase(
+	writer SecretClientWriter,
+	encryptor Encryptor,
+) *BinarySecretAddUsecase {
+	return &BinarySecretAddUsecase{
+		writer:    writer,
+		encryptor: encryptor,
+	}
+}
+
+func (uc *BinarySecretAddUsecase) Execute(
 	ctx context.Context,
 	secret *models.BinarySecretAdd,
 	token string,
@@ -129,8 +181,7 @@ func (uc *SecretClientAddUsecase) AddBinarySecret(
 	}
 
 	now := time.Now()
-
-	secretDB := &models.SecretDB{
+	return uc.writer.Save(ctx, &models.SecretDB{
 		SecretName:  secret.SecretName,
 		SecretType:  models.SecretTypeBinary,
 		SecretOwner: token,
@@ -138,13 +189,25 @@ func (uc *SecretClientAddUsecase) AddBinarySecret(
 		AESKeyEnc:   enc.AESKeyEnc,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	}
-
-	return uc.writer.Save(ctx, secretDB)
+	})
 }
 
-// AddTextSecret encrypts and saves a TextSecretAdd.
-func (uc *SecretClientAddUsecase) AddTextSecret(
+type TextSecretAddUsecase struct {
+	writer    SecretClientWriter
+	encryptor Encryptor
+}
+
+func NewTextSecretAddUsecase(
+	writer SecretClientWriter,
+	encryptor Encryptor,
+) *TextSecretAddUsecase {
+	return &TextSecretAddUsecase{
+		writer:    writer,
+		encryptor: encryptor,
+	}
+}
+
+func (uc *TextSecretAddUsecase) Execute(
 	ctx context.Context,
 	secret *models.TextSecretAdd,
 	token string,
@@ -160,8 +223,7 @@ func (uc *SecretClientAddUsecase) AddTextSecret(
 	}
 
 	now := time.Now()
-
-	secretDB := &models.SecretDB{
+	return uc.writer.Save(ctx, &models.SecretDB{
 		SecretName:  secret.SecretName,
 		SecretType:  models.SecretTypeText,
 		SecretOwner: token,
@@ -169,29 +231,27 @@ func (uc *SecretClientAddUsecase) AddTextSecret(
 		AESKeyEnc:   enc.AESKeyEnc,
 		CreatedAt:   now,
 		UpdatedAt:   now,
-	}
-
-	return uc.writer.Save(ctx, secretDB)
+	})
 }
 
 // SecretClientReadUsecase handles logic for retrieving secrets from the server.
-type SecretClientReadUsecase struct {
+type SecretClientListUsecase struct {
 	reader    SecretServerReader
 	decryptor Decryptor
 }
 
 // NewSecretClientReadUsecase returns a new instance of SecretClientReadUsecase.
-func NewSecretClientReadUsecase(
+func NewSecretClientListUsecase(
 	reader SecretServerReader,
 	decryptor Decryptor,
-) *SecretClientReadUsecase {
-	return &SecretClientReadUsecase{
+) *SecretClientListUsecase {
+	return &SecretClientListUsecase{
 		reader:    reader,
 		decryptor: decryptor,
 	}
 }
 
-func (uc *SecretClientReadUsecase) List(
+func (uc *SecretClientListUsecase) Execute(
 	ctx context.Context,
 	req *models.SecretListRequest,
 ) (string, error) {
@@ -253,31 +313,26 @@ func (uc *SecretClientReadUsecase) List(
 	return string(resultBytes), nil
 }
 
-// SecretSyncUsecase handles synchronization between local client secrets and remote server secrets.
-type SecretSyncUsecase struct {
+// ClientSyncUsecase handles pushing newer client secrets to the server.
+type ClientSyncUsecase struct {
 	clientReader SecretClientReader
 	serverReader SecretServerReader
 	serverWriter SecretServerWriter
-	decryptor    Decryptor
 }
 
-// NewSecretSyncUsecase constructs a new SecretSyncUsecase with the given dependencies.
-func NewSecretSyncUsecase(
+func NewClientSyncUsecase(
 	clientReader SecretClientReader,
 	serverReader SecretServerReader,
 	serverWriter SecretServerWriter,
-	decryptor Decryptor,
-) *SecretSyncUsecase {
-	return &SecretSyncUsecase{
+) *ClientSyncUsecase {
+	return &ClientSyncUsecase{
 		clientReader: clientReader,
 		serverReader: serverReader,
 		serverWriter: serverWriter,
-		decryptor:    decryptor,
 	}
 }
 
-// ResolveClient pushes newer local secrets to the server.
-func (uc *SecretSyncUsecase) ResolveClient(ctx context.Context, token string) error {
+func (uc *ClientSyncUsecase) Execute(ctx context.Context, token string) error {
 	clientSecrets, err := uc.clientReader.List(ctx, &models.SecretListFilterDB{SecretOwner: token})
 	if err != nil {
 		return fmt.Errorf("failed to list client secrets: %w", err)
@@ -309,20 +364,42 @@ func (uc *SecretSyncUsecase) ResolveClient(ctx context.Context, token string) er
 	return nil
 }
 
-// ResolveServer currently does nothing.
-func (uc *SecretSyncUsecase) ResolveServer(ctx context.Context, token string) error {
-	// No-op for server sync
+// ServerSyncUsecase is a placeholder for future server sync operations.
+type ServerSyncUsecase struct{}
+
+func NewServerSyncUsecase() *ServerSyncUsecase {
+	return &ServerSyncUsecase{}
+}
+
+func (uc *ServerSyncUsecase) Execute(ctx context.Context, token string) error {
+	// No-op for now
 	return nil
 }
 
-// ResolveInteractive prompts user to resolve conflicts interactively.
-func (uc *SecretSyncUsecase) ResolveInteractive(
-	ctx context.Context,
-	reader io.Reader,
-	token string,
-) error {
-	scanner := bufio.NewScanner(reader)
+// InteractiveSyncUsecase handles interactive conflict resolution.
+type InteractiveSyncUsecase struct {
+	clientReader SecretClientReader
+	serverReader SecretServerReader
+	serverWriter SecretServerWriter
+	decryptor    Decryptor
+}
 
+func NewInteractiveSyncUsecase(
+	clientReader SecretClientReader,
+	serverReader SecretServerReader,
+	serverWriter SecretServerWriter,
+	decryptor Decryptor,
+) *InteractiveSyncUsecase {
+	return &InteractiveSyncUsecase{
+		clientReader: clientReader,
+		serverReader: serverReader,
+		serverWriter: serverWriter,
+		decryptor:    decryptor,
+	}
+}
+
+func (uc *InteractiveSyncUsecase) Execute(ctx context.Context, reader io.Reader, token string) error {
+	scanner := bufio.NewScanner(reader)
 	clientSecrets, err := uc.clientReader.List(ctx, &models.SecretListFilterDB{SecretOwner: token})
 	if err != nil {
 		return fmt.Errorf("failed to list client secrets: %w", err)
@@ -338,19 +415,18 @@ func (uc *SecretSyncUsecase) ResolveInteractive(
 			return err
 		}
 
+		clientPlain, err := uc.decryptor.Decrypt(&cryptor.Encrypted{
+			Ciphertext: clientSecret.Ciphertext,
+			AESKeyEnc:  clientSecret.AESKeyEnc,
+		})
+		if err != nil {
+			return err
+		}
+
 		if serverSecret == nil {
 			fmt.Printf("Conflict for [%s]:\n", clientSecret.SecretName)
 			fmt.Println("Server version: <not found>")
-
-			clientPlain, err := uc.decryptor.Decrypt(&cryptor.Encrypted{
-				Ciphertext: clientSecret.Ciphertext,
-				AESKeyEnc:  clientSecret.AESKeyEnc,
-			})
-			if err != nil {
-				return err
-			}
 			fmt.Printf("Client version (updated at %v):\n%s\n\n", clientSecret.UpdatedAt, string(clientPlain))
-
 			fmt.Println("No server secret to save, saving client version automatically.")
 
 			if err := uc.serverWriter.Save(ctx, &models.SecretSaveRequest{
@@ -362,42 +438,27 @@ func (uc *SecretSyncUsecase) ResolveInteractive(
 			}); err != nil {
 				return fmt.Errorf("failed to save client secret '%s': %w", clientSecret.SecretName, err)
 			}
-
 			continue
+		}
+
+		serverPlain, err := uc.decryptor.Decrypt(&cryptor.Encrypted{
+			Ciphertext: serverSecret.Ciphertext,
+			AESKeyEnc:  serverSecret.AESKeyEnc,
+		})
+		if err != nil {
+			return err
 		}
 
 		if !clientSecret.UpdatedAt.Before(serverSecret.UpdatedAt) {
 			fmt.Printf("Conflict for [%s]:\n", clientSecret.SecretName)
-
-			clientPlain, err := uc.decryptor.Decrypt(&cryptor.Encrypted{
-				Ciphertext: clientSecret.Ciphertext,
-				AESKeyEnc:  clientSecret.AESKeyEnc,
-			})
-			if err != nil {
-				return err
-			}
-			clientText := string(clientPlain)
-
-			serverPlain, err := uc.decryptor.Decrypt(&cryptor.Encrypted{
-				Ciphertext: serverSecret.Ciphertext,
-				AESKeyEnc:  serverSecret.AESKeyEnc,
-			})
-			if err != nil {
-				return err
-			}
-			serverText := string(serverPlain)
-
-			fmt.Printf("1) Client version (updated at %v):\n%s\n\n", clientSecret.UpdatedAt, clientText)
-			fmt.Printf("2) Server version (updated at %v):\n%s\n\n", serverSecret.UpdatedAt, serverText)
-
+			fmt.Printf("1) Client version (updated at %v):\n%s\n\n", clientSecret.UpdatedAt, string(clientPlain))
+			fmt.Printf("2) Server version (updated at %v):\n%s\n\n", serverSecret.UpdatedAt, string(serverPlain))
 			fmt.Print("Choose version to keep (1 or 2): ")
 
 			if !scanner.Scan() {
 				return errors.New("failed to read input")
 			}
-
 			choice := strings.TrimSpace(scanner.Text())
-
 			switch choice {
 			case "1":
 				if err := uc.serverWriter.Save(ctx, &models.SecretSaveRequest{
@@ -410,7 +471,7 @@ func (uc *SecretSyncUsecase) ResolveInteractive(
 					return fmt.Errorf("failed to save client secret '%s': %w", clientSecret.SecretName, err)
 				}
 			case "2":
-				// Keep server version, do nothing
+				// Do nothing
 			default:
 				return errors.New("invalid choice")
 			}

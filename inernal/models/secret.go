@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -17,112 +19,56 @@ const (
 	SyncModeInteractive = "interactive" // Sync done interactively with user input
 )
 
-// SecretSaveRequest represents a request to save a secret, including encryption data and user token.
+// SecretSaveRequest соответствует protobuf SecretSaveRequest
 type SecretSaveRequest struct {
-	SecretName string `json:"secret_name"` // Secret identifier
-	SecretType string `json:"secret_type"` // Secret type (e.g. bankcard, user)
-	Ciphertext []byte `json:"ciphertext"`  // Encrypted secret data (AES-GCM)
-	AESKeyEnc  []byte `json:"aes_key_enc"` // Encrypted AES key (RSA-OAEP)
-	Token      string `json:"token"`       // User JWT token for authorization
+	SecretName string `json:"secret_name"`
+	SecretType string `json:"secret_type"`
+	Ciphertext []byte `json:"ciphertext"`
+	AESKeyEnc  []byte `json:"aes_key_enc"`
+	Token      string `json:"token"`
 }
 
-// SecretGetRequest represents a request to get a secret by name, type, and token.
+// SecretGetRequest соответствует protobuf SecretGetRequest
 type SecretGetRequest struct {
 	SecretName string `json:"secret_name"`
 	SecretType string `json:"secret_type"`
 	Token      string `json:"token"`
 }
 
-// SecretListRequest represents a request to list all secrets for a user token.
+// SecretListRequest соответствует protobuf SecretListRequest
 type SecretListRequest struct {
 	Token string `json:"token"`
 }
 
-// SecretDB represents a secret stored in the database, including timestamps.
-type SecretDB struct {
-	SecretName  string    `json:"secret_name" db:"secret_name"`
-	SecretType  string    `json:"secret_type" db:"secret_type"`
-	SecretOwner string    `json:"secret_owner" db:"secret_owner"`
-	Ciphertext  []byte    `json:"ciphertext" db:"ciphertext"`
-	AESKeyEnc   []byte    `json:"aes_key_enc" db:"aes_key_enc"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+// SecretResponse соответствует protobuf SecretResponse
+type SecretResponse struct {
+	SecretName  string                 `json:"secret_name"`
+	SecretType  string                 `json:"secret_type"`
+	SecretOwner string                 `json:"secret_owner"`
+	Ciphertext  []byte                 `json:"ciphertext"`
+	AESKeyEnc   []byte                 `json:"aes_key_enc"`
+	UpdatedAt   *timestamppb.Timestamp `json:"updated_at"`
 }
 
+// SecretDB — структура для хранения секрета в БД
+type SecretDB struct {
+	SecretName  string    `db:"secret_name" json:"secret_name"`
+	SecretType  string    `db:"secret_type" json:"secret_type"`
+	SecretOwner string    `db:"secret_owner" json:"secret_owner"`
+	Ciphertext  []byte    `db:"ciphertext" json:"ciphertext"`
+	AESKeyEnc   []byte    `db:"aes_key_enc" json:"aes_key_enc"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+}
+
+// SecretGetRequest соответствует protobuf SecretGetRequest
 type SecretGetFilterDB struct {
 	SecretName  string `json:"secret_name"`
 	SecretType  string `json:"secret_type"`
 	SecretOwner string `json:"secret_owner"`
 }
 
-type SecretListFilterDB struct {
+// SecretListRequest соответствует protobuf SecretListRequest
+type SecretListFilterDBRequest struct {
 	SecretOwner string `json:"secret_owner"`
-}
-
-// BankcardSecret represents the decrypted bank card secret fields.
-type BankcardSecretAdd struct {
-	SecretName  string  `json:"secret_name"`
-	SecretType  string  `json:"secret_type"`
-	SecretOwner string  `json:"secret_owner"`
-	Number      string  `json:"number"`
-	Owner       string  `json:"owner"`
-	Exp         string  `json:"exp"`
-	CVV         string  `json:"cvv"`
-	Meta        *string `json:"meta,omitempty"`
-}
-
-// BankcardSecret represents the decrypted bank card secret fields.
-type BankcardSecretPayload struct {
-	Number string  `json:"number"`
-	Owner  string  `json:"owner"`
-	Exp    string  `json:"exp"`
-	CVV    string  `json:"cvv"`
-	Meta   *string `json:"meta,omitempty"`
-}
-
-// UserSecretAdd represents the user secret fields along with metadata.
-type UserSecretAdd struct {
-	SecretName  string  `json:"secret_name"`
-	SecretType  string  `json:"secret_type"`
-	SecretOwner string  `json:"secret_owner"`
-	Username    string  `json:"username"`
-	Password    string  `json:"password"`
-	Meta        *string `json:"meta,omitempty"`
-}
-
-// BinarySecretAdd represents the binary secret fields along with metadata.
-type BinarySecretAdd struct {
-	SecretName  string  `json:"secret_name"`
-	SecretType  string  `json:"secret_type"`
-	SecretOwner string  `json:"secret_owner"`
-	Data        []byte  `json:"data"`
-	Meta        *string `json:"meta,omitempty"`
-}
-
-// TextSecretAdd represents the text secret fields along with metadata.
-type TextSecretAdd struct {
-	SecretName  string  `json:"secret_name"`
-	SecretType  string  `json:"secret_type"`
-	SecretOwner string  `json:"secret_owner"`
-	Text        string  `json:"text"`
-	Meta        *string `json:"meta,omitempty"`
-}
-
-// UserSecretPayload represents the decrypted user secret fields.
-type UserSecretPayload struct {
-	Username string  `json:"username"`
-	Password string  `json:"password"`
-	Meta     *string `json:"meta,omitempty"`
-}
-
-// BinarySecretPayload represents the decrypted binary secret fields.
-type BinarySecretPayload struct {
-	Data []byte  `json:"data"`
-	Meta *string `json:"meta,omitempty"`
-}
-
-// TextSecretPayload represents the decrypted text secret fields.
-type TextSecretPayload struct {
-	Text string  `json:"text"`
-	Meta *string `json:"meta,omitempty"`
 }

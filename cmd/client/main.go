@@ -1,41 +1,55 @@
-// Package main is the entry point for the GophKeeper CLI application.
+// Package main is the entry point of the GophKeeper CLI application.
+//
+// GophKeeper is a secure personal data manager that allows users to store
+// various secret types (bank cards, login credentials, binary data, etc.).
+// This CLI interacts with a secure backend and handles operations such as registration,
+// login, adding secrets, listing, and syncing.
+//
+// Usage example:
+//
+//	gophkeeper register --server-url https://api.example.com ...
 package main
 
 import (
 	"log"
 
-	"github.com/sbilibin2017/gophkeeper/inernal/apps/client"
+	"github.com/sbilibin2017/gophkeeper/inernal/cli"
 )
 
-// main initializes and runs the GophKeeper CLI.
-// It logs any fatal errors that occur during execution.
+var (
+	// buildVersion holds the version of the build.
+	// It is intended to be injected at build time via -ldflags.
+	buildVersion = "N/A"
+
+	// buildDate holds the date of the build.
+	// It is intended to be injected at build time via -ldflags.
+	buildDate = "N/A"
+)
+
+// main is the entry point of the GophKeeper CLI.
+// It initializes and executes the root command.
 func main() {
-	err := run()
-	if err != nil {
+	if err := run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-// run configures the root Cobra command and registers all available subcommands.
+// run sets up the root command and its subcommands,
+// then executes the CLI logic.
+//
 // It returns an error if command execution fails.
 func run() error {
-	rootCmd := client.NewCommand()
+	rootCmd := cli.NewClientCommand()
 
-	// Auth
-	rootCmd.AddCommand(client.NewRegisterCommand())
-	rootCmd.AddCommand(client.NewLoginCommand())
-
-	// Add secret
-	rootCmd.AddCommand(client.NewAddBankCardCommand())
-	rootCmd.AddCommand(client.NewAddBinaryCommand())
-	rootCmd.AddCommand(client.NewAddTextCommand())
-	rootCmd.AddCommand(client.NewAddUserCommand())
-
-	// List secrets
-	rootCmd.AddCommand(client.NewListCommand())
-
-	// Sync secrets with server
-	rootCmd.AddCommand(client.NewSyncCommand())
+	rootCmd.AddCommand(cli.NewClientRegisterCommand())
+	rootCmd.AddCommand(cli.NewClientLoginCommand())
+	rootCmd.AddCommand(cli.NewClientAddBankCardCommand())
+	rootCmd.AddCommand(cli.NewClientAddBinaryCommand())
+	rootCmd.AddCommand(cli.NewClientAddTextCommand())
+	rootCmd.AddCommand(cli.NewClientAddUserCommand())
+	rootCmd.AddCommand(cli.NewClientListCommand())
+	rootCmd.AddCommand(cli.NewClientSyncCommand())
+	rootCmd.AddCommand(cli.NewClientInfoCommand(buildVersion, buildDate))
 
 	return rootCmd.Execute()
 }

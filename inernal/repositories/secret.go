@@ -31,10 +31,7 @@ func (r *SecretWriteRepository) Save(ctx context.Context, secret *models.SecretD
 		secret.Ciphertext,
 		secret.AESKeyEnc,
 	)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 type SecretReadRepository struct {
@@ -45,7 +42,7 @@ func NewSecretReadRepository(db *sqlx.DB) *SecretReadRepository {
 	return &SecretReadRepository{db: db}
 }
 
-// Get using SecretGetFilterDB as filter struct
+// Get получает секрет по фильтру SecretGetFilterDB
 func (r *SecretReadRepository) Get(ctx context.Context, filter *models.SecretGetFilterDB) (*models.SecretDB, error) {
 	query := `
 		SELECT secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at
@@ -65,8 +62,8 @@ func (r *SecretReadRepository) Get(ctx context.Context, filter *models.SecretGet
 	return &secret, nil
 }
 
-// List using SecretListFilterDB as filter struct
-func (r *SecretReadRepository) List(ctx context.Context, filter *models.SecretListFilterDB) ([]*models.SecretDB, error) {
+// List возвращает список секретов по фильтру SecretListFilterDBRequest
+func (r *SecretReadRepository) List(ctx context.Context, filter *models.SecretListFilterDBRequest) ([]*models.SecretDB, error) {
 	query := `
 		SELECT secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at
 		FROM secrets
