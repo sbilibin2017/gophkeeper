@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -22,32 +23,32 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// EncryptedSecret represents a hybrid-encrypted secret:
-type EncryptedSecret struct {
+// SecretSaveRequest wraps a SecretRequest and token.
+type SecretSaveRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"` // Identifier for the secret
-	SecretType    string                 `protobuf:"bytes,2,opt,name=secret_type,json=secretType,proto3" json:"secret_type,omitempty"` // Type of secret (e.g., bankcard, user, text)
-	Ciphertext    []byte                 `protobuf:"bytes,3,opt,name=ciphertext,proto3" json:"ciphertext,omitempty"`                   // AES-GCM encrypted data including nonce + ciphertext + tag
-	AesKeyEnc     []byte                 `protobuf:"bytes,4,opt,name=aes_key_enc,json=aesKeyEnc,proto3" json:"aes_key_enc,omitempty"`  // AES key encrypted using RSA-OAEP
-	Timestamp     int64                  `protobuf:"varint,5,opt,name=timestamp,proto3" json:"timestamp,omitempty"`                    // Unix timestamp of encryption
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	SecretType    string                 `protobuf:"bytes,2,opt,name=secret_type,json=secretType,proto3" json:"secret_type,omitempty"`
+	Ciphertext    []byte                 `protobuf:"bytes,4,opt,name=ciphertext,proto3" json:"ciphertext,omitempty"`
+	AesKeyEnc     []byte                 `protobuf:"bytes,5,opt,name=aes_key_enc,json=aesKeyEnc,proto3" json:"aes_key_enc,omitempty"`
+	Token         string                 `protobuf:"bytes,6,opt,name=token,proto3" json:"token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *EncryptedSecret) Reset() {
-	*x = EncryptedSecret{}
+func (x *SecretSaveRequest) Reset() {
+	*x = SecretSaveRequest{}
 	mi := &file_secret_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *EncryptedSecret) String() string {
+func (x *SecretSaveRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*EncryptedSecret) ProtoMessage() {}
+func (*SecretSaveRequest) ProtoMessage() {}
 
-func (x *EncryptedSecret) ProtoReflect() protoreflect.Message {
+func (x *SecretSaveRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_secret_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -59,67 +60,70 @@ func (x *EncryptedSecret) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use EncryptedSecret.ProtoReflect.Descriptor instead.
-func (*EncryptedSecret) Descriptor() ([]byte, []int) {
+// Deprecated: Use SecretSaveRequest.ProtoReflect.Descriptor instead.
+func (*SecretSaveRequest) Descriptor() ([]byte, []int) {
 	return file_secret_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *EncryptedSecret) GetSecretName() string {
+func (x *SecretSaveRequest) GetSecretName() string {
 	if x != nil {
 		return x.SecretName
 	}
 	return ""
 }
 
-func (x *EncryptedSecret) GetSecretType() string {
+func (x *SecretSaveRequest) GetSecretType() string {
 	if x != nil {
 		return x.SecretType
 	}
 	return ""
 }
 
-func (x *EncryptedSecret) GetCiphertext() []byte {
+func (x *SecretSaveRequest) GetCiphertext() []byte {
 	if x != nil {
 		return x.Ciphertext
 	}
 	return nil
 }
 
-func (x *EncryptedSecret) GetAesKeyEnc() []byte {
+func (x *SecretSaveRequest) GetAesKeyEnc() []byte {
 	if x != nil {
 		return x.AesKeyEnc
 	}
 	return nil
 }
 
-func (x *EncryptedSecret) GetTimestamp() int64 {
+func (x *SecretSaveRequest) GetToken() string {
 	if x != nil {
-		return x.Timestamp
+		return x.Token
 	}
-	return 0
+	return ""
 }
 
-type GetSecretRequest struct {
+// SecretSaveRequest defines the request to fetch a secret by its name, type, and token.
+type SecretGetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	SecretType    string                 `protobuf:"bytes,2,opt,name=secret_type,json=secretType,proto3" json:"secret_type,omitempty"`
+	Token         string                 `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetSecretRequest) Reset() {
-	*x = GetSecretRequest{}
+func (x *SecretGetRequest) Reset() {
+	*x = SecretGetRequest{}
 	mi := &file_secret_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetSecretRequest) String() string {
+func (x *SecretGetRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetSecretRequest) ProtoMessage() {}
+func (*SecretGetRequest) ProtoMessage() {}
 
-func (x *GetSecretRequest) ProtoReflect() protoreflect.Message {
+func (x *SecretGetRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_secret_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -131,41 +135,202 @@ func (x *GetSecretRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetSecretRequest.ProtoReflect.Descriptor instead.
-func (*GetSecretRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SecretGetRequest.ProtoReflect.Descriptor instead.
+func (*SecretGetRequest) Descriptor() ([]byte, []int) {
 	return file_secret_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *GetSecretRequest) GetSecretName() string {
+func (x *SecretGetRequest) GetSecretName() string {
 	if x != nil {
 		return x.SecretName
 	}
 	return ""
 }
 
+func (x *SecretGetRequest) GetSecretType() string {
+	if x != nil {
+		return x.SecretType
+	}
+	return ""
+}
+
+func (x *SecretGetRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+// SecretListRequest wraps the token to list all secrets for.
+type SecretListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Token         string                 `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretListRequest) Reset() {
+	*x = SecretListRequest{}
+	mi := &file_secret_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretListRequest) ProtoMessage() {}
+
+func (x *SecretListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretListRequest.ProtoReflect.Descriptor instead.
+func (*SecretListRequest) Descriptor() ([]byte, []int) {
+	return file_secret_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SecretListRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+// SecretResponse represents a hybrid-encrypted secret stored in DB.
+type SecretResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SecretName    string                 `protobuf:"bytes,1,opt,name=secret_name,json=secretName,proto3" json:"secret_name,omitempty"`
+	SecretType    string                 `protobuf:"bytes,2,opt,name=secret_type,json=secretType,proto3" json:"secret_type,omitempty"`
+	SecretOwner   string                 `protobuf:"bytes,3,opt,name=secret_owner,json=secretOwner,proto3" json:"secret_owner,omitempty"`
+	Ciphertext    []byte                 `protobuf:"bytes,4,opt,name=ciphertext,proto3" json:"ciphertext,omitempty"`
+	AesKeyEnc     []byte                 `protobuf:"bytes,5,opt,name=aes_key_enc,json=aesKeyEnc,proto3" json:"aes_key_enc,omitempty"`
+	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SecretResponse) Reset() {
+	*x = SecretResponse{}
+	mi := &file_secret_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SecretResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SecretResponse) ProtoMessage() {}
+
+func (x *SecretResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_secret_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SecretResponse.ProtoReflect.Descriptor instead.
+func (*SecretResponse) Descriptor() ([]byte, []int) {
+	return file_secret_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *SecretResponse) GetSecretName() string {
+	if x != nil {
+		return x.SecretName
+	}
+	return ""
+}
+
+func (x *SecretResponse) GetSecretType() string {
+	if x != nil {
+		return x.SecretType
+	}
+	return ""
+}
+
+func (x *SecretResponse) GetSecretOwner() string {
+	if x != nil {
+		return x.SecretOwner
+	}
+	return ""
+}
+
+func (x *SecretResponse) GetCiphertext() []byte {
+	if x != nil {
+		return x.Ciphertext
+	}
+	return nil
+}
+
+func (x *SecretResponse) GetAesKeyEnc() []byte {
+	if x != nil {
+		return x.AesKeyEnc
+	}
+	return nil
+}
+
+func (x *SecretResponse) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
 var File_secret_proto protoreflect.FileDescriptor
 
 const file_secret_proto_rawDesc = "" +
 	"\n" +
-	"\fsecret.proto\x12\bbankcard\x1a\x1bgoogle/protobuf/empty.proto\"\xb1\x01\n" +
-	"\x0fEncryptedSecret\x12\x1f\n" +
+	"\fsecret.proto\x12\bbankcard\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xab\x01\n" +
+	"\x11SecretSaveRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
 	"secretName\x12\x1f\n" +
 	"\vsecret_type\x18\x02 \x01(\tR\n" +
 	"secretType\x12\x1e\n" +
 	"\n" +
-	"ciphertext\x18\x03 \x01(\fR\n" +
+	"ciphertext\x18\x04 \x01(\fR\n" +
 	"ciphertext\x12\x1e\n" +
-	"\vaes_key_enc\x18\x04 \x01(\fR\taesKeyEnc\x12\x1c\n" +
-	"\ttimestamp\x18\x05 \x01(\x03R\ttimestamp\"3\n" +
-	"\x10GetSecretRequest\x12\x1f\n" +
+	"\vaes_key_enc\x18\x05 \x01(\fR\taesKeyEnc\x12\x14\n" +
+	"\x05token\x18\x06 \x01(\tR\x05token\"j\n" +
+	"\x10SecretGetRequest\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
-	"secretName2O\n" +
-	"\x12SecretWriteService\x129\n" +
-	"\x04Save\x12\x19.bankcard.EncryptedSecret\x1a\x16.google.protobuf.Empty2\x8e\x01\n" +
-	"\x11SecretReadService\x12<\n" +
-	"\x03Get\x12\x1a.bankcard.GetSecretRequest\x1a\x19.bankcard.EncryptedSecret\x12;\n" +
-	"\x04List\x12\x16.google.protobuf.Empty\x1a\x19.bankcard.EncryptedSecret0\x01B-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
+	"secretName\x12\x1f\n" +
+	"\vsecret_type\x18\x02 \x01(\tR\n" +
+	"secretType\x12\x14\n" +
+	"\x05token\x18\x03 \x01(\tR\x05token\")\n" +
+	"\x11SecretListRequest\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"\xf0\x01\n" +
+	"\x0eSecretResponse\x12\x1f\n" +
+	"\vsecret_name\x18\x01 \x01(\tR\n" +
+	"secretName\x12\x1f\n" +
+	"\vsecret_type\x18\x02 \x01(\tR\n" +
+	"secretType\x12!\n" +
+	"\fsecret_owner\x18\x03 \x01(\tR\vsecretOwner\x12\x1e\n" +
+	"\n" +
+	"ciphertext\x18\x04 \x01(\fR\n" +
+	"ciphertext\x12\x1e\n" +
+	"\vaes_key_enc\x18\x05 \x01(\fR\taesKeyEnc\x129\n" +
+	"\n" +
+	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2Q\n" +
+	"\x12SecretWriteService\x12;\n" +
+	"\x04Save\x12\x1b.bankcard.SecretSaveRequest\x1a\x16.google.protobuf.Empty2\x91\x01\n" +
+	"\x11SecretReadService\x12;\n" +
+	"\x03Get\x12\x1a.bankcard.SecretGetRequest\x1a\x18.bankcard.SecretResponse\x12?\n" +
+	"\x04List\x12\x1b.bankcard.SecretListRequest\x1a\x18.bankcard.SecretResponse0\x01B-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
 	file_secret_proto_rawDescOnce sync.Once
@@ -179,24 +344,28 @@ func file_secret_proto_rawDescGZIP() []byte {
 	return file_secret_proto_rawDescData
 }
 
-var file_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_secret_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_secret_proto_goTypes = []any{
-	(*EncryptedSecret)(nil),  // 0: bankcard.EncryptedSecret
-	(*GetSecretRequest)(nil), // 1: bankcard.GetSecretRequest
-	(*emptypb.Empty)(nil),    // 2: google.protobuf.Empty
+	(*SecretSaveRequest)(nil),     // 0: bankcard.SecretSaveRequest
+	(*SecretGetRequest)(nil),      // 1: bankcard.SecretGetRequest
+	(*SecretListRequest)(nil),     // 2: bankcard.SecretListRequest
+	(*SecretResponse)(nil),        // 3: bankcard.SecretResponse
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),         // 5: google.protobuf.Empty
 }
 var file_secret_proto_depIdxs = []int32{
-	0, // 0: bankcard.SecretWriteService.Save:input_type -> bankcard.EncryptedSecret
-	1, // 1: bankcard.SecretReadService.Get:input_type -> bankcard.GetSecretRequest
-	2, // 2: bankcard.SecretReadService.List:input_type -> google.protobuf.Empty
-	2, // 3: bankcard.SecretWriteService.Save:output_type -> google.protobuf.Empty
-	0, // 4: bankcard.SecretReadService.Get:output_type -> bankcard.EncryptedSecret
-	0, // 5: bankcard.SecretReadService.List:output_type -> bankcard.EncryptedSecret
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	4, // 0: bankcard.SecretResponse.updated_at:type_name -> google.protobuf.Timestamp
+	0, // 1: bankcard.SecretWriteService.Save:input_type -> bankcard.SecretSaveRequest
+	1, // 2: bankcard.SecretReadService.Get:input_type -> bankcard.SecretGetRequest
+	2, // 3: bankcard.SecretReadService.List:input_type -> bankcard.SecretListRequest
+	5, // 4: bankcard.SecretWriteService.Save:output_type -> google.protobuf.Empty
+	3, // 5: bankcard.SecretReadService.Get:output_type -> bankcard.SecretResponse
+	3, // 6: bankcard.SecretReadService.List:output_type -> bankcard.SecretResponse
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_secret_proto_init() }
@@ -210,7 +379,7 @@ func file_secret_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_secret_proto_rawDesc), len(file_secret_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   2,
 		},
