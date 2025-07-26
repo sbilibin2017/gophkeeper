@@ -136,8 +136,8 @@ const (
 //
 // SecretReadService handles reading encrypted secrets.
 type SecretReadServiceClient interface {
-	Get(ctx context.Context, in *SecretGetRequest, opts ...grpc.CallOption) (*SecretResponse, error)
-	List(ctx context.Context, in *SecretListRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SecretResponse], error)
+	Get(ctx context.Context, in *SecretGetRequest, opts ...grpc.CallOption) (*SecretDB, error)
+	List(ctx context.Context, in *SecretListRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SecretDB], error)
 }
 
 type secretReadServiceClient struct {
@@ -148,9 +148,9 @@ func NewSecretReadServiceClient(cc grpc.ClientConnInterface) SecretReadServiceCl
 	return &secretReadServiceClient{cc}
 }
 
-func (c *secretReadServiceClient) Get(ctx context.Context, in *SecretGetRequest, opts ...grpc.CallOption) (*SecretResponse, error) {
+func (c *secretReadServiceClient) Get(ctx context.Context, in *SecretGetRequest, opts ...grpc.CallOption) (*SecretDB, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(SecretResponse)
+	out := new(SecretDB)
 	err := c.cc.Invoke(ctx, SecretReadService_Get_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -158,13 +158,13 @@ func (c *secretReadServiceClient) Get(ctx context.Context, in *SecretGetRequest,
 	return out, nil
 }
 
-func (c *secretReadServiceClient) List(ctx context.Context, in *SecretListRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SecretResponse], error) {
+func (c *secretReadServiceClient) List(ctx context.Context, in *SecretListRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SecretDB], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &SecretReadService_ServiceDesc.Streams[0], SecretReadService_List_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[SecretListRequest, SecretResponse]{ClientStream: stream}
+	x := &grpc.GenericClientStream[SecretListRequest, SecretDB]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (c *secretReadServiceClient) List(ctx context.Context, in *SecretListReques
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type SecretReadService_ListClient = grpc.ServerStreamingClient[SecretResponse]
+type SecretReadService_ListClient = grpc.ServerStreamingClient[SecretDB]
 
 // SecretReadServiceServer is the server API for SecretReadService service.
 // All implementations must embed UnimplementedSecretReadServiceServer
@@ -183,8 +183,8 @@ type SecretReadService_ListClient = grpc.ServerStreamingClient[SecretResponse]
 //
 // SecretReadService handles reading encrypted secrets.
 type SecretReadServiceServer interface {
-	Get(context.Context, *SecretGetRequest) (*SecretResponse, error)
-	List(*SecretListRequest, grpc.ServerStreamingServer[SecretResponse]) error
+	Get(context.Context, *SecretGetRequest) (*SecretDB, error)
+	List(*SecretListRequest, grpc.ServerStreamingServer[SecretDB]) error
 	mustEmbedUnimplementedSecretReadServiceServer()
 }
 
@@ -195,10 +195,10 @@ type SecretReadServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSecretReadServiceServer struct{}
 
-func (UnimplementedSecretReadServiceServer) Get(context.Context, *SecretGetRequest) (*SecretResponse, error) {
+func (UnimplementedSecretReadServiceServer) Get(context.Context, *SecretGetRequest) (*SecretDB, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (UnimplementedSecretReadServiceServer) List(*SecretListRequest, grpc.ServerStreamingServer[SecretResponse]) error {
+func (UnimplementedSecretReadServiceServer) List(*SecretListRequest, grpc.ServerStreamingServer[SecretDB]) error {
 	return status.Errorf(codes.Unimplemented, "method List not implemented")
 }
 func (UnimplementedSecretReadServiceServer) mustEmbedUnimplementedSecretReadServiceServer() {}
@@ -245,11 +245,11 @@ func _SecretReadService_List_Handler(srv interface{}, stream grpc.ServerStream) 
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(SecretReadServiceServer).List(m, &grpc.GenericServerStream[SecretListRequest, SecretResponse]{ServerStream: stream})
+	return srv.(SecretReadServiceServer).List(m, &grpc.GenericServerStream[SecretListRequest, SecretDB]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type SecretReadService_ListServer = grpc.ServerStreamingServer[SecretResponse]
+type SecretReadService_ListServer = grpc.ServerStreamingServer[SecretDB]
 
 // SecretReadService_ServiceDesc is the grpc.ServiceDesc for SecretReadService service.
 // It's only intended for direct use with grpc.RegisterService,

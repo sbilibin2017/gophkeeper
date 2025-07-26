@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
+
+// AuthRequest message for user registration
+message AuthRequest {
+  string username = 1;       
+  string password = 2;
+}
+
+// Response message after successful registration
+message AuthResponse {
+  string token = 1;          
+}
+
+// AuthService defines authentication methods
+service AuthService {
+  rpc Register(AuthRequest) returns (AuthResponse);  
+  rpc Login(AuthRequest) returns (AuthResponse);           
+}

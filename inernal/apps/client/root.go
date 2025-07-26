@@ -1,4 +1,3 @@
-// Package client contains CLI commands for the GophKeeper client application.
 package client
 
 import (

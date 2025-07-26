@@ -1,4 +1,3 @@
-// Package server contains CLI commands and functionality for running the GophKeeper server.
 package server
 
 import (
