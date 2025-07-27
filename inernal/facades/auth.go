@@ -10,119 +10,88 @@ import (
 	"google.golang.org/grpc"
 )
 
-// AuthHTTPFacade wraps an HTTP client to communicate with authentication endpoints.
-type AuthHTTPFacade struct {
+// AuthHTTP provides HTTP methods for auth operations.
+type AuthHTTP struct {
 	client *resty.Client
 }
 
-// NewAuthHTTPFacade creates a new AuthHTTPFacade with the given Resty client.
-func NewAuthHTTPFacade(client *resty.Client) (*AuthHTTPFacade, error) {
-	return &AuthHTTPFacade{client: client}, nil
+// NewAuthHTTP constructs AuthHTTP with given Resty client.
+func NewAuthHTTP(client *resty.Client) *AuthHTTP {
+	return &AuthHTTP{client: client}
 }
 
-// Register sends a registration request to the server and returns the response.
-func (f *AuthHTTPFacade) Register(
-	ctx context.Context,
-	req *models.UserRegisterRequest,
-) (*models.UserRegisterResponse, error) {
-
-	var resp models.UserRegisterResponse
-	r, err := f.client.R().
+// Register sends a registration request to the server over HTTP.
+func (h *AuthHTTP) Register(ctx context.Context, req *models.AuthRegisterRequest) (*models.AuthResponse, error) {
+	var resp models.AuthResponse
+	r, err := h.client.R().
 		SetContext(ctx).
 		SetBody(req).
 		SetResult(&resp).
 		Post("/register/")
-
 	if err != nil {
 		return nil, fmt.Errorf("register request failed: %w", err)
 	}
-
 	if r.IsError() {
 		return nil, fmt.Errorf("register request returned status %d: %s", r.StatusCode(), r.String())
 	}
-
 	return &resp, nil
 }
 
-// Login sends a login request to the server and returns the response.
-func (f *AuthHTTPFacade) Login(
-	ctx context.Context,
-	req *models.UserLoginRequest,
-) (*models.UserLoginResponse, error) {
-
-	var resp models.UserLoginResponse
-	r, err := f.client.R().
+// Login sends a login request to the server over HTTP.
+func (h *AuthHTTP) Login(ctx context.Context, req *models.AuthLoginRequest) (*models.AuthResponse, error) {
+	var resp models.AuthResponse
+	r, err := h.client.R().
 		SetContext(ctx).
 		SetBody(req).
 		SetResult(&resp).
 		Post("/login/")
-
 	if err != nil {
 		return nil, fmt.Errorf("login request failed: %w", err)
 	}
-
 	if r.IsError() {
 		return nil, fmt.Errorf("login request returned status %d: %s", r.StatusCode(), r.String())
 	}
-
 	return &resp, nil
 }
 
-// AuthGRPCFacade is a wrapper for the gRPC AuthService client.
-type AuthGRPCFacade struct {
+// AuthGRPC provides gRPC methods for auth operations.
+type AuthGRPC struct {
 	client pb.AuthServiceClient
 }
 
-// NewAuthGRPCFacade creates a new AuthGRPCFacade with the given gRPC client connection.
-func NewAuthGRPCFacade(conn *grpc.ClientConn) (*AuthGRPCFacade, error) {
+// NewAuthGRPC constructs AuthGRPC with given gRPC client connection and creates the gRPC client.
+func NewAuthGRPC(conn *grpc.ClientConn) *AuthGRPC {
 	client := pb.NewAuthServiceClient(conn)
-	return &AuthGRPCFacade{client: client}, nil
+	return &AuthGRPC{client: client}
 }
 
-// Register calls the Register RPC method on the AuthService,
-// converting between internal models and protobuf messages.
-func (f *AuthGRPCFacade) Register(
-	ctx context.Context,
-	req *models.UserRegisterRequest,
-) (*models.UserRegisterResponse, error) {
-
-	pbReq := &pb.AuthRequest{
-		Username: req.Username,
-		Password: req.Password,
+// Register calls the Register RPC method via gRPC.
+func (g *AuthGRPC) Register(ctx context.Context, req *models.AuthRegisterRequest) (*models.AuthResponse, error) {
+	pbReq := &pb.AuthRegisterRequest{
+		Username:         req.Username,
+		Password:         req.Password,
+		ClientPubKeyFile: req.ClientPubKeyFile,
 	}
 
-	pbResp, err := f.client.Register(ctx, pbReq)
+	pbResp, err := g.client.Register(ctx, pbReq)
 	if err != nil {
 		return nil, fmt.Errorf("grpc register failed: %w", err)
 	}
 
-	resp := &models.UserRegisterResponse{
-		Token: pbResp.Token,
-	}
-
-	return resp, nil
+	return &models.AuthResponse{Token: pbResp.Token}, nil
 }
 
-// Login calls the Login RPC method on the AuthService,
-// converting between internal models and protobuf messages.
-func (f *AuthGRPCFacade) Login(
-	ctx context.Context,
-	req *models.UserLoginRequest,
-) (*models.UserLoginResponse, error) {
-
-	pbReq := &pb.AuthRequest{
+// Login calls the Login RPC method via gRPC.
+func (g *AuthGRPC) Login(ctx context.Context, req *models.AuthLoginRequest) (*models.AuthResponse, error) {
+	pbReq := &pb.AuthLoginRequest{
 		Username: req.Username,
 		Password: req.Password,
 	}
 
-	pbResp, err := f.client.Login(ctx, pbReq)
+	pbResp, err := g.client.Login(ctx, pbReq)
 	if err != nil {
 		return nil, fmt.Errorf("grpc login failed: %w", err)
 	}
 
-	resp := &models.UserLoginResponse{
-		Token: pbResp.Token,
-	}
-
-	return resp, nil
+	return &models.AuthResponse{Token: pbResp.Token}, nil
 }

@@ -2,8 +2,6 @@ package models
 
 import (
 	"time"
-
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -13,45 +11,8 @@ const (
 	SecretTypeBinary   = "binary"   // Secret type: Binary
 )
 
-const (
-	SyncModeServer      = "server"      // Sync handled by the server
-	SyncModeClient      = "client"      // Sync handled by the client
-	SyncModeInteractive = "interactive" // Sync done interactively with user input
-)
-
-// SecretSaveRequest соответствует protobuf SecretSaveRequest
-type SecretSaveRequest struct {
-	SecretName string `json:"secret_name"`
-	SecretType string `json:"secret_type"`
-	Ciphertext []byte `json:"ciphertext"`
-	AESKeyEnc  []byte `json:"aes_key_enc"`
-	Token      string `json:"token"`
-}
-
-// SecretGetRequest соответствует protobuf SecretGetRequest
-type SecretGetRequest struct {
-	SecretName string `json:"secret_name"`
-	SecretType string `json:"secret_type"`
-	Token      string `json:"token"`
-}
-
-// SecretListRequest соответствует protobuf SecretListRequest
-type SecretListRequest struct {
-	Token string `json:"token"`
-}
-
-// SecretResponse соответствует protobuf SecretResponse
-type SecretResponse struct {
-	SecretName  string                 `json:"secret_name"`
-	SecretType  string                 `json:"secret_type"`
-	SecretOwner string                 `json:"secret_owner"`
-	Ciphertext  []byte                 `json:"ciphertext"`
-	AESKeyEnc   []byte                 `json:"aes_key_enc"`
-	UpdatedAt   *timestamppb.Timestamp `json:"updated_at"`
-}
-
-// SecretDB — структура для хранения секрета в БД
-type SecretDB struct {
+// Secret — структура для хранения секрета в БД
+type Secret struct {
 	SecretName  string    `db:"secret_name" json:"secret_name"`
 	SecretType  string    `db:"secret_type" json:"secret_type"`
 	SecretOwner string    `db:"secret_owner" json:"secret_owner"`
@@ -61,14 +22,35 @@ type SecretDB struct {
 	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
 }
 
-// SecretGetRequest соответствует protobuf SecretGetRequest
-type SecretGetFilterDB struct {
-	SecretName  string `json:"secret_name"`
-	SecretType  string `json:"secret_type"`
-	SecretOwner string `json:"secret_owner"`
+type SecretEncrypted struct {
+	Ciphertext []byte
+	AESKeyEnc  []byte
 }
 
-// SecretListRequest соответствует protobuf SecretListRequest
-type SecretListFilterDBRequest struct {
-	SecretOwner string `json:"secret_owner"`
+type Bankcard struct {
+	SecretName string  `json:"secret_name"`
+	Number     string  `json:"number"`
+	Owner      string  `json:"owner"`
+	Exp        string  `json:"exp"`
+	CVV        string  `json:"cvv"`
+	Meta       *string `json:"meta,omitempty"`
+}
+
+type Text struct {
+	SecretName string  `json:"secret_name"`
+	Data       string  `json:"data"`
+	Meta       *string `json:"meta,omitempty"`
+}
+
+type Binary struct {
+	SecretName string  `json:"secret_name"`
+	Data       []byte  `json:"data"`
+	Meta       *string `json:"meta,omitempty"`
+}
+
+type User struct {
+	SecretName string  `json:"secret_name"`
+	Username   string  `json:"username"`
+	Password   string  `json:"password"`
+	Meta       *string `json:"meta,omitempty"`
 }

@@ -1,598 +1,509 @@
 package apps
 
 import (
-	"context"
 	"fmt"
-	"io"
+	"os"
 	"time"
 
-	"github.com/go-resty/resty/v2"
-	"github.com/jmoiron/sqlx"
 	"github.com/pressly/goose"
-
 	"github.com/sbilibin2017/gophkeeper/inernal/configs/clients/grpc"
 	"github.com/sbilibin2017/gophkeeper/inernal/configs/clients/http"
-	"github.com/sbilibin2017/gophkeeper/inernal/configs/cryptor"
 	"github.com/sbilibin2017/gophkeeper/inernal/configs/db"
-	"github.com/sbilibin2017/gophkeeper/inernal/repositories"
-
+	"github.com/sbilibin2017/gophkeeper/inernal/cryptor"
 	"github.com/sbilibin2017/gophkeeper/inernal/facades"
-	"github.com/sbilibin2017/gophkeeper/inernal/models"
-	clientUsecases "github.com/sbilibin2017/gophkeeper/inernal/usecases/client"
+	"github.com/sbilibin2017/gophkeeper/inernal/repositories"
+	"github.com/sbilibin2017/gophkeeper/inernal/usecases"
 	"github.com/sbilibin2017/gophkeeper/inernal/validators"
-	grpcconn "google.golang.org/grpc"
 )
 
-// HTTP Register App
-type ClientRegisterHTTPApp struct {
-	registerUsecase *clientUsecases.RegisterUsecase
-}
-
-func NewClientRegisterHTTPApp(serverURL string) (*ClientRegisterHTTPApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
+// NewClientRegisterHTTPApp initializes and returns a ClientRegisterUsecase.
+func NewClientRegisterHTTPApp(
+	serverURL string,
+	driverName string,
+	databaseDSN string,
+	pathToMigrationsDir string,
+) (*usecases.ClientRegisterUsecase, error) {
+	dbConn, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 	defer dbConn.Close()
 
-	if err := goose.Up(dbConn.DB, "../../../migrations"); err != nil {
+	if err := goose.Up(dbConn.DB, pathToMigrationsDir); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
+
+	cli, err := http.New(serverURL, http.WithRetryPolicy(http.RetryPolicy{
+		Count:   3,
+		Wait:    time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http client: %w", err)
+	}
+
+	auth := facades.NewAuthHTTP(cli)
 
 	usernameValidator := validators.NewUsernameValidator()
 	passwordValidator := validators.NewPasswordValidator()
 
-	httpClient, err := http.New(serverURL)
-	if err != nil {
-		return nil, err
-	}
+	uc := usecases.NewClientRegisterUsecase(usernameValidator, passwordValidator, auth)
 
-	registerer, err := facades.NewAuthHTTPFacade(httpClient)
-	if err != nil {
-		return nil, err
-	}
+	return uc, nil
+}
 
-	registerUsecase, err := clientUsecases.NewRegisterUsecase(
-		usernameValidator,
-		passwordValidator,
-		registerer,
+// NewClientRegisterGRPCApp initializes and returns a ClientRegisterUsecase.
+func NewClientRegisterGRPCApp(
+	serverURL string,
+	driverName string,
+	databaseDSN string,
+	pathToMigrationsDir string,
+) (*usecases.ClientRegisterUsecase, error) {
+	dbConn, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
 	)
 	if err != nil {
-		return nil, err
-	}
-
-	return &ClientRegisterHTTPApp{registerUsecase: registerUsecase}, nil
-}
-
-func (a *ClientRegisterHTTPApp) Run(ctx context.Context, req *models.UserRegisterRequest) (*models.UserRegisterResponse, error) {
-	return a.registerUsecase.Execute(ctx, req)
-}
-
-// GRPC Register App
-type ClientRegisterGRPCApp struct {
-	registerUsecase *clientUsecases.RegisterUsecase
-}
-
-func NewClientRegisterGRPCApp(serverURL string) (*ClientRegisterGRPCApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 	defer dbConn.Close()
 
-	if err := goose.Up(dbConn.DB, "../../../migrations"); err != nil {
+	if err := goose.Up(dbConn.DB, pathToMigrationsDir); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
+
+	cli, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+		Count:   3,
+		Wait:    time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http client: %w", err)
+	}
+
+	auth := facades.NewAuthGRPC(cli)
 
 	usernameValidator := validators.NewUsernameValidator()
 	passwordValidator := validators.NewPasswordValidator()
 
-	grpcClient, err := grpc.New(serverURL)
+	uc := usecases.NewClientRegisterUsecase(usernameValidator, passwordValidator, auth)
+
+	return uc, nil
+}
+
+// NewClientLoginApp initializes and returns a ClientLoginUsecase.
+func NewClientLoginHTTPApp(
+	serverURL string,
+) (*usecases.ClientLoginUsecase, error) {
+	cli, err := http.New(serverURL, http.WithRetryPolicy(http.RetryPolicy{
+		Count:   3,
+		Wait:    time.Second,
+		MaxWait: 5 * time.Second,
+	}))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create http client: %w", err)
 	}
 
-	registerer, err := facades.NewAuthGRPCFacade(grpcClient)
+	auth := facades.NewAuthHTTP(cli)
+	uc := usecases.NewClientLoginUsecase(auth)
+
+	return uc, nil
+}
+
+// NewClientLoginGRPCApp initializes and returns a ClientLoginUsecase.
+func NewClientLoginGRPCApp(
+	serverURL string,
+) (*usecases.ClientLoginUsecase, error) {
+	cli, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+		Count:   3,
+		Wait:    time.Second,
+		MaxWait: 5 * time.Second,
+	}))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create http client: %w", err)
 	}
 
-	registerUsecase, err := clientUsecases.NewRegisterUsecase(
-		usernameValidator,
-		passwordValidator,
-		registerer,
+	auth := facades.NewAuthGRPC(cli)
+	uc := usecases.NewClientLoginUsecase(auth)
+
+	return uc, nil
+}
+
+// NewClientBankcardAddApp creates the usecase for adding encrypted bankcard secrets.
+func NewClientBankcardAddApp(
+	driverName string,
+	databaseDSN string,
+	pathToPublicKey string,
+) (*usecases.ClientBankcardAddUsecase, error) {
+
+	db, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
-	return &ClientRegisterGRPCApp{registerUsecase: registerUsecase}, nil
-}
-
-func (a *ClientRegisterGRPCApp) Run(ctx context.Context, req *models.UserRegisterRequest) (*models.UserRegisterResponse, error) {
-	return a.registerUsecase.Execute(ctx, req)
-}
-
-// HTTP Login App
-type ClientLoginHTTPApp struct {
-	loginUsecase *clientUsecases.LoginUsecase
-}
-
-func NewClientLoginHTTPApp(serverURL string) (*ClientLoginHTTPApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
-	}
-	defer dbConn.Close()
-
-	if err := goose.Up(dbConn.DB, "../../../migrations"); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
-	}
-
-	httpClient, err := http.New(serverURL)
+	publicKeyPEM, err := os.ReadFile(pathToPublicKey)
 	if err != nil {
 		return nil, err
 	}
 
-	loginer, err := facades.NewAuthHTTPFacade(httpClient)
-	if err != nil {
-		return nil, err
-	}
-
-	loginUsecase, err := clientUsecases.NewLoginerUsecase(loginer)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ClientLoginHTTPApp{loginUsecase: loginUsecase}, nil
-}
-
-func (a *ClientLoginHTTPApp) Run(ctx context.Context, req *models.UserLoginRequest) (*models.UserLoginResponse, error) {
-	return a.loginUsecase.Execute(ctx, req)
-}
-
-// GRPC Login App
-type ClientLoginGRPCApp struct {
-	loginUsecase *clientUsecases.LoginUsecase
-}
-
-func NewClientLoginGRPCApp(serverURL string) (*ClientLoginGRPCApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
-	}
-	defer dbConn.Close()
-
-	if err := goose.Up(dbConn.DB, "../../../migrations"); err != nil {
-		return nil, fmt.Errorf("failed to run migrations: %w", err)
-	}
-
-	grpcClient, err := grpc.New(serverURL)
-	if err != nil {
-		return nil, err
-	}
-
-	loginer, err := facades.NewAuthGRPCFacade(grpcClient)
-	if err != nil {
-		return nil, err
-	}
-
-	loginUsecase, err := clientUsecases.NewLoginerUsecase(loginer)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ClientLoginGRPCApp{loginUsecase: loginUsecase}, nil
-}
-
-func (a *ClientLoginGRPCApp) Run(ctx context.Context, req *models.UserLoginRequest) (*models.UserLoginResponse, error) {
-	return a.loginUsecase.Execute(ctx, req)
-}
-
-type BankCardAddApp struct {
-	usecase *clientUsecases.BankCardSecretAddUsecase
-	db      *sqlx.DB
-}
-
-func NewBankCardAddApp(clientPubKeyFile string) (*BankCardAddApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
-	}
-
-	encryptor, err := cryptor.New(cryptor.WithPublicKeyFromCert(clientPubKeyFile))
-	if err != nil {
-		dbConn.Close()
-		return nil, fmt.Errorf("failed to create encryptor: %w", err)
-	}
-
-	writer := repositories.NewSecretWriteRepository(dbConn)
-	luhnValidator := validators.NewLuhnValidator()
-	cvvValidator := validators.NewCVVValidator()
-
-	usecase := clientUsecases.NewBankCardSecretAddUsecase(luhnValidator, cvvValidator, writer, encryptor)
-
-	return &BankCardAddApp{usecase: usecase, db: dbConn}, nil
-}
-
-func (a *BankCardAddApp) Close() error {
-	return a.db.Close()
-}
-
-func (a *BankCardAddApp) Run(ctx context.Context, secret *models.BankcardSecretAdd, token string) error {
-	return a.usecase.Execute(ctx, secret, token)
-}
-
-type UserSecretAddApp struct {
-	usecase *clientUsecases.UserSecretAddUsecase
-	db      *sqlx.DB
-}
-
-func NewUserSecretAddApp(clientPubKeyFile string) (*UserSecretAddApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
-	}
-
-	encryptor, err := cryptor.New(cryptor.WithPublicKeyFromCert(clientPubKeyFile))
-	if err != nil {
-		dbConn.Close()
-		return nil, fmt.Errorf("failed to create encryptor: %w", err)
-	}
-
-	writer := repositories.NewSecretWriteRepository(dbConn)
-	usecase := clientUsecases.NewUserSecretAddUsecase(writer, encryptor)
-
-	return &UserSecretAddApp{usecase: usecase, db: dbConn}, nil
-}
-
-func (a *UserSecretAddApp) Close() error {
-	return a.db.Close()
-}
-
-func (a *UserSecretAddApp) Run(ctx context.Context, secret *models.UserSecretAdd, token string) error {
-	return a.usecase.Execute(ctx, secret, token)
-}
-
-type BinarySecretAddApp struct {
-	usecase *clientUsecases.BinarySecretAddUsecase
-	db      *sqlx.DB
-}
-
-func NewBinarySecretAddApp(clientPubKeyFile string) (*BinarySecretAddApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
-	}
-
-	encryptor, err := cryptor.New(cryptor.WithPublicKeyFromCert(clientPubKeyFile))
-	if err != nil {
-		dbConn.Close()
-		return nil, fmt.Errorf("failed to create encryptor: %w", err)
-	}
-
-	writer := repositories.NewSecretWriteRepository(dbConn)
-	usecase := clientUsecases.NewBinarySecretAddUsecase(writer, encryptor)
-
-	return &BinarySecretAddApp{usecase: usecase, db: dbConn}, nil
-}
-
-func (a *BinarySecretAddApp) Close() error {
-	return a.db.Close()
-}
-
-func (a *BinarySecretAddApp) Run(ctx context.Context, secret *models.BinarySecretAdd, token string) error {
-	return a.usecase.Execute(ctx, secret, token)
-}
-
-type TextSecretAddApp struct {
-	usecase *clientUsecases.TextSecretAddUsecase
-	db      *sqlx.DB
-}
-
-func NewTextSecretAddApp(clientPubKeyFile string) (*TextSecretAddApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
-	}
-
-	encryptor, err := cryptor.New(cryptor.WithPublicKeyFromCert(clientPubKeyFile))
-	if err != nil {
-		dbConn.Close()
-		return nil, fmt.Errorf("failed to create encryptor: %w", err)
-	}
-
-	writer := repositories.NewSecretWriteRepository(dbConn)
-	usecase := clientUsecases.NewTextSecretAddUsecase(writer, encryptor)
-
-	return &TextSecretAddApp{usecase: usecase, db: dbConn}, nil
-}
-
-func (a *TextSecretAddApp) Close() error {
-	return a.db.Close()
-}
-
-func (a *TextSecretAddApp) Run(ctx context.Context, secret *models.TextSecretAdd, token string) error {
-	return a.usecase.Execute(ctx, secret, token)
-}
-
-// -------------------------------------------------------------
-
-type ClientListHTTPApp struct {
-	usecase    *clientUsecases.SecretClientListUsecase
-	httpClient *resty.Client
-}
-
-func NewClientListHTTPApp(serverURL, privKeyPath string) (*ClientListHTTPApp, error) {
-	encryptor, err := cryptor.New(
-		cryptor.WithPrivateKeyFromFile(privKeyPath),
+	cryptor, err := cryptor.New(
+		cryptor.WithPublicKeyPEM(publicKeyPEM),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create encryptor: %w", err)
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
+	}
+
+	saver := repositories.NewSecretWriteRepository(db)
+
+	uc := usecases.NewClientBankcardAddUsecase(saver, cryptor)
+
+	return uc, nil
+}
+
+// NewClientBinaryAddApp creates the usecase for adding encrypted binary secrets.
+func NewClientBinaryAddApp(
+	driverName string,
+	databaseDSN string,
+	pathToPublicKey string,
+) (*usecases.ClientBinaryAddUsecase, error) {
+	db, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
+	}
+
+	publicKeyPEM, err := os.ReadFile(pathToPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	cryptor, err := cryptor.New(
+		cryptor.WithPublicKeyPEM(publicKeyPEM),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
+	}
+
+	saver := repositories.NewSecretWriteRepository(db)
+
+	uc := usecases.NewClientBinaryAddUsecase(saver, cryptor)
+
+	return uc, nil
+}
+
+// NewClientTextAddApp creates the usecase for adding encrypted text secrets.
+func NewClientTextAddApp(
+	driverName string,
+	databaseDSN string,
+	pathToPublicKey string,
+) (*usecases.ClientTextAddUsecase, error) {
+	db, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
+	}
+
+	publicKeyPEM, err := os.ReadFile(pathToPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	cryptor, err := cryptor.New(
+		cryptor.WithPublicKeyPEM(publicKeyPEM),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
+	}
+
+	saver := repositories.NewSecretWriteRepository(db)
+
+	uc := usecases.NewClientTextAddUsecase(saver, cryptor)
+
+	return uc, nil
+}
+
+// NewClientUserAddApp creates the usecase for adding encrypted user/password secrets.
+func NewClientUserAddApp(
+	driverName string,
+	databaseDSN string,
+	pathToPublicKey string,
+) (*usecases.ClientUserAddUsecase, error) {
+	db, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
+	}
+
+	publicKeyPEM, err := os.ReadFile(pathToPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	cryptor, err := cryptor.New(
+		cryptor.WithPublicKeyPEM(publicKeyPEM),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
+	}
+
+	saver := repositories.NewSecretWriteRepository(db)
+
+	uc := usecases.NewClientUserAddUsecase(saver, cryptor)
+
+	return uc, nil
+}
+
+// NewClientListHTTPApp creates the usecase for listing and decrypting secrets on client side.
+func NewClientListHTTPApp(
+	serverURL string,
+	pathToPublicKey string,
+) (*usecases.ClientListUsecase, error) {
+	cli, err := http.New(serverURL, http.WithRetryPolicy(http.RetryPolicy{
+		Count:   3,
+		Wait:    time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http client: %w", err)
+	}
+
+	lister := facades.NewSecretReadHTTP(cli)
+
+	publicKeyPEM, err := os.ReadFile(pathToPublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read public key file: %w", err)
+	}
+
+	cryptor, err := cryptor.New(
+		cryptor.WithPublicKeyPEM(publicKeyPEM),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
+	}
+
+	uc := usecases.NewClientListUsecase(lister, cryptor)
+
+	return uc, nil
+}
+
+// NewClientListGRPCApp creates the usecase for listing and decrypting secrets on client side.
+func NewClientListGRPCApp(
+	serverURL string,
+	pathToPublicKey string,
+) (*usecases.ClientListUsecase, error) {
+	cli, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+		Count:   3,
+		Wait:    time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create http client: %w", err)
+	}
+
+	lister := facades.NewSecretReadGRPC(cli)
+
+	publicKeyPEM, err := os.ReadFile(pathToPublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read public key file: %w", err)
+	}
+
+	cryptor, err := cryptor.New(
+		cryptor.WithPublicKeyPEM(publicKeyPEM),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
+	}
+
+	uc := usecases.NewClientListUsecase(lister, cryptor)
+
+	return uc, nil
+}
+
+// NewClientSyncHTTPApp creates ClientSyncUsecase and builds HTTP client internally
+func NewClientSyncHTTPApp(
+	driverName string,
+	databaseDSN string,
+	serverURL string,
+) (*usecases.ClientSyncUsecase, error) {
+
+	dbConn, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
 	httpClient, err := http.New(serverURL,
 		http.WithRetryPolicy(http.RetryPolicy{
 			Count:   3,
-			Wait:    500 * time.Millisecond,
-			MaxWait: 2 * time.Second,
+			Wait:    1 * time.Second,
+			MaxWait: 5 * time.Second,
 		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP client: %w", err)
+		return nil, fmt.Errorf("failed to create http client: %w", err)
 	}
 
-	serverReader := facades.NewSecretHTTPReadFacade(httpClient)
-	usecase := clientUsecases.NewSecretClientListUsecase(serverReader, encryptor)
+	clientLister := repositories.NewSecretReadRepository(dbConn)
+	serverGetter := facades.NewSecretReadHTTP(httpClient)
+	serverSaver := facades.NewSecretWriteHTTP(httpClient)
 
-	return &ClientListHTTPApp{
-		usecase:    usecase,
-		httpClient: httpClient,
-	}, nil
+	uc := usecases.NewClientSyncUsecase(clientLister, serverGetter, serverSaver)
+
+	return uc, nil
 }
 
-func (c *ClientListHTTPApp) Run(ctx context.Context, req *models.SecretListRequest) (string, error) {
-	return c.usecase.Execute(ctx, req)
-}
+// NewClientSyncGRPCApp creates ClientSyncUsecase and builds gRPC client internally
+func NewClientSyncGRPCApp(
+	driverName string,
+	databaseDSN string,
+	serverURL string,
+) (*usecases.ClientSyncUsecase, error) {
 
-type ClientListGRPCApp struct {
-	usecase    *clientUsecases.SecretClientListUsecase
-	grpcClient *grpcconn.ClientConn
-}
-
-func NewClientListGRPCApp(serverURL, privKeyPath string) (*ClientListGRPCApp, error) {
-	encryptor, err := cryptor.New(
-		cryptor.WithPrivateKeyFromFile(privKeyPath),
+	dbConn, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create encryptor: %w", err)
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
-	grpcClient, err := grpc.New(serverURL,
+	conn, err := grpc.New(serverURL,
 		grpc.WithRetryPolicy(grpc.RetryPolicy{
 			Count:   3,
-			Wait:    500 * time.Millisecond,
-			MaxWait: 2 * time.Second,
+			Wait:    1 * time.Second,
+			MaxWait: 5 * time.Second,
 		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create gRPC client: %w", err)
+		return nil, fmt.Errorf("failed to create grpc client connection: %w", err)
 	}
 
-	serverReader := facades.NewSecretGRPCReadFacade(grpcClient)
-	usecase := clientUsecases.NewSecretClientListUsecase(serverReader, encryptor)
+	clientLister := repositories.NewSecretReadRepository(dbConn)
+	serverGetter := facades.NewSecretReadGRPC(conn)
+	serverSaver := facades.NewSecretWriteGRPC(conn)
 
-	return &ClientListGRPCApp{
-		usecase:    usecase,
-		grpcClient: grpcClient,
-	}, nil
+	uc := usecases.NewClientSyncUsecase(clientLister, serverGetter, serverSaver)
+
+	return uc, nil
 }
 
-func (c *ClientListGRPCApp) Run(ctx context.Context, req *models.SecretListRequest) (string, error) {
-	return c.usecase.Execute(ctx, req)
-}
+// NewSyncInteractiveHTTPApp creates InteractiveSyncUsecase and builds HTTP client internally
+func NewSyncInteractiveHTTPApp(
+	driverName string,
+	databaseDSN string,
+	serverURL string,
+	pathToPrivKey string,
+) (*usecases.InteractiveSyncUsecase, error) {
 
-func (c *ClientListGRPCApp) Close() error {
-	if c.grpcClient != nil {
-		return c.grpcClient.Close()
-	}
-	return nil
-}
-
-type ClientSyncHTTPApp struct {
-	usecase *clientUsecases.ClientSyncUsecase
-	db      *sqlx.DB
-}
-
-func NewClientSyncHTTPApp(serverURL string) (*ClientSyncHTTPApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
+	dbConn, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
-	clientReader := repositories.NewSecretReadRepository(dbConn)
-
-	httpClient, err := http.New(serverURL)
+	privKeyPEM, err := os.ReadFile(pathToPrivKey)
 	if err != nil {
-		dbConn.Close()
-		return nil, err
+		return nil, fmt.Errorf("failed to read public key: %w", err)
 	}
 
-	serverReader := facades.NewSecretHTTPReadFacade(httpClient)
-	serverWriter := facades.NewSecretHTTPWriteFacade(httpClient)
-
-	usecase := clientUsecases.NewClientSyncUsecase(clientReader, serverReader, serverWriter)
-
-	return &ClientSyncHTTPApp{
-		usecase: usecase,
-		db:      dbConn,
-	}, nil
-}
-
-func (a *ClientSyncHTTPApp) Close() error {
-	if a.db != nil {
-		return a.db.Close()
-	}
-	return nil
-}
-
-func (a *ClientSyncHTTPApp) Run(ctx context.Context, token string) error {
-	return a.usecase.Execute(ctx, token)
-}
-
-type ClientSyncGRPCApp struct {
-	usecase    *clientUsecases.ClientSyncUsecase
-	db         *sqlx.DB
-	grpcClient *grpcconn.ClientConn
-}
-
-func NewClientSyncGRPCApp(serverURL string) (*ClientSyncGRPCApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
+	crypt, err := cryptor.New(cryptor.WithPrivateKeyPEM(privKeyPEM))
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
 	}
 
-	clientReader := repositories.NewSecretReadRepository(dbConn)
-
-	grpcClient, err := grpc.New(serverURL)
+	httpClient, err := http.New(serverURL,
+		http.WithRetryPolicy(http.RetryPolicy{
+			Count:   3,
+			Wait:    1 * time.Second,
+			MaxWait: 5 * time.Second,
+		}),
+	)
 	if err != nil {
-		dbConn.Close()
-		return nil, err
+		return nil, fmt.Errorf("failed to create http client: %w", err)
 	}
 
-	serverReader := facades.NewSecretGRPCReadFacade(grpcClient)
-	serverWriter := facades.NewSecretGRPCWriteFacade(grpcClient)
+	clientLister := repositories.NewSecretReadRepository(dbConn)
+	serverGetter := facades.NewSecretReadHTTP(httpClient)
+	serverSaver := facades.NewSecretWriteHTTP(httpClient)
 
-	usecase := clientUsecases.NewClientSyncUsecase(clientReader, serverReader, serverWriter)
+	uc := usecases.NewInteractiveSyncUsecase(clientLister, serverGetter, serverSaver, crypt)
 
-	return &ClientSyncGRPCApp{
-		usecase:    usecase,
-		db:         dbConn,
-		grpcClient: grpcClient,
-	}, nil
+	return uc, nil
 }
 
-func (a *ClientSyncGRPCApp) Close() error {
-	if a.grpcClient != nil {
-		a.grpcClient.Close()
-	}
-	if a.db != nil {
-		return a.db.Close()
-	}
-	return nil
-}
+// NewSyncInteractiveGRPCApp creates InteractiveSyncUsecase and builds gRPC client internally
+func NewSyncInteractiveGRPCApp(
+	driverName string,
+	databaseDSN string,
+	serverURL string,
+	pathToPrivKeyFile string,
+) (*usecases.InteractiveSyncUsecase, error) {
 
-func (a *ClientSyncGRPCApp) Run(ctx context.Context, token string) error {
-	return a.usecase.Execute(ctx, token)
-}
-
-type ClientSyncServerApp struct {
-	usecase *clientUsecases.ServerSyncUsecase
-}
-
-func NewClientSyncServerApp() *ClientSyncServerApp {
-	return &ClientSyncServerApp{usecase: clientUsecases.NewServerSyncUsecase()}
-}
-
-func (a *ClientSyncServerApp) Execute(ctx context.Context, token string) error {
-	return a.usecase.Execute(ctx, token)
-}
-
-type ClientSyncInteractiveHTTPApp struct {
-	usecase *clientUsecases.InteractiveSyncUsecase
-	db      *sqlx.DB
-}
-
-func NewClientSyncInteractiveHTTPApp(serverURL string) (*ClientSyncInteractiveHTTPApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
+	dbConn, err := db.New(driverName, databaseDSN,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(time.Hour),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
+		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
-	clientReader := repositories.NewSecretReadRepository(dbConn)
-
-	httpClient, err := http.New(serverURL)
+	privKeyPEM, err := os.ReadFile(pathToPrivKeyFile)
 	if err != nil {
-		dbConn.Close()
-		return nil, err
+		return nil, fmt.Errorf("failed to read public key: %w", err)
 	}
 
-	serverReader := facades.NewSecretHTTPReadFacade(httpClient)
-	serverWriter := facades.NewSecretHTTPWriteFacade(httpClient)
-
-	decryptor, err := cryptor.New()
+	crypt, err := cryptor.New(cryptor.WithPublicKeyPEM(privKeyPEM))
 	if err != nil {
-		dbConn.Close()
-		return nil, fmt.Errorf("failed to create decryptor: %w", err)
+		return nil, fmt.Errorf("failed to create cryptor: %w", err)
 	}
 
-	usecase := clientUsecases.NewInteractiveSyncUsecase(clientReader, serverReader, serverWriter, decryptor)
-
-	return &ClientSyncInteractiveHTTPApp{
-		usecase: usecase,
-		db:      dbConn,
-	}, nil
-}
-
-func (a *ClientSyncInteractiveHTTPApp) Close() error {
-	if a.db != nil {
-		return a.db.Close()
-	}
-	return nil
-}
-
-func (a *ClientSyncInteractiveHTTPApp) Run(ctx context.Context, reader io.Reader, token string) error {
-	return a.usecase.Execute(ctx, reader, token)
-}
-
-type ClientSyncInteractiveGRPCApp struct {
-	usecase    *clientUsecases.InteractiveSyncUsecase
-	db         *sqlx.DB
-	grpcClient *grpcconn.ClientConn
-}
-
-func NewClientSyncInteractiveGRPCApp(serverURL string) (*ClientSyncInteractiveGRPCApp, error) {
-	dbConn, err := db.New("sqlite", "client.db")
+	conn, err := grpc.New(serverURL,
+		grpc.WithRetryPolicy(grpc.RetryPolicy{
+			Count:   3,
+			Wait:    1 * time.Second,
+			MaxWait: 5 * time.Second,
+		}),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to DB: %w", err)
+		return nil, fmt.Errorf("failed to create grpc client connection: %w", err)
 	}
 
-	clientReader := repositories.NewSecretReadRepository(dbConn)
+	clientLister := repositories.NewSecretReadRepository(dbConn)
+	serverGetter := facades.NewSecretReadGRPC(conn)
+	serverSaver := facades.NewSecretWriteGRPC(conn)
 
-	grpcClient, err := grpc.New(serverURL)
-	if err != nil {
-		dbConn.Close()
-		return nil, err
-	}
+	uc := usecases.NewInteractiveSyncUsecase(clientLister, serverGetter, serverSaver, crypt)
 
-	serverReader := facades.NewSecretGRPCReadFacade(grpcClient)
-	serverWriter := facades.NewSecretGRPCWriteFacade(grpcClient)
-
-	decryptor, err := cryptor.New()
-	if err != nil {
-		dbConn.Close()
-		return nil, fmt.Errorf("failed to create decryptor: %w", err)
-	}
-
-	usecase := clientUsecases.NewInteractiveSyncUsecase(clientReader, serverReader, serverWriter, decryptor)
-
-	return &ClientSyncInteractiveGRPCApp{
-		usecase:    usecase,
-		db:         dbConn,
-		grpcClient: grpcClient,
-	}, nil
+	return uc, nil
 }
 
-func (a *ClientSyncInteractiveGRPCApp) Close() error {
-	if a.grpcClient != nil {
-		a.grpcClient.Close()
-	}
-	if a.db != nil {
-		return a.db.Close()
-	}
-	return nil
-}
-
-func (a *ClientSyncInteractiveGRPCApp) Run(ctx context.Context, reader io.Reader, token string) error {
-	return a.usecase.Execute(ctx, reader, token)
+// NewServerSyncApp creates a new ServerSyncUsecase instance
+func NewServerSyncApp() *usecases.ServerSyncUsecase {
+	return usecases.NewServerSyncUsecase()
 }

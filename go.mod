@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/go-resty/resty/v2 v2.16.5
 	github.com/golang-jwt/jwt/v4 v4.5.2
+	github.com/golang/mock v1.6.0
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/spf13/cobra v1.9.1

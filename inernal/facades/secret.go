@@ -7,26 +7,30 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/sbilibin2017/gophkeeper/inernal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// SecretHTTPWriteFacade is an HTTP client facade for writing (saving) secrets via REST API.
-type SecretHTTPWriteFacade struct {
+type SecretWriteHTTP struct {
 	client *resty.Client
 }
 
-// NewSecretHTTPWriteFacade creates a new SecretHTTPWriteFacade with the given Resty client.
-func NewSecretHTTPWriteFacade(client *resty.Client) *SecretHTTPWriteFacade {
-	return &SecretHTTPWriteFacade{client: client}
+func NewSecretWriteHTTP(client *resty.Client) *SecretWriteHTTP {
+	return &SecretWriteHTTP{client: client}
 }
 
-// Save sends a secret save request over HTTP.
-func (f *SecretHTTPWriteFacade) Save(ctx context.Context, secret *models.SecretSaveRequest) error {
-	resp, err := f.client.R().
+func (w *SecretWriteHTTP) Save(
+	ctx context.Context,
+	token string,
+	secret *models.Secret,
+) error {
+	resp, err := w.client.R().
 		SetContext(ctx).
-		SetAuthToken(secret.Token).
+		SetAuthToken(token).
 		SetBody(secret).
 		Post("/save/")
 	if err != nil {
@@ -38,26 +42,28 @@ func (f *SecretHTTPWriteFacade) Save(ctx context.Context, secret *models.SecretS
 	return nil
 }
 
-// SecretHTTPReadFacade is an HTTP client facade for reading secrets via REST API.
-type SecretHTTPReadFacade struct {
+type SecretReadHTTP struct {
 	client *resty.Client
 }
 
-// NewSecretHTTPReadFacade creates a new SecretHTTPReadFacade with the given Resty client.
-func NewSecretHTTPReadFacade(client *resty.Client) *SecretHTTPReadFacade {
-	return &SecretHTTPReadFacade{client: client}
+func NewSecretReadHTTP(client *resty.Client) *SecretReadHTTP {
+	return &SecretReadHTTP{client: client}
 }
 
-// Get retrieves a secret over HTTP using secret type and name.
-func (f *SecretHTTPReadFacade) Get(ctx context.Context, req *models.SecretGetRequest) (*models.SecretDB, error) {
-	var secret models.SecretDB
+func (r *SecretReadHTTP) Get(
+	ctx context.Context,
+	token string,
+	secretName string,
+	secretType string,
+) (*models.Secret, error) {
+	var secret models.Secret
 
-	resp, err := f.client.R().
+	resp, err := r.client.R().
 		SetContext(ctx).
-		SetAuthToken(req.Token).
+		SetAuthToken(token).
 		SetResult(&secret).
-		SetPathParam("secretType", req.SecretType).
-		SetPathParam("secretName", req.SecretName).
+		SetPathParam("secretType", secretType).
+		SetPathParam("secretName", secretName).
 		Get("/get/{secretType}/{secretName}")
 	if err != nil {
 		return nil, fmt.Errorf("http get request failed: %w", err)
@@ -68,13 +74,15 @@ func (f *SecretHTTPReadFacade) Get(ctx context.Context, req *models.SecretGetReq
 	return &secret, nil
 }
 
-// List retrieves all secrets accessible by the token via HTTP.
-func (f *SecretHTTPReadFacade) List(ctx context.Context, req *models.SecretListRequest) ([]*models.SecretDB, error) {
-	var secrets []*models.SecretDB
+func (r *SecretReadHTTP) List(
+	ctx context.Context,
+	token string,
+) ([]*models.Secret, error) {
+	var secrets []*models.Secret
 
-	resp, err := f.client.R().
+	resp, err := r.client.R().
 		SetContext(ctx).
-		SetAuthToken(req.Token).
+		SetAuthToken(token).
 		SetResult(&secrets).
 		Get("/list/")
 	if err != nil {
@@ -86,80 +94,92 @@ func (f *SecretHTTPReadFacade) List(ctx context.Context, req *models.SecretListR
 	return secrets, nil
 }
 
-// SecretGRPCWriteFacade is a gRPC client facade for writing (saving) secrets.
-type SecretGRPCWriteFacade struct {
+type SecretWriteGRPC struct {
 	client pb.SecretWriteServiceClient
 }
 
-// NewSecretGRPCWriteFacade creates a new SecretGRPCWriteFacade from a gRPC ClientConn.
-// It internally creates the SecretWriteServiceClient.
-func NewSecretGRPCWriteFacade(conn *grpc.ClientConn) *SecretGRPCWriteFacade {
+func NewSecretWriteGRPC(conn *grpc.ClientConn) *SecretWriteGRPC {
 	client := pb.NewSecretWriteServiceClient(conn)
-	return &SecretGRPCWriteFacade{client: client}
+	return &SecretWriteGRPC{client: client}
 }
 
-// Save sends a secret save request via gRPC.
-func (f *SecretGRPCWriteFacade) Save(ctx context.Context, secret *models.SecretSaveRequest) error {
-	req := &pb.SecretSaveRequest{
-		SecretName: secret.SecretName,
-		SecretType: secret.SecretType,
-		Ciphertext: secret.Ciphertext,
-		AesKeyEnc:  secret.AESKeyEnc,
-		Token:      secret.Token,
+func (w *SecretWriteGRPC) Save(
+	ctx context.Context,
+	token string,
+	secret *models.Secret,
+) error {
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", fmt.Sprintf("Bearer %s", token))
+
+	pbReq := &pb.Secret{
+		SecretName:  secret.SecretName,
+		SecretType:  secret.SecretType,
+		SecretOwner: secret.SecretOwner,
+		Ciphertext:  secret.Ciphertext,
+		AesKeyEnc:   secret.AESKeyEnc,
+		CreatedAt:   timestamppb.New(secret.CreatedAt),
+		UpdatedAt:   timestamppb.New(secret.UpdatedAt),
 	}
 
-	_, err := f.client.Save(ctx, req)
+	_, err := w.client.Save(ctx, pbReq)
 	if err != nil {
 		return fmt.Errorf("grpc save failed: %w", err)
 	}
 	return nil
 }
 
-// SecretGRPCReadFacade is a gRPC client facade for reading secrets.
-type SecretGRPCReadFacade struct {
+type SecretReadGRPC struct {
 	client pb.SecretReadServiceClient
 }
 
-// NewSecretGRPCReadFacade creates a new SecretGRPCReadFacade from a gRPC ClientConn.
-// It internally creates the SecretReadServiceClient.
-func NewSecretGRPCReadFacade(conn *grpc.ClientConn) *SecretGRPCReadFacade {
+func NewSecretReadGRPC(conn *grpc.ClientConn) *SecretReadGRPC {
 	client := pb.NewSecretReadServiceClient(conn)
-	return &SecretGRPCReadFacade{client: client}
+	return &SecretReadGRPC{client: client}
 }
 
-// Get retrieves a secret via gRPC using secret type and name.
-func (f *SecretGRPCReadFacade) Get(ctx context.Context, req *models.SecretGetRequest) (*models.SecretDB, error) {
+func (r *SecretReadGRPC) Get(
+	ctx context.Context,
+	token string,
+	secretName string,
+	secretType string,
+) (*models.Secret, error) {
+	ctx = metadata.AppendToOutgoingContext(
+		ctx,
+		"authorization", fmt.Sprintf("Bearer %s", token),
+	)
+
 	pbReq := &pb.SecretGetRequest{
-		SecretName: req.SecretName,
-		SecretType: req.SecretType,
-		Token:      req.Token,
+		SecretName: secretName,
+		SecretType: secretType,
 	}
 
-	pbResp, err := f.client.Get(ctx, pbReq)
+	pbResp, err := r.client.Get(ctx, pbReq)
 	if err != nil {
 		return nil, fmt.Errorf("grpc get secret failed: %w", err)
 	}
 
-	secret := &models.SecretDB{
-		SecretName: pbResp.SecretName,
-		SecretType: pbResp.SecretType,
-		Ciphertext: pbResp.Ciphertext,
-		AESKeyEnc:  pbResp.AesKeyEnc,
-		CreatedAt:  pbResp.CreatedAt.AsTime(),
-		UpdatedAt:  pbResp.UpdatedAt.AsTime(),
-	}
-
-	return secret, nil
+	return &models.Secret{
+		SecretName:  pbResp.SecretName,
+		SecretType:  pbResp.SecretType,
+		SecretOwner: pbResp.SecretOwner,
+		Ciphertext:  pbResp.Ciphertext,
+		AESKeyEnc:   pbResp.AesKeyEnc,
+		CreatedAt:   pbResp.CreatedAt.AsTime(),
+		UpdatedAt:   pbResp.UpdatedAt.AsTime(),
+	}, nil
 }
 
-// List retrieves all secrets accessible by the token via a gRPC streaming call.
-func (f *SecretGRPCReadFacade) List(ctx context.Context, req *models.SecretListRequest) ([]*models.SecretDB, error) {
-	stream, err := f.client.List(ctx, &pb.SecretListRequest{Token: req.Token})
+func (r *SecretReadGRPC) List(
+	ctx context.Context,
+	token string,
+) ([]*models.Secret, error) {
+	ctx = metadata.AppendToOutgoingContext(ctx, "authorization", fmt.Sprintf("Bearer %s", token))
+
+	stream, err := r.client.List(ctx, &emptypb.Empty{})
 	if err != nil {
 		return nil, fmt.Errorf("grpc list secrets failed to start stream: %w", err)
 	}
 
-	var secrets []*models.SecretDB
+	var secrets []*models.Secret
 	for {
 		pbResp, err := stream.Recv()
 		if err == io.EOF {
@@ -169,16 +189,15 @@ func (f *SecretGRPCReadFacade) List(ctx context.Context, req *models.SecretListR
 			return nil, fmt.Errorf("grpc list secrets stream error: %w", err)
 		}
 
-		secret := &models.SecretDB{
-			SecretName: pbResp.SecretName,
-			SecretType: pbResp.SecretType,
-			Ciphertext: pbResp.Ciphertext,
-			AESKeyEnc:  pbResp.AesKeyEnc,
-			CreatedAt:  pbResp.CreatedAt.AsTime(),
-			UpdatedAt:  pbResp.UpdatedAt.AsTime(),
-		}
-		secrets = append(secrets, secret)
+		secrets = append(secrets, &models.Secret{
+			SecretName:  pbResp.SecretName,
+			SecretType:  pbResp.SecretType,
+			SecretOwner: pbResp.SecretOwner,
+			Ciphertext:  pbResp.Ciphertext,
+			AESKeyEnc:   pbResp.AesKeyEnc,
+			CreatedAt:   pbResp.CreatedAt.AsTime(),
+			UpdatedAt:   pbResp.UpdatedAt.AsTime(),
+		})
 	}
-
 	return secrets, nil
 }

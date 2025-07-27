@@ -43,7 +43,7 @@ func run() error {
 
 	rootCmd.AddCommand(cli.NewClientRegisterCommand())
 	rootCmd.AddCommand(cli.NewClientLoginCommand())
-	rootCmd.AddCommand(cli.NewClientAddBankCardCommand())
+	rootCmd.AddCommand(cli.NewClientAddBankcardCommand())
 	rootCmd.AddCommand(cli.NewClientAddBinaryCommand())
 	rootCmd.AddCommand(cli.NewClientAddTextCommand())
 	rootCmd.AddCommand(cli.NewClientAddUserCommand())
