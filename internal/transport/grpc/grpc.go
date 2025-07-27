@@ -8,9 +8,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Opt — функция, возвращающая grpc.DialOption и ошибку.
+// Opt is a function type that returns a grpc.DialOption and an error.
+// Used for modular configuration of gRPC client dial options.
 type Opt func() (grpc.DialOption, error)
 
+// New creates a new gRPC ClientConn to the specified target address,
+// applying optional grpc.DialOptions provided via Opt functions.
+// By default, it uses insecure transport credentials.
 func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 	dialOpts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
@@ -24,7 +28,7 @@ func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 		}
 	}
 
-	conn, err := grpc.NewClient(target, dialOpts...)
+	conn, err := grpc.Dial(target, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -32,14 +36,16 @@ func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 	return conn, nil
 }
 
-// RetryPolicy конфигурирует политику повторных попыток.
+// RetryPolicy configures parameters for retrying gRPC calls.
 type RetryPolicy struct {
-	Count   int
-	Wait    time.Duration
-	MaxWait time.Duration
+	Count   int           // Maximum number of retry attempts
+	Wait    time.Duration // Initial backoff duration before retry
+	MaxWait time.Duration // Maximum backoff duration
 }
 
-// WithRetryPolicy возвращает Opt для настройки политики повторов.
+// WithRetryPolicy returns an Opt that configures retry policy on gRPC calls
+// according to the specified RetryPolicy.
+// If all fields are zero or negative, no retry configuration is applied.
 func WithRetryPolicy(rp RetryPolicy) Opt {
 	return func() (grpc.DialOption, error) {
 		if rp.Count <= 0 && rp.Wait <= 0 && rp.MaxWait <= 0 {
