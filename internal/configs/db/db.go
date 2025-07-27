@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/pressly/goose/v3"
 	_ "modernc.org/sqlite"
 )
 
@@ -60,15 +59,4 @@ func WithConnMaxLifetime(opts ...time.Duration) Opt {
 			}
 		}
 	}
-}
-
-// RunMigrations applies database migrations from the specified directory using goose.
-func RunMigrations(db *sqlx.DB, driver string, pathToDir string) error {
-	if err := goose.SetDialect(driver); err != nil {
-		return err
-	}
-	if err := goose.Up(db.DB, pathToDir); err != nil {
-		return err
-	}
-	return nil
 }

@@ -1,15 +1,19 @@
 package models
 
-// AuthRequest represents a user authentication request.
-// It contains the user's login, password, and public key.
-type AuthRequest struct {
-	Login     string `json:"login"`      // The user's login or identifier
-	Password  string `json:"password"`   // The user's password
-	PublicKey string `json:"public_key"` // The user's public key (in PEM or base64 format)
+// AuthRegisterRequest — структура запроса на регистрацию пользователя
+type AuthRegisterRequest struct {
+	Username         string `json:"username"`
+	Password         string `json:"password"`
+	ClientPubKeyFile string `json:"client_pub_key_file"`
 }
 
-// AuthResponse represents the response to an authentication request.
-// It contains an authentication token.
+// AuthLoginRequest — структура запроса на вход пользователя
+type AuthLoginRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// AuthResponse — структура ответа с токеном после регистрации или входа
 type AuthResponse struct {
-	Token string `json:"token"` // The authentication token
+	Token string `json:"token"`
 }

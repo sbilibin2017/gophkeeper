@@ -18,21 +18,6 @@ func TestNewBasicClient(t *testing.T) {
 	assert.Equal(t, baseURL, client.BaseURL)
 }
 
-func TestWithAuthToken(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "Bearer token1", r.Header.Get("Authorization"))
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer ts.Close()
-
-	client, err := New(ts.URL, WithAuthToken("", "token1", "token2"))
-	require.NoError(t, err)
-
-	resp, err := client.R().Get("/")
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode())
-}
-
 func TestWithRetryPolicy(t *testing.T) {
 	rp := RetryPolicy{Count: 3, Wait: time.Second, MaxWait: 5 * time.Second}
 	client, err := New("https://example.com", WithRetryPolicy(rp))
@@ -45,7 +30,7 @@ func TestWithRetryPolicy(t *testing.T) {
 
 func TestMultipleOpts(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "Bearer abc123", r.Header.Get("Authorization"))
+
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
@@ -53,7 +38,6 @@ func TestMultipleOpts(t *testing.T) {
 	rp := RetryPolicy{Count: 2, Wait: 200 * time.Millisecond}
 	client, err := New(
 		ts.URL,
-		WithAuthToken("abc123"),
 		WithRetryPolicy(rp),
 	)
 	require.NoError(t, err)

@@ -1,7 +1,6 @@
 package grpc
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -31,40 +30,6 @@ func New(target string, opts ...Opt) (*grpc.ClientConn, error) {
 	}
 
 	return conn, nil
-}
-
-// tokenAuth добавляет Bearer-токен в metadata.
-type tokenAuth struct {
-	token string
-}
-
-func (t tokenAuth) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"authorization": "Bearer " + t.token,
-	}, nil
-}
-
-func (t tokenAuth) RequireTransportSecurity() bool {
-	// TLS больше не используется
-	return false
-}
-
-// WithAuthToken возвращает Opt, устанавливающую Bearer-токен.
-// Использует первый непустой токен.
-func WithAuthToken(tokens ...string) Opt {
-	return func() (grpc.DialOption, error) {
-		var token string
-		for _, t := range tokens {
-			if t != "" {
-				token = t
-				break
-			}
-		}
-		if token == "" {
-			return nil, nil
-		}
-		return grpc.WithPerRPCCredentials(tokenAuth{token: token}), nil
-	}
 }
 
 // RetryPolicy конфигурирует политику повторных попыток.

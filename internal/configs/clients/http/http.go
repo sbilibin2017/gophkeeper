@@ -54,17 +54,3 @@ func WithRetryPolicy(policies ...RetryPolicy) Opt {
 		return nil
 	}
 }
-
-// WithAuthToken возвращает опцию Opt, которая устанавливает Bearer-токен авторизации
-// в заголовки HTTP-запросов. Используется первый непустой токен из переданных.
-func WithAuthToken(tokens ...string) Opt {
-	return func(c *resty.Client) error {
-		for _, token := range tokens {
-			if token != "" {
-				c.SetAuthToken(token)
-				break
-			}
-		}
-		return nil
-	}
-}
