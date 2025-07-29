@@ -33,8 +33,6 @@ func (r *UserWriteRepository) Save(ctx context.Context, username, passwordHash s
 	return nil
 }
 
-// --------------------------------------------------
-
 // UserReadRepository handles read operations for users.
 type UserReadRepository struct {
 	db *sqlx.DB
