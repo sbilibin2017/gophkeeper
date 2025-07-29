@@ -113,10 +113,10 @@ func (m *MockEncryptor) EXPECT() *MockEncryptorMockRecorder {
 }
 
 // Encrypt mocks base method.
-func (m *MockEncryptor) Encrypt(plaintext []byte) (*models.SecretSecretEncrypted, error) {
+func (m *MockEncryptor) Encrypt(plaintext []byte) (*models.SecretEncrypted, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Encrypt", plaintext)
-	ret0, _ := ret[0].(*models.SecretSecretEncrypted)
+	ret0, _ := ret[0].(*models.SecretEncrypted)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -151,7 +151,7 @@ func (m *MockDecryptor) EXPECT() *MockDecryptorMockRecorder {
 }
 
 // Decrypt mocks base method.
-func (m *MockDecryptor) Decrypt(secret *models.SecretSecretEncrypted) ([]byte, error) {
+func (m *MockDecryptor) Decrypt(secret *models.SecretEncrypted) ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Decrypt", secret)
 	ret0, _ := ret[0].([]byte)

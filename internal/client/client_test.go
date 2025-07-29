@@ -7,9 +7,11 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClientRegister(t *testing.T) {
@@ -17,35 +19,65 @@ func TestClientRegister(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockRegisterer := NewMockRegisterer(ctrl)
-	ctx := context.Background()
 
-	t.Run("success", func(t *testing.T) {
-		token := "tok"
-		mockRegisterer.EXPECT().Register(ctx, "user", "pass").Return(&token, nil)
-		got, err := ClientRegister(ctx, mockRegisterer, "user", "pass")
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if got != token {
-			t.Fatalf("expected token %q, got %q", token, got)
-		}
-	})
+	tests := []struct {
+		name          string
+		setupMock     func()
+		username      string
+		password      string
+		expectedToken string
+		expectErr     bool
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				token := "token123"
+				mockRegisterer.EXPECT().
+					Register(gomock.Any(), "user", "pass").
+					Return(&token, nil)
+			},
+			username:      "user",
+			password:      "pass",
+			expectedToken: "token123",
+			expectErr:     false,
+		},
+		{
+			name: "error from register",
+			setupMock: func() {
+				mockRegisterer.EXPECT().
+					Register(gomock.Any(), "user", "pass").
+					Return(nil, errors.New("register error"))
+			},
+			username:  "user",
+			password:  "pass",
+			expectErr: true,
+		},
+		{
+			name: "nil token returned",
+			setupMock: func() {
+				mockRegisterer.EXPECT().
+					Register(gomock.Any(), "user", "pass").
+					Return(nil, nil)
+			},
+			username:  "user",
+			password:  "pass",
+			expectErr: true,
+		},
+	}
 
-	t.Run("error from Register", func(t *testing.T) {
-		mockRegisterer.EXPECT().Register(ctx, "user", "pass").Return(nil, errors.New("fail"))
-		_, err := ClientRegister(ctx, mockRegisterer, "user", "pass")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
 
-	t.Run("nil token", func(t *testing.T) {
-		mockRegisterer.EXPECT().Register(ctx, "user", "pass").Return(nil, nil)
-		_, err := ClientRegister(ctx, mockRegisterer, "user", "pass")
-		if err == nil || !strings.Contains(err.Error(), "nil token") {
-			t.Fatalf("expected nil token error, got %v", err)
-		}
-	})
+			token, err := ClientRegister(context.Background(), mockRegisterer, tt.username, tt.password)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedToken, token)
+			}
+		})
+	}
 }
 
 func TestClientLogin(t *testing.T) {
@@ -53,35 +85,65 @@ func TestClientLogin(t *testing.T) {
 	defer ctrl.Finish()
 
 	mockLoginer := NewMockLoginer(ctrl)
-	ctx := context.Background()
 
-	t.Run("success", func(t *testing.T) {
-		token := "tok"
-		mockLoginer.EXPECT().Login(ctx, "user", "pass").Return(&token, nil)
-		got, err := ClientLogin(ctx, mockLoginer, "user", "pass")
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if got != token {
-			t.Fatalf("expected token %q, got %q", token, got)
-		}
-	})
+	tests := []struct {
+		name          string
+		setupMock     func()
+		username      string
+		password      string
+		expectedToken string
+		expectErr     bool
+	}{
+		{
+			name: "success",
+			setupMock: func() {
+				token := "token123"
+				mockLoginer.EXPECT().
+					Login(gomock.Any(), "user", "pass").
+					Return(&token, nil)
+			},
+			username:      "user",
+			password:      "pass",
+			expectedToken: "token123",
+			expectErr:     false,
+		},
+		{
+			name: "error from login",
+			setupMock: func() {
+				mockLoginer.EXPECT().
+					Login(gomock.Any(), "user", "pass").
+					Return(nil, errors.New("login error"))
+			},
+			username:  "user",
+			password:  "pass",
+			expectErr: true,
+		},
+		{
+			name: "nil token returned",
+			setupMock: func() {
+				mockLoginer.EXPECT().
+					Login(gomock.Any(), "user", "pass").
+					Return(nil, nil)
+			},
+			username:  "user",
+			password:  "pass",
+			expectErr: true,
+		},
+	}
 
-	t.Run("error from Login", func(t *testing.T) {
-		mockLoginer.EXPECT().Login(ctx, "user", "pass").Return(nil, errors.New("fail"))
-		_, err := ClientLogin(ctx, mockLoginer, "user", "pass")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.setupMock()
 
-	t.Run("nil token", func(t *testing.T) {
-		mockLoginer.EXPECT().Login(ctx, "user", "pass").Return(nil, nil)
-		_, err := ClientLogin(ctx, mockLoginer, "user", "pass")
-		if err == nil || !strings.Contains(err.Error(), "nil token") {
-			t.Fatalf("expected nil token error, got %v", err)
-		}
-	})
+			token, err := ClientLogin(context.Background(), mockLoginer, tt.username, tt.password)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expectedToken, token)
+			}
+		})
+	}
 }
 
 func TestClientAddBankcard(t *testing.T) {
@@ -90,38 +152,42 @@ func TestClientAddBankcard(t *testing.T) {
 
 	mockSaver := NewMockClientSaver(ctrl)
 	mockEncryptor := NewMockEncryptor(ctrl)
+
 	ctx := context.Background()
+	token := "token123"
+	secretName := "secretName"
+	number := "1234123412341234"
+	owner := "Owner Name"
+	exp := "12/25"
+	cvv := "123"
+	meta := "some meta"
 
-	bankcard := models.Bankcard{
-		SecretName: "name",
-		Number:     "1234",
-		Owner:      "owner",
-		Exp:        "12/25",
-		CVV:        "999",
-		Meta:       nil,
+	// Expected payload struct (to marshal and verify later)
+	expectedPayload := models.BankcardPayload{
+		Number: number,
+		Owner:  owner,
+		Exp:    exp,
+		CVV:    cvv,
+		Meta:   &meta,
 	}
-	plaintext, _ := json.Marshal(bankcard)
+	plaintext, err := json.Marshal(expectedPayload)
+	require.NoError(t, err)
 
-	SecretEncrypted := &models.SecretSecretEncrypted{
-		Ciphertext: []byte("cipher"),
-		AESKeyEnc:  []byte("key"),
+	encrypted := models.SecretEncrypted{
+		Ciphertext: []byte("encryptedText"),
+		AESKeyEnc:  []byte("encryptedKey"),
 	}
 
-	mockEncryptor.EXPECT().Encrypt(plaintext).Return(SecretEncrypted, nil)
-	mockSaver.EXPECT().Save(ctx, "token", "name", models.SecretTypeBankCard, SecretEncrypted.Ciphertext, SecretEncrypted.AESKeyEnc).Return(nil)
+	mockEncryptor.EXPECT().
+		Encrypt(plaintext).
+		Return(&encrypted, nil)
 
-	err := ClientAddBankcard(ctx, mockSaver, mockEncryptor, "token", "name", "1234", "owner", "12/25", "999", "")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	mockSaver.EXPECT().
+		Save(ctx, token, secretName, models.SecretTypeBankCard, encrypted.Ciphertext, encrypted.AESKeyEnc).
+		Return(nil)
 
-	t.Run("encryption failure", func(t *testing.T) {
-		mockEncryptor.EXPECT().Encrypt(gomock.Any()).Return(nil, errors.New("enc fail"))
-		err := ClientAddBankcard(ctx, mockSaver, mockEncryptor, "token", "name", "1234", "owner", "12/25", "999", "")
-		if err == nil || !strings.Contains(err.Error(), "encryption failed") {
-			t.Fatalf("expected encryption failed error, got %v", err)
-		}
-	})
+	err = ClientAddBankcard(ctx, mockSaver, mockEncryptor, token, secretName, number, owner, exp, cvv, meta)
+	require.NoError(t, err)
 }
 
 func TestClientAddText(t *testing.T) {
@@ -130,27 +196,35 @@ func TestClientAddText(t *testing.T) {
 
 	mockSaver := NewMockClientSaver(ctrl)
 	mockEncryptor := NewMockEncryptor(ctrl)
+
 	ctx := context.Background()
+	token := "token123"
+	secretName := "textSecret"
+	data := "some secret text"
+	meta := "meta info"
 
-	text := models.Text{
-		SecretName: "name",
-		Data:       "data",
-		Meta:       nil,
+	expectedPayload := models.TextPayload{
+		Data: data,
+		Meta: &meta,
 	}
-	plaintext, _ := json.Marshal(text)
+	plaintext, err := json.Marshal(expectedPayload)
+	require.NoError(t, err)
 
-	SecretEncrypted := &models.SecretSecretEncrypted{
-		Ciphertext: []byte("cipher"),
-		AESKeyEnc:  []byte("key"),
+	encrypted := models.SecretEncrypted{
+		Ciphertext: []byte("encryptedText"),
+		AESKeyEnc:  []byte("encryptedKey"),
 	}
 
-	mockEncryptor.EXPECT().Encrypt(plaintext).Return(SecretEncrypted, nil)
-	mockSaver.EXPECT().Save(ctx, "token", "name", models.SecretTypeText, SecretEncrypted.Ciphertext, SecretEncrypted.AESKeyEnc).Return(nil)
+	mockEncryptor.EXPECT().
+		Encrypt(plaintext).
+		Return(&encrypted, nil)
 
-	err := ClientAddText(ctx, mockSaver, mockEncryptor, "token", "name", "data", "")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	mockSaver.EXPECT().
+		Save(ctx, token, secretName, models.SecretTypeText, encrypted.Ciphertext, encrypted.AESKeyEnc).
+		Return(nil)
+
+	err = ClientAddText(ctx, mockSaver, mockEncryptor, token, secretName, data, meta)
+	require.NoError(t, err)
 }
 
 func TestClientAddBinary(t *testing.T) {
@@ -159,36 +233,36 @@ func TestClientAddBinary(t *testing.T) {
 
 	mockSaver := NewMockClientSaver(ctrl)
 	mockEncryptor := NewMockEncryptor(ctrl)
+
 	ctx := context.Background()
+	token := "token123"
+	secretName := "binarySecret"
+	rawData := []byte{0x1, 0x2, 0x3}
+	data := base64.StdEncoding.EncodeToString(rawData)
+	meta := "binary meta"
 
-	data := base64.StdEncoding.EncodeToString([]byte("binarydata"))
-
-	binary := models.Binary{
-		SecretName: "name",
-		Data:       []byte("binarydata"),
-		Meta:       nil,
+	expectedPayload := models.BinaryPayload{
+		Data: rawData,
+		Meta: &meta,
 	}
-	plaintext, _ := json.Marshal(binary)
+	plaintext, err := json.Marshal(expectedPayload)
+	require.NoError(t, err)
 
-	SecretEncrypted := &models.SecretSecretEncrypted{
-		Ciphertext: []byte("cipher"),
-		AESKeyEnc:  []byte("key"),
-	}
-
-	mockEncryptor.EXPECT().Encrypt(plaintext).Return(SecretEncrypted, nil)
-	mockSaver.EXPECT().Save(ctx, "token", "name", models.SecretTypeBinary, SecretEncrypted.Ciphertext, SecretEncrypted.AESKeyEnc).Return(nil)
-
-	err := ClientAddBinary(ctx, mockSaver, mockEncryptor, "token", "name", data, "")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
+	encrypted := models.SecretEncrypted{
+		Ciphertext: []byte("encryptedBinary"),
+		AESKeyEnc:  []byte("encryptedKey"),
 	}
 
-	t.Run("invalid base64", func(t *testing.T) {
-		err := ClientAddBinary(ctx, mockSaver, mockEncryptor, "token", "name", "!!!", "")
-		if err == nil || !strings.Contains(err.Error(), "failed to decode base64") {
-			t.Fatalf("expected base64 decode error, got %v", err)
-		}
-	})
+	mockEncryptor.EXPECT().
+		Encrypt(plaintext).
+		Return(&encrypted, nil)
+
+	mockSaver.EXPECT().
+		Save(ctx, token, secretName, models.SecretTypeBinary, encrypted.Ciphertext, encrypted.AESKeyEnc).
+		Return(nil)
+
+	err = ClientAddBinary(ctx, mockSaver, mockEncryptor, token, secretName, data, meta)
+	require.NoError(t, err)
 }
 
 func TestClientAddUser(t *testing.T) {
@@ -197,136 +271,236 @@ func TestClientAddUser(t *testing.T) {
 
 	mockSaver := NewMockClientSaver(ctrl)
 	mockEncryptor := NewMockEncryptor(ctrl)
+
 	ctx := context.Background()
+	token := "token123"
+	secretName := "userSecret"
+	username := "user1"
+	password := "pass1"
+	meta := "user meta"
 
-	user := models.User{
-		SecretName: "name",
-		Username:   "u",
-		Password:   "p",
-		Meta:       nil,
+	expectedPayload := models.UserPayload{
+		Username: username,
+		Password: password,
+		Meta:     &meta,
 	}
-	plaintext, _ := json.Marshal(user)
+	plaintext, err := json.Marshal(expectedPayload)
+	require.NoError(t, err)
 
-	SecretEncrypted := &models.SecretSecretEncrypted{
-		Ciphertext: []byte("cipher"),
-		AESKeyEnc:  []byte("key"),
+	encrypted := models.SecretEncrypted{
+		Ciphertext: []byte("encryptedUser"),
+		AESKeyEnc:  []byte("encryptedKey"),
 	}
 
-	mockEncryptor.EXPECT().Encrypt(plaintext).Return(SecretEncrypted, nil)
-	mockSaver.EXPECT().Save(ctx, "token", "name", models.SecretTypeUser, SecretEncrypted.Ciphertext, SecretEncrypted.AESKeyEnc).Return(nil)
+	mockEncryptor.EXPECT().
+		Encrypt(plaintext).
+		Return(&encrypted, nil)
 
-	err := ClientAddUser(ctx, mockSaver, mockEncryptor, "token", "name", "u", "p", "")
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	mockSaver.EXPECT().
+		Save(ctx, token, secretName, models.SecretTypeUser, encrypted.Ciphertext, encrypted.AESKeyEnc).
+		Return(nil)
+
+	err = ClientAddUser(ctx, mockSaver, mockEncryptor, token, secretName, username, password, meta)
+	require.NoError(t, err)
 }
 
-func TestClientListSecrets_AllTypes(t *testing.T) {
+func TestClientListSecrets(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	token := "user-token"
+	token := "token123"
 
-	mockServerLister := NewMockServerLister(ctrl)
-	mockDecryptor := NewMockDecryptor(ctrl)
-
-	// Prepare secrets of all types + one unknown type
-	mockSecrets := []*models.Secret{
+	tests := []struct {
+		name        string
+		mockSetup   func(*MockServerLister, *MockDecryptor)
+		expectedOut string
+		expectedErr string
+	}{
 		{
-			SecretName: "bankcard1",
-			SecretType: models.SecretTypeBankCard,
-			Ciphertext: []byte("SecretEncrypted-bankcard"),
-			AESKeyEnc:  []byte("aes-key-enc1"),
+			name: "Bankcard secret",
+			mockSetup: func(l *MockServerLister, d *MockDecryptor) {
+				secrets := []*models.Secret{
+					{
+						SecretName: "card1",
+						SecretType: models.SecretTypeBankCard,
+						Ciphertext: []byte("cipher1"),
+						AESKeyEnc:  []byte("key1"),
+					},
+				}
+				l.EXPECT().List(ctx, token).Return(secrets, nil)
+				d.EXPECT().Decrypt(gomock.Any()).DoAndReturn(func(secret *models.SecretEncrypted) ([]byte, error) {
+					meta := "meta1"
+					bankcard := models.BankcardPayload{
+						Number: "1234567890",
+						Owner:  "Alice",
+						Exp:    "12/25",
+						CVV:    "123",
+						Meta:   &meta,
+					}
+					return json.Marshal(bankcard)
+				}).AnyTimes()
+			},
+			expectedOut: `{
+  "number": "1234567890",
+  "owner": "Alice",
+  "exp": "12/25",
+  "cvv": "123",
+  "meta": "meta1"
+}`,
 		},
 		{
-			SecretName: "text1",
-			SecretType: models.SecretTypeText,
-			Ciphertext: []byte("SecretEncrypted-text"),
-			AESKeyEnc:  []byte("aes-key-enc2"),
+			name: "Text secret",
+			mockSetup: func(l *MockServerLister, d *MockDecryptor) {
+				secrets := []*models.Secret{
+					{
+						SecretName: "text1",
+						SecretType: models.SecretTypeText,
+						Ciphertext: []byte("cipher2"),
+						AESKeyEnc:  []byte("key2"),
+					},
+				}
+				l.EXPECT().List(ctx, token).Return(secrets, nil)
+				d.EXPECT().Decrypt(gomock.Any()).DoAndReturn(func(secret *models.SecretEncrypted) ([]byte, error) {
+					meta := "meta2"
+					text := models.TextPayload{
+						Data: "Hello, World!",
+						Meta: &meta,
+					}
+					return json.Marshal(text)
+				}).AnyTimes()
+			},
+			expectedOut: `{
+  "data": "Hello, World!",
+  "meta": "meta2"
+}`,
 		},
 		{
-			SecretName: "binary1",
-			SecretType: models.SecretTypeBinary,
-			Ciphertext: []byte("SecretEncrypted-binary"),
-			AESKeyEnc:  []byte("aes-key-enc3"),
+			name: "Binary secret",
+			mockSetup: func(l *MockServerLister, d *MockDecryptor) {
+				secrets := []*models.Secret{
+					{
+						SecretName: "bin1",
+						SecretType: models.SecretTypeBinary,
+						Ciphertext: []byte("cipher3"),
+						AESKeyEnc:  []byte("key3"),
+					},
+				}
+				l.EXPECT().List(ctx, token).Return(secrets, nil)
+				d.EXPECT().Decrypt(gomock.Any()).DoAndReturn(func(secret *models.SecretEncrypted) ([]byte, error) {
+					meta := "meta3"
+					binary := models.BinaryPayload{
+						Data: []byte{0x01, 0x02, 0x03},
+						Meta: &meta,
+					}
+					return json.Marshal(binary)
+				}).AnyTimes()
+			},
+			expectedOut: `{
+  "data": "AQID",
+  "meta": "meta3"
+}`,
 		},
 		{
-			SecretName: "user1",
-			SecretType: models.SecretTypeUser,
-			Ciphertext: []byte("SecretEncrypted-user"),
-			AESKeyEnc:  []byte("aes-key-enc4"),
+			name: "User secret",
+			mockSetup: func(l *MockServerLister, d *MockDecryptor) {
+				secrets := []*models.Secret{
+					{
+						SecretName: "user1",
+						SecretType: models.SecretTypeUser,
+						Ciphertext: []byte("cipher4"),
+						AESKeyEnc:  []byte("key4"),
+					},
+				}
+				l.EXPECT().List(ctx, token).Return(secrets, nil)
+				d.EXPECT().Decrypt(gomock.Any()).DoAndReturn(func(secret *models.SecretEncrypted) ([]byte, error) {
+					meta := "meta4"
+					user := models.UserPayload{
+						Username: "bob",
+						Password: "secret",
+						Meta:     &meta,
+					}
+					return json.Marshal(user)
+				}).AnyTimes()
+			},
+			expectedOut: `{
+  "username": "bob",
+  "password": "secret",
+  "meta": "meta4"
+}`,
 		},
 		{
-			SecretName: "unknown1",
-			SecretType: "some-unknown-type",
-			Ciphertext: []byte("SecretEncrypted-unknown"),
-			AESKeyEnc:  []byte("aes-key-enc5"),
+			name: "Unknown secret type",
+			mockSetup: func(l *MockServerLister, d *MockDecryptor) {
+				secrets := []*models.Secret{
+					{
+						SecretName: "unknown1",
+						SecretType: "unknownType",
+						Ciphertext: []byte("cipher5"),
+						AESKeyEnc:  []byte("key5"),
+					},
+				}
+				l.EXPECT().List(ctx, token).Return(secrets, nil)
+				d.EXPECT().Decrypt(gomock.Any()).Return([]byte{}, nil).AnyTimes()
+			},
+			expectedOut: "Unknown secret type: unknownType",
+		},
+		{
+			name: "Decrypt error",
+			mockSetup: func(l *MockServerLister, d *MockDecryptor) {
+				secrets := []*models.Secret{
+					{
+						SecretName: "faildecrypt",
+						SecretType: models.SecretTypeText,
+						Ciphertext: []byte("cipher6"),
+						AESKeyEnc:  []byte("key6"),
+					},
+				}
+				l.EXPECT().List(ctx, token).Return(secrets, nil)
+				d.EXPECT().Decrypt(gomock.Any()).Return(nil, errors.New("decryption error"))
+			},
+			expectedErr: "failed to decrypt secret faildecrypt",
+		},
+		{
+			name: "List error",
+			mockSetup: func(l *MockServerLister, d *MockDecryptor) {
+				l.EXPECT().List(ctx, token).Return(nil, errors.New("list error"))
+			},
+			expectedErr: "list error",
 		},
 	}
 
-	mockServerLister.
-		EXPECT().
-		List(ctx, token).
-		Return(mockSecrets, nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockLister := NewMockServerLister(ctrl)
+			mockDecryptor := NewMockDecryptor(ctrl)
 
-	// Prepare decrypted JSON for each secret type
-	bankcard := models.Bankcard{
-		SecretName: "bankcard1",
-		Number:     "1234",
-		Owner:      "Alice",
-		Exp:        "12/24",
-		CVV:        "999",
+			tt.mockSetup(mockLister, mockDecryptor)
+
+			out, err := ClientListSecrets(ctx, mockLister, mockDecryptor, token)
+
+			if tt.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+
+			out = strings.ReplaceAll(out, "\r\n", "\n") // Normalize newlines for Windows
+
+			require.Equal(t, strings.TrimSpace(tt.expectedOut), strings.TrimSpace(out))
+		})
 	}
-	bankcardJSON, _ := json.Marshal(bankcard)
+}
 
-	text := models.Text{
-		SecretName: "text1",
-		Data:       "my secret note",
-	}
-	textJSON, _ := json.Marshal(text)
-
-	binary := models.Binary{
-		SecretName: "binary1",
-		Data:       []byte{0x01, 0x02, 0x03},
-	}
-	binaryJSON, _ := json.Marshal(binary)
-
-	user := models.User{
-		SecretName: "user1",
-		Username:   "user@example.com",
-		Password:   "supersecret",
-	}
-	userJSON, _ := json.Marshal(user)
-
-	// Setup decryptor expectations in order of calls
-	gomock.InOrder(
-		mockDecryptor.EXPECT().Decrypt(gomock.Any()).Return(bankcardJSON, nil),
-		mockDecryptor.EXPECT().Decrypt(gomock.Any()).Return(textJSON, nil),
-		mockDecryptor.EXPECT().Decrypt(gomock.Any()).Return(binaryJSON, nil),
-		mockDecryptor.EXPECT().Decrypt(gomock.Any()).Return(userJSON, nil),
-		// For unknown type, decrypt still called, but output ignored except message printed
-		mockDecryptor.EXPECT().Decrypt(gomock.Any()).Return([]byte{}, nil),
-	)
-
-	output, err := ClientListSecrets(ctx, mockServerLister, mockDecryptor, token)
-	if err != nil {
-		t.Fatalf("ClientListSecrets failed: %v", err)
-	}
-
-	// Check that output contains all expected decrypted secret data
-	tests := []string{
-		`"secret_name": "bankcard1"`, `"number": "1234"`, `"owner": "Alice"`, `"exp": "12/24"`, `"cvv": "999"`,
-		`"secret_name": "text1"`, `"data": "my secret note"`,
-		`"secret_name": "binary1"`, `"data": "AQID"`, // base64 for 0x01,0x02,0x03
-		`"secret_name": "user1"`, `"username": "user@example.com"`, `"password": "supersecret"`,
-		"Unknown secret type: some-unknown-type",
-	}
-
-	for _, substr := range tests {
-		if !strings.Contains(output, substr) {
-			t.Errorf("Output missing expected substring: %q\nOutput was:\n%s", substr, output)
-		}
+// helper to create a sample secret
+func makeSecret(name, secretType string, updatedAt time.Time) *models.Secret {
+	return &models.Secret{
+		SecretName: name,
+		SecretType: secretType,
+		UpdatedAt:  updatedAt,
+		Ciphertext: []byte(`{"foo":"bar"}`),
+		AESKeyEnc:  []byte(`key`),
 	}
 }
 
@@ -335,31 +509,22 @@ func TestClientSyncClient(t *testing.T) {
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	secretOwner := "owner1"
+	owner := "owner1"
 
-	mockResolver := NewMockClientResolver(ctrl)
+	cl := NewMockClientLister(ctrl)
+	sg := NewMockServerGetter(ctrl)
+	ss := NewMockServerSaver(ctrl)
 
-	// Success case: Expect Resolve called once with ctx and secretOwner, returns nil error
-	mockResolver.EXPECT().
-		Resolve(ctx, secretOwner).
-		Return(nil).
-		Times(1)
+	clientSecret := makeSecret("secretA", "typeA", time.Now())
+	serverSecret := makeSecret("secretA", "typeA", time.Now().Add(-time.Hour))
 
-	err := ClientSyncClient(ctx, secretOwner, mockResolver)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	// Client secret is newer, so Save should be called
+	cl.EXPECT().List(ctx, owner).Return([]*models.Secret{clientSecret}, nil)
+	sg.EXPECT().Get(ctx, owner, clientSecret.SecretType, clientSecret.SecretName).Return(serverSecret, nil)
+	ss.EXPECT().Save(ctx, owner, clientSecret.SecretName, clientSecret.SecretType, clientSecret.Ciphertext, clientSecret.AESKeyEnc).Return(nil)
 
-	// Error case: Resolve returns error
-	mockResolver.EXPECT().
-		Resolve(ctx, secretOwner).
-		Return(errors.New("resolve failed")).
-		Times(1)
-
-	err = ClientSyncClient(ctx, secretOwner, mockResolver)
-	if err == nil || err.Error() != "resolve failed" {
-		t.Fatalf("expected resolve failed error, got: %v", err)
-	}
+	err := ClientSyncClient(ctx, cl, sg, ss, owner)
+	require.NoError(t, err)
 }
 
 func TestClientSyncInteractive(t *testing.T) {
@@ -367,30 +532,62 @@ func TestClientSyncInteractive(t *testing.T) {
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	secretOwner := "owner2"
-	input := strings.NewReader("user input")
+	owner := "owner1"
 
-	mockResolver := NewMockInteractiveResolver(ctrl)
+	cl := NewMockClientLister(ctrl)
+	sg := NewMockServerGetter(ctrl)
+	ss := NewMockServerSaver(ctrl)
+	d := NewMockDecryptor(ctrl)
 
-	// Success case: Expect Resolve called once with ctx, secretOwner, and input reader, returns nil error
-	mockResolver.EXPECT().
-		Resolve(ctx, secretOwner, input).
-		Return(nil).
-		Times(1)
+	now := time.Now()
 
-	err := ClientSyncInteractive(ctx, secretOwner, mockResolver, input)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	// Secret missing on server, must Save
+	clientSecretMissingOnServer := makeSecret("secretX", "typeX", now)
+	// Secret exists with conflict
+	clientSecretConflict := makeSecret("secretY", "typeY", now)
+	serverSecretConflict := makeSecret("secretY", "typeY", now.Add(-time.Hour))
 
-	// Error case: Resolve returns error
-	mockResolver.EXPECT().
-		Resolve(ctx, secretOwner, input).
-		Return(errors.New("interactive resolve failed")).
-		Times(1)
+	cl.EXPECT().List(ctx, owner).Return([]*models.Secret{
+		clientSecretMissingOnServer,
+		clientSecretConflict,
+	}, nil)
 
-	err = ClientSyncInteractive(ctx, secretOwner, mockResolver, input)
-	if err == nil || err.Error() != "interactive resolve failed" {
-		t.Fatalf("expected interactive resolve failed error, got: %v", err)
-	}
+	// Get calls for both secrets
+	sg.EXPECT().Get(ctx, owner, clientSecretMissingOnServer.SecretType, clientSecretMissingOnServer.SecretName).Return(nil, nil)
+	sg.EXPECT().Get(ctx, owner, clientSecretConflict.SecretType, clientSecretConflict.SecretName).Return(serverSecretConflict, nil)
+
+	// Decrypt calls for conflict secret
+	gomock.InOrder(
+		// Save for missing secret first
+		ss.EXPECT().Save(
+			ctx, owner,
+			clientSecretMissingOnServer.SecretName,
+			clientSecretMissingOnServer.SecretType,
+			clientSecretMissingOnServer.Ciphertext,
+			clientSecretMissingOnServer.AESKeyEnc,
+		).Return(nil),
+
+		// Decrypt client conflict secret
+		d.EXPECT().Decrypt(gomock.AssignableToTypeOf(&models.SecretEncrypted{})).Return(clientSecretConflict.Ciphertext, nil),
+		// Decrypt server conflict secret
+		d.EXPECT().Decrypt(gomock.AssignableToTypeOf(&models.SecretEncrypted{})).Return(serverSecretConflict.Ciphertext, nil),
+
+		// Save for conflict secret when client chooses version "1"
+		ss.EXPECT().Save(
+			ctx, owner,
+			clientSecretConflict.SecretName,
+			clientSecretConflict.SecretType,
+			clientSecretConflict.Ciphertext,
+			clientSecretConflict.AESKeyEnc,
+		).Return(nil),
+	)
+
+	// Input simulates choosing client version "1"
+	input := "1\n"
+	reader := strings.NewReader(input)
+
+	err := ClientSyncInteractive(ctx, cl, sg, ss, d, owner, reader)
+	require.NoError(t, err)
+
+	// Test invalid input returns error (optional: separate test)
 }

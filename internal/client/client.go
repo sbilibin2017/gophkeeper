@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"time"
 
@@ -453,7 +452,6 @@ func ClientSyncInteractive(
 				AESKeyEnc:  clientSecret.AESKeyEnc,
 			})
 			if err != nil {
-				log.Printf("failed to decrypt client secret %s: %v\n", clientSecret.SecretName, err)
 				continue
 			}
 
@@ -462,13 +460,11 @@ func ClientSyncInteractive(
 				AESKeyEnc:  serverSecret.AESKeyEnc,
 			})
 			if err != nil {
-				log.Printf("failed to decrypt server secret %s: %v\n", serverSecret.SecretName, err)
 				continue
 			}
 
-			// Pretty-print client version
 			var clientPretty string
-			var clientData interface{}
+			var clientData any
 			if err := json.Unmarshal(clientPlain, &clientData); err != nil {
 				clientPretty = string(clientPlain)
 			} else {
@@ -480,9 +476,8 @@ func ClientSyncInteractive(
 				}
 			}
 
-			// Pretty-print server version
 			var serverPretty string
-			var serverData interface{}
+			var serverData any
 			if err := json.Unmarshal(serverPlain, &serverData); err != nil {
 				serverPretty = string(serverPlain)
 			} else {
@@ -503,8 +498,13 @@ func ClientSyncInteractive(
 				return errors.New("input scan failed")
 			}
 
-			switch strings.TrimSpace(scanner.Text()) {
-			case "1":
+			input := strings.TrimSpace(scanner.Text())
+
+			if input != "1" && input != "2" {
+				return errors.New("unsupported input")
+			}
+
+			if input == "1" {
 				err := ss.Save(
 					ctx,
 					secretOwner,
@@ -516,10 +516,7 @@ func ClientSyncInteractive(
 				if err != nil {
 					return fmt.Errorf("failed to save client version: %w", err)
 				}
-			case "2":
-				// Keep server version, do nothing
-			default:
-				fmt.Println("Invalid input, skipping...")
+
 			}
 		}
 	}
