@@ -145,7 +145,7 @@ func run(ctx context.Context, args []string) error {
 			return nil
 
 		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
 				Count:   3,
 				Wait:    1 * time.Second,
 				MaxWait: 5 * time.Second,
@@ -189,7 +189,7 @@ func run(ctx context.Context, args []string) error {
 			return nil
 
 		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
 				Count:   3,
 				Wait:    1 * time.Second,
 				MaxWait: 5 * time.Second,
@@ -339,7 +339,7 @@ func run(ctx context.Context, args []string) error {
 			return nil
 
 		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
 				Count:   3,
 				Wait:    1 * time.Second,
 				MaxWait: 5 * time.Second,
@@ -422,7 +422,7 @@ func run(ctx context.Context, args []string) error {
 			}
 
 		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
 				Count:   3,
 				Wait:    1 * time.Second,
 				MaxWait: 5 * time.Second,

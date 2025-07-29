@@ -39,7 +39,7 @@ func main() {
 	ctx := context.Background()
 
 	if err := run(ctx); err != nil {
-		log.Fatalf("Application error: %v", err)
+		log.Fatal(err)
 	}
 }
 
@@ -79,6 +79,8 @@ func printBuildInfo() {
 // then starts either an HTTP(S) or gRPC server depending on the serverURL scheme.
 // It listens for system signals for graceful shutdown.
 func run(ctx context.Context) error {
+	var apiVersion = "/api/v1"
+
 	// Connect to the database with connection pooling settings.
 	dbConn, err := db.New(
 		"sqlite",
@@ -140,13 +142,13 @@ func run(ctx context.Context) error {
 		r.Use(middleware.Recoverer)
 
 		// Register authentication endpoints.
-		r.Post("/api/v1/register", handlers.NewRegisterHandler(userReadRepo, userWriteRepo, jwtManager))
-		r.Post("/api/v1/login", handlers.NewLoginHandler(userReadRepo, jwtManager))
+		r.Post(apiVersion+"/register", handlers.NewRegisterHandler(userReadRepo, userWriteRepo, jwtManager))
+		r.Post(apiVersion+"/login", handlers.NewLoginHandler(userReadRepo, jwtManager))
 
 		// Register secret management endpoints.
-		r.Post("/api/v1/secrets", handlers.NewSecretAddHandler(secretWriter, jwtManager))
-		r.Get("/api/v1/secrets/{secret_type}/{secret_name}", handlers.NewSecretGetHandler(secretReader, jwtManager))
-		r.Get("/api/v1/secrets", handlers.NewSecretListHandler(secretReader, jwtManager))
+		r.Post(apiVersion+"/secrets", handlers.NewSecretAddHandler(secretWriter, jwtManager))
+		r.Get(apiVersion+"/secrets/{secret_type}/{secret_name}", handlers.NewSecretGetHandler(secretReader, jwtManager))
+		r.Get(apiVersion+"/secrets", handlers.NewSecretListHandler(secretReader, jwtManager))
 
 		srv := &http.Server{
 			Addr:    addr,
