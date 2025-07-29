@@ -18,6 +18,7 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/transport/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/transport/http"
+	"github.com/sbilibin2017/gophkeeper/internal/validators"
 )
 
 func main() {
@@ -95,6 +96,13 @@ func run(ctx context.Context, args []string) error {
 
 	switch command {
 	case client.CommandRegister:
+		if err := validators.ValidateUsername(username); err != nil {
+			return fmt.Errorf("invalid username: %w", err)
+		}
+		if err := validators.ValidatePassword(password); err != nil {
+			return fmt.Errorf("invalid password: %w", err)
+		}
+
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
 			dbConn, err := db.New(
@@ -203,6 +211,13 @@ func run(ctx context.Context, args []string) error {
 		}
 
 	case client.CommandAddBankcard:
+		if err := validators.ValidateLuhn(number); err != nil {
+			return fmt.Errorf("invalid card number: %w", err)
+		}
+		if err := validators.ValidateCVV(cvv); err != nil {
+			return fmt.Errorf("invalid CVV: %w", err)
+		}
+
 		dbConn, err := db.New("sqlite", "client.db",
 			db.WithMaxOpenConns(1),
 			db.WithMaxIdleConns(1),
