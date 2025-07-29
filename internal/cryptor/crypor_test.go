@@ -21,6 +21,37 @@ func generateRSAKeys(t *testing.T) (*rsa.PrivateKey, *rsa.PublicKey) {
 	return priv, &priv.PublicKey
 }
 
+func encodePrivateKeyPEM(priv *rsa.PrivateKey) []byte {
+	return pem.EncodeToMemory(
+		&pem.Block{
+			Type:  "RSA PRIVATE KEY",
+			Bytes: x509.MarshalPKCS1PrivateKey(priv),
+		},
+	)
+}
+
+func generateSelfSignedCertPEM(t *testing.T, priv *rsa.PrivateKey) []byte {
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "Test Cert",
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certDER,
+	})
+}
+
 func TestEncryptDecrypt_Success(t *testing.T) {
 	priv, _ := generateRSAKeys(t)
 
@@ -58,57 +89,67 @@ func TestEncrypt_NoPublicKey(t *testing.T) {
 func TestDecrypt_NoPrivateKey(t *testing.T) {
 	c := &Cryptor{}
 
-	_, err := c.Decrypt(&models.SecretSecretEncrypted{})
+	_, err := c.Decrypt(&models.SecretEncrypted{}) // fixed type name
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "private key is nil")
 }
 
-// Helpers for PEM encoding keys
+func TestDecrypt_InvalidAESKey(t *testing.T) {
+	priv, _ := generateRSAKeys(t)
 
-func encodePrivateKeyPEM(priv *rsa.PrivateKey) []byte {
-	return pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(priv),
-		},
+	certPEM := generateSelfSignedCertPEM(t, priv)
+	privPEM := encodePrivateKeyPEM(priv)
+
+	c, err := New(
+		WithPrivateKeyPEM(privPEM),
+		WithPublicKeyPEM(certPEM),
 	)
-}
-
-// generateSelfSignedCertPEM generates a self-signed certificate PEM,
-// signed by the given private key.
-func generateSelfSignedCertPEM(t *testing.T, priv *rsa.PrivateKey) []byte {
-	template := &x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			CommonName: "Test Cert",
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
 	require.NoError(t, err)
 
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: certDER,
-	})
+	enc, err := c.Encrypt([]byte("data"))
+	require.NoError(t, err)
+
+	// Corrupt the AES key
+	enc.AESKeyEnc[0] ^= 0xFF
+
+	_, err = c.Decrypt(enc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "RSA decryption failed")
+}
+
+func TestDecrypt_CorruptCiphertext(t *testing.T) {
+	priv, _ := generateRSAKeys(t)
+
+	certPEM := generateSelfSignedCertPEM(t, priv)
+	privPEM := encodePrivateKeyPEM(priv)
+
+	c, err := New(
+		WithPrivateKeyPEM(privPEM),
+		WithPublicKeyPEM(certPEM),
+	)
+	require.NoError(t, err)
+
+	plaintext := []byte("hello world")
+	enc, err := c.Encrypt(plaintext)
+	require.NoError(t, err)
+
+	// Corrupt the ciphertext
+	enc.Ciphertext[5] ^= 0xFF
+
+	_, err = c.Decrypt(enc)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "AES decryption failed")
 }
 
 func TestWithPrivateKeyPEM(t *testing.T) {
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 
-	// Encode PKCS#1 PEM
 	pkcs1PEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(priv),
 	})
 
-	// Encode PKCS#8 PEM
 	pkcs8Bytes, err := x509.MarshalPKCS8PrivateKey(priv)
 	require.NoError(t, err)
 	pkcs8PEM := pem.EncodeToMemory(&pem.Block{
@@ -116,13 +157,9 @@ func TestWithPrivateKeyPEM(t *testing.T) {
 		Bytes: pkcs8Bytes,
 	})
 
-	// Invalid PEM block (empty)
 	invalidPEM := []byte("-----BEGIN PRIVATE KEY-----\ninvaliddata\n-----END PRIVATE KEY-----")
-
-	// Non-PEM bytes
 	notPEM := []byte("not a pem block")
 
-	// Non-RSA private key PEM (using a public key PEM block to simulate wrong type)
 	pubBytes, err := x509.MarshalPKIXPublicKey(&priv.PublicKey)
 	require.NoError(t, err)
 	pubPEM := pem.EncodeToMemory(&pem.Block{
@@ -150,7 +187,7 @@ func TestWithPrivateKeyPEM(t *testing.T) {
 			name:        "Invalid PEM block",
 			pemBytes:    invalidPEM,
 			expectError: true,
-			errorText:   "invalid private key PEM block", // changed here
+			errorText:   "invalid private key PEM block",
 		},
 		{
 			name:        "Not a PEM block",
@@ -162,8 +199,7 @@ func TestWithPrivateKeyPEM(t *testing.T) {
 			name:        "Non-RSA private key",
 			pemBytes:    pubPEM,
 			expectError: true,
-			// The error here will be parse failures, so we just check it contains "parse private key failed"
-			errorText: "parse private key failed",
+			errorText:   "parse private key failed",
 		},
 	}
 
