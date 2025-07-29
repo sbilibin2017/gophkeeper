@@ -26,6 +26,16 @@ test:
 
 # Build client binaries for major OS/ARCH combos
 build-clients:
-	GOOS=linux GOARCH=amd64 go build -o builds/gophkeeper-client-linux-amd64 ./cmd/client
-	GOOS=darwin GOARCH=amd64 go build -o builds/gophkeeper-client-macos-amd64 ./cmd/client
-	GOOS=windows GOARCH=amd64 go build -o builds/gophkeeper-client-windows-amd64.exe ./cmd/client
+	GOOS=linux GOARCH=amd64 go build -o builds/client/gophkeeper-client-linux-amd64 ./cmd/client
+	GOOS=darwin GOARCH=amd64 go build -o builds/client/gophkeeper-client-macos-amd64 ./cmd/client
+	GOOS=windows GOARCH=amd64 go build -o builds/client/gophkeeper-client-windows-amd64.exe ./cmd/client
+
+# Build server binary for linux
+build-server:
+	GOOS=linux GOARCH=amd64 go build -o builds/server/gophkeeper-server-linux-amd64 ./cmd/server	
+
+# Generate swagger docs from handlers in internal/handlers,
+# use cmd/server/main.go as entry point for swag init,
+# output to api/http folder
+gen-swag:
+	swag init -d internal/handlers -g ../../cmd/server/main.go -o api/http
