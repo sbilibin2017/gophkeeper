@@ -1,4 +1,4 @@
-package http
+package handlers
 
 import (
 	"context"
@@ -50,11 +50,48 @@ type JWTParser interface {
 // ErrUnauthorized represents an unauthorized access error due to missing or invalid token.
 var ErrUnauthorized = errors.New("unauthorized")
 
-// NewSecretAddHandler returns an HTTP handler for adding a new secret.
-//
-// It expects a POST request with a JSON body matching models.SecretSaveRequest.
-// Requires a Bearer token in the Authorization header.
-// On success, responds with HTTP 200 OK.
+// SecretSaveRequest is the expected request body for adding a secret.
+// swagger:model SecretSaveRequest
+type SecretSaveRequest struct {
+	// SecretName is the unique name of the secret.
+	// example: my-bank-password
+	SecretName string `json:"secret_name"`
+	// SecretType represents the type/category of the secret.
+	// example: password
+	SecretType string `json:"secret_type"`
+	// Ciphertext is the encrypted secret data, base64 encoded.
+	// example: SGVsbG8sIHNlY3JldCE=
+	Ciphertext []byte `json:"ciphertext"`
+	// AESKeyEnc is the encrypted AES key, base64 encoded.
+	// example: U29tZUVuY3J5cHRlZEtleQ==
+	AESKeyEnc []byte `json:"aes_key_enc"`
+}
+
+// SecretResponse models the secret data returned in responses.
+// swagger:model SecretResponse
+type SecretResponse struct {
+	// SecretName is the unique name of the secret.
+	SecretName string `json:"secret_name"`
+	// SecretType represents the type/category of the secret.
+	SecretType string `json:"secret_type"`
+	// Ciphertext is the encrypted secret data, base64 encoded.
+	Ciphertext []byte `json:"ciphertext"`
+	// AESKeyEnc is the encrypted AES key, base64 encoded.
+	AESKeyEnc []byte `json:"aes_key_enc"`
+}
+
+// @Summary Add a new secret
+// @Description Adds a new secret for the authenticated user.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param secret body SecretSaveRequest true "Secret data to save"
+// @Success 200 {string} string "OK"
+// @Failure 400 {string} string "invalid request body"
+// @Failure 401 {string} string "unauthorized"
+// @Failure 500 {string} string "failed to save secret"
+// @Router /secrets [post]
 func NewSecretAddHandler(
 	secretWriter SecretWriter,
 	jwtParser JWTParser,
@@ -78,12 +115,7 @@ func NewSecretAddHandler(
 			return
 		}
 
-		var req struct {
-			SecretName string `json:"secret_name"`
-			SecretType string `json:"secret_type"`
-			Ciphertext []byte `json:"ciphertext"`
-			AESKeyEnc  []byte `json:"aes_key_enc"`
-		}
+		var req SecretSaveRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
@@ -98,11 +130,19 @@ func NewSecretAddHandler(
 	}
 }
 
-// NewSecretGetHandler returns an HTTP handler to retrieve a specific secret.
-//
-// Expects the secret type and name in the URL path, e.g., /secrets/{secret_type}/{secret_name}.
-// Requires a Bearer token in the Authorization header.
-// On success, responds with the secret as JSON.
+// @Summary Get a secret by type and name
+// @Description Retrieves a secret for the authenticated user by secret type and name.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Param secret_type path string true "Secret type" example(password)
+// @Param secret_name path string true "Secret name" example(my-bank-password)
+// @Success 200 {object} SecretResponse
+// @Failure 400 {string} string "missing secret_type or secret_name URL parameter"
+// @Failure 401 {string} string "unauthorized"
+// @Failure 500 {string} string "failed to get secret"
+// @Router /secrets/{secret_type}/{secret_name} [get]
 func NewSecretGetHandler(
 	secretReader SecretReader,
 	jwtParser JWTParser,
@@ -147,10 +187,16 @@ func NewSecretGetHandler(
 	}
 }
 
-// NewSecretListHandler returns an HTTP handler to list all secrets for an authenticated user.
-//
-// Requires a Bearer token in the Authorization header.
-// On success, responds with a JSON array of all user's secrets.
+// @Summary List all secrets for a user
+// @Description Returns all secrets belonging to the authenticated user.
+// @Tags secrets
+// @Accept json
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Success 200 {array} SecretResponse
+// @Failure 401 {string} string "unauthorized"
+// @Failure 500 {string} string "failed to list secrets"
+// @Router /secrets [get]
 func NewSecretListHandler(
 	secretReader SecretReader,
 	jwtParser JWTParser,
