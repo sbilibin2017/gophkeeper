@@ -10,6 +10,7 @@ require (
 	github.com/jmoiron/sqlx v1.4.0
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/stretchr/testify v1.10.0
+	golang.org/x/crypto v0.38.0
 	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.6
 	modernc.org/sqlite v1.38.0
