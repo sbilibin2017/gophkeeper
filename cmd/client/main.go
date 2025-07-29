@@ -11,14 +11,13 @@ import (
 
 	"github.com/pressly/goose"
 	"github.com/sbilibin2017/gophkeeper/internal/client"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/grpc"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/clients/http"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/scheme"
 	"github.com/sbilibin2017/gophkeeper/internal/cryptor"
+	"github.com/sbilibin2017/gophkeeper/internal/db"
 	"github.com/sbilibin2017/gophkeeper/internal/facades"
 	"github.com/sbilibin2017/gophkeeper/internal/repositories"
-	"github.com/sbilibin2017/gophkeeper/internal/resolver"
+	"github.com/sbilibin2017/gophkeeper/internal/scheme"
+	"github.com/sbilibin2017/gophkeeper/internal/transport/grpc"
+	"github.com/sbilibin2017/gophkeeper/internal/transport/http"
 )
 
 func main() {
@@ -84,6 +83,11 @@ func init() {
 	flag.StringVar(&syncMode, "sync-mode", "", "Sync mode")
 }
 
+// run executes the client command specified in args.
+// It supports commands: register, login, add secrets (bankcard, text, binary, user),
+// synchronize secrets with the server, show version info, and help.
+// Depending on the command and server URL scheme (HTTP(S)/gRPC), it creates
+// appropriate connections and clients, handling encryption and retries.
 func run(ctx context.Context, args []string) error {
 	command := client.GetCommand(args)
 
@@ -290,57 +294,6 @@ func run(ctx context.Context, args []string) error {
 
 		return client.ClientAddUser(ctx, clientWriter, cryptorInst, token, secretName, username, password, meta)
 
-	case client.CommandList:
-		cryptorInst, err := cryptor.New(
-			cryptor.WithPrivateKeyPEM([]byte(privKey)),
-		)
-		if err != nil {
-			return fmt.Errorf("cryptor setup failed: %w", err)
-		}
-
-		switch schm {
-		case scheme.HTTP, scheme.HTTPS:
-			httpClient, err := http.New(serverURL, http.WithRetryPolicy(http.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
-			if err != nil {
-				return err
-			}
-			secretReaderFacade := facades.NewSecretReaderHTTP(httpClient)
-
-			result, err := client.ClientListSecrets(ctx, secretReaderFacade, cryptorInst, token)
-			if err != nil {
-				return err
-			}
-			fmt.Println(result)
-			return nil
-
-		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
-			if err != nil {
-				return err
-			}
-			defer grpcConn.Close()
-
-			secretReaderFacade := facades.NewSecretReaderGRPC(grpcConn)
-
-			result, err := client.ClientListSecrets(ctx, secretReaderFacade, cryptorInst, token)
-			if err != nil {
-				return err
-			}
-			fmt.Println(result)
-			return nil
-
-		default:
-			return errors.New("unsupported scheme")
-		}
-
 	case client.CommandSync:
 		dbConn, err := db.New("sqlite", "client.db",
 			db.WithMaxOpenConns(1),
@@ -376,18 +329,16 @@ func run(ctx context.Context, args []string) error {
 			serverSaver := facades.NewSecretWriterHTTP(httpClient)
 
 			switch syncMode {
-			case resolver.ResolveStrategyServer:
+			case client.ResolveStrategyServer:
 				return nil
 
-			case resolver.ResolveStrategyClient:
-				resolver := resolver.NewClientResolver(clientReader, serverGetter, serverSaver)
-				if err := client.ClientSyncClient(ctx, token, resolver); err != nil {
+			case client.ResolveStrategyClient:
+				if err := client.ClientSyncClient(ctx, clientReader, serverGetter, serverSaver, token); err != nil {
 					return fmt.Errorf("client sync failed: %w", err)
 				}
 
-			case resolver.ResolveStrategyInteractive:
-				resolver := resolver.NewInteractiveResolver(clientReader, serverGetter, serverSaver, cryptorInst)
-				if err := client.ClientSyncInteractive(ctx, token, resolver, os.Stdin); err != nil {
+			case client.ResolveStrategyInteractive:
+				if err := client.ClientSyncInteractive(ctx, clientReader, serverGetter, serverSaver, cryptorInst, token, os.Stdin); err != nil {
 					return fmt.Errorf("interactive sync failed: %w", err)
 				}
 
@@ -405,22 +356,21 @@ func run(ctx context.Context, args []string) error {
 				return err
 			}
 			defer grpcConn.Close()
+
 			serverGetter := facades.NewSecretReaderGRPC(grpcConn)
 			serverSaver := facades.NewSecretWriterGRPC(grpcConn)
 
 			switch syncMode {
-			case resolver.ResolveStrategyServer:
+			case client.ResolveStrategyServer:
 				return nil
 
-			case resolver.ResolveStrategyClient:
-				resolver := resolver.NewClientResolver(clientReader, serverGetter, serverSaver)
-				if err := client.ClientSyncClient(ctx, token, resolver); err != nil {
+			case client.ResolveStrategyClient:
+				if err := client.ClientSyncClient(ctx, clientReader, serverGetter, serverSaver, token); err != nil {
 					return fmt.Errorf("client sync failed: %w", err)
 				}
 
-			case resolver.ResolveStrategyInteractive:
-				resolver := resolver.NewInteractiveResolver(clientReader, serverGetter, serverSaver, cryptorInst)
-				if err := client.ClientSyncInteractive(ctx, token, resolver, os.Stdin); err != nil {
+			case client.ResolveStrategyInteractive:
+				if err := client.ClientSyncInteractive(ctx, clientReader, serverGetter, serverSaver, cryptorInst, token, os.Stdin); err != nil {
 					return fmt.Errorf("interactive sync failed: %w", err)
 				}
 
