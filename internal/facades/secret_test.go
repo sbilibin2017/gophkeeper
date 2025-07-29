@@ -46,12 +46,14 @@ func TestSecretWriterHTTP_Save(t *testing.T) {
 
 	client := NewSecretWriterHTTP(newTestClientWithAuth(server.URL))
 
-	err := client.Save(context.Background(), &models.Secret{
-		SecretName: "name1",
-		SecretType: "type1",
-		Ciphertext: []byte("ciphertext"),
-		AESKeyEnc:  []byte("key"),
-	})
+	err := client.Save(
+		context.Background(),
+		"dummy-token",
+		"name1",
+		"type1",
+		[]byte("ciphertext"),
+		[]byte("key"),
+	)
 	assert.NoError(t, err)
 }
 
@@ -76,7 +78,7 @@ func TestSecretReaderHTTP_Get(t *testing.T) {
 
 	client := NewSecretReaderHTTP(newTestClientWithAuth(server.URL))
 
-	secret, err := client.Get(context.Background(), "type1", "name1")
+	secret, err := client.Get(context.Background(), "dummy-token", "type1", "name1")
 	require.NoError(t, err)
 	assert.Equal(t, "name1", secret.SecretName)
 	assert.Equal(t, "type1", secret.SecretType)
@@ -86,7 +88,7 @@ func TestSecretReaderHTTP_Get(t *testing.T) {
 
 func TestSecretReaderHTTP_List(t *testing.T) {
 	handler := http.NewServeMux()
-	handler.HandleFunc("/list/", func(w http.ResponseWriter, r *http.Request) {
+	handler.HandleFunc("/list", func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		require.NotEmpty(t, auth)
 
@@ -109,7 +111,7 @@ func TestSecretReaderHTTP_List(t *testing.T) {
 
 	client := NewSecretReaderHTTP(newTestClientWithAuth(server.URL))
 
-	secrets, err := client.List(context.Background())
+	secrets, err := client.List(context.Background(), "dummy-token")
 	require.NoError(t, err)
 	require.Len(t, secrets, 2)
 	assert.Equal(t, "name1", secrets[0].SecretName)
@@ -132,7 +134,6 @@ func newTestSecretService() *testSecretService {
 	}
 }
 
-// Save saves the secret in memory.
 func (s *testSecretService) Save(ctx context.Context, req *pb.SecretSaveRequest) (*emptypb.Empty, error) {
 	key := req.SecretType + "/" + req.SecretName
 	now := timestamppb.Now()
@@ -140,7 +141,7 @@ func (s *testSecretService) Save(ctx context.Context, req *pb.SecretSaveRequest)
 	s.store[key] = &pb.Secret{
 		SecretName:  req.SecretName,
 		SecretType:  req.SecretType,
-		SecretOwner: "test-owner", // can be static for tests
+		SecretOwner: "test-owner",
 		Ciphertext:  req.Ciphertext,
 		AesKeyEnc:   req.AesKeyEnc,
 		CreatedAt:   now,
@@ -149,7 +150,6 @@ func (s *testSecretService) Save(ctx context.Context, req *pb.SecretSaveRequest)
 	return &emptypb.Empty{}, nil
 }
 
-// Get returns the secret if it exists.
 func (s *testSecretService) Get(ctx context.Context, req *pb.SecretGetRequest) (*pb.Secret, error) {
 	key := req.SecretType + "/" + req.SecretName
 	secret, ok := s.store[key]
@@ -159,7 +159,6 @@ func (s *testSecretService) Get(ctx context.Context, req *pb.SecretGetRequest) (
 	return secret, nil
 }
 
-// List streams all secrets to the client.
 func (s *testSecretService) List(_ *emptypb.Empty, stream pb.SecretReadService_ListServer) error {
 	for _, secret := range s.store {
 		if err := stream.Send(secret); err != nil {
@@ -169,7 +168,6 @@ func (s *testSecretService) List(_ *emptypb.Empty, stream pb.SecretReadService_L
 	return nil
 }
 
-// Starts a real in-memory gRPC server for testing.
 func startTestGRPCServer(t *testing.T) (addr string, stopFunc func()) {
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -208,11 +206,18 @@ func TestSecretWriterGRPC_Save_and_SecretReaderGRPC_Get_List(t *testing.T) {
 	}
 
 	// Save the secret
-	err = writer.Save(context.Background(), secret)
+	err = writer.Save(
+		context.Background(),
+		"test-owner",
+		secret.SecretName,
+		secret.SecretType,
+		secret.Ciphertext,
+		secret.AESKeyEnc,
+	)
 	require.NoError(t, err)
 
-	// Get the secret back
-	got, err := reader.Get(context.Background(), secret.SecretType, secret.SecretName)
+	// Get the secret
+	got, err := reader.Get(context.Background(), "test-owner", secret.SecretType, secret.SecretName)
 	require.NoError(t, err)
 
 	assert.Equal(t, secret.SecretName, got.SecretName)
@@ -221,7 +226,7 @@ func TestSecretWriterGRPC_Save_and_SecretReaderGRPC_Get_List(t *testing.T) {
 	assert.Equal(t, secret.AESKeyEnc, got.AESKeyEnc)
 
 	// List secrets
-	secrets, err := reader.List(context.Background())
+	secrets, err := reader.List(context.Background(), "test-owner")
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, secret.SecretName, secrets[0].SecretName)
