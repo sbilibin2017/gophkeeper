@@ -92,6 +92,8 @@ func init() {
 func run(ctx context.Context, args []string) error {
 	command := client.GetCommand(args)
 
+	const apiVersion = "/api/v1"
+
 	schm := scheme.GetSchemeFromURL(serverURL)
 
 	switch command {
@@ -125,7 +127,7 @@ func run(ctx context.Context, args []string) error {
 				return fmt.Errorf("failed to run migrations: %w", err)
 			}
 
-			httpClient, err := http.New(serverURL, http.WithRetryPolicy(http.RetryPolicy{
+			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
 				Count:   3,
 				Wait:    1 * time.Second,
 				MaxWait: 5 * time.Second,
@@ -169,7 +171,7 @@ func run(ctx context.Context, args []string) error {
 	case client.CommandLogin:
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			httpClient, err := http.New(serverURL, http.WithRetryPolicy(http.RetryPolicy{
+			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
 				Count:   3,
 				Wait:    1 * time.Second,
 				MaxWait: 5 * time.Second,
@@ -309,6 +311,64 @@ func run(ctx context.Context, args []string) error {
 
 		return client.ClientAddUser(ctx, clientWriter, cryptorInst, token, secretName, username, password, meta)
 
+	case client.CommandList:
+		switch schm {
+		case scheme.HTTP, scheme.HTTPS:
+			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
+				Count:   3,
+				Wait:    1 * time.Second,
+				MaxWait: 5 * time.Second,
+			}))
+			if err != nil {
+				return err
+			}
+			secretReader := facades.NewSecretReaderHTTP(httpClient)
+
+			cryptor, err := cryptor.New(
+				cryptor.WithPrivateKeyPEM([]byte(privKey)),
+			)
+			if err != nil {
+				return fmt.Errorf("cryptor setup failed: %w", err)
+			}
+
+			secretsStr, err := client.ClientListSecrets(ctx, secretReader, cryptor, token)
+			if err != nil {
+				return fmt.Errorf("failed to list secrets: %w", err)
+			}
+			fmt.Println(secretsStr)
+			return nil
+
+		case scheme.GRPC:
+			grpcConn, err := grpc.New(serverURL, grpc.WithRetryPolicy(grpc.RetryPolicy{
+				Count:   3,
+				Wait:    1 * time.Second,
+				MaxWait: 5 * time.Second,
+			}))
+			if err != nil {
+				return err
+			}
+			defer grpcConn.Close()
+
+			secretReader := facades.NewSecretReaderGRPC(grpcConn)
+
+			cryptor, err := cryptor.New(
+				cryptor.WithPrivateKeyPEM([]byte(privKey)),
+			)
+			if err != nil {
+				return fmt.Errorf("cryptor setup failed: %w", err)
+			}
+
+			secretsStr, err := client.ClientListSecrets(ctx, secretReader, cryptor, token)
+			if err != nil {
+				return fmt.Errorf("failed to list secrets: %w", err)
+			}
+			fmt.Println(secretsStr)
+			return nil
+
+		default:
+			return errors.New("unsupported scheme")
+		}
+
 	case client.CommandSync:
 		dbConn, err := db.New("sqlite", "client.db",
 			db.WithMaxOpenConns(1),
@@ -332,7 +392,7 @@ func run(ctx context.Context, args []string) error {
 
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			httpClient, err := http.New(serverURL, http.WithRetryPolicy(http.RetryPolicy{
+			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
 				Count:   3,
 				Wait:    1 * time.Second,
 				MaxWait: 5 * time.Second,

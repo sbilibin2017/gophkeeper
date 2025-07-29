@@ -140,13 +140,13 @@ func run(ctx context.Context) error {
 		r.Use(middleware.Recoverer)
 
 		// Register authentication endpoints.
-		r.Post("/register", handlers.NewRegisterHandler(userReadRepo, userWriteRepo, jwtManager))
-		r.Post("/login", handlers.NewLoginHandler(userReadRepo, jwtManager))
+		r.Post("/api/v1/register", handlers.NewRegisterHandler(userReadRepo, userWriteRepo, jwtManager))
+		r.Post("/api/v1/login", handlers.NewLoginHandler(userReadRepo, jwtManager))
 
 		// Register secret management endpoints.
-		r.Post("/secrets", handlers.NewSecretAddHandler(secretWriter, jwtManager))
-		r.Get("/secrets/{secret_type}/{secret_name}", handlers.NewSecretGetHandler(secretReader, jwtManager))
-		r.Get("/secrets", handlers.NewSecretListHandler(secretReader, jwtManager))
+		r.Post("/api/v1/secrets", handlers.NewSecretAddHandler(secretWriter, jwtManager))
+		r.Get("/api/v1/secrets/{secret_type}/{secret_name}", handlers.NewSecretGetHandler(secretReader, jwtManager))
+		r.Get("/api/v1/secrets", handlers.NewSecretListHandler(secretReader, jwtManager))
 
 		srv := &http.Server{
 			Addr:    addr,
