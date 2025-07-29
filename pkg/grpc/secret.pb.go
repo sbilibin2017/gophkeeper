@@ -7,14 +7,13 @@
 package grpc
 
 import (
-	reflect "reflect"
-	sync "sync"
-	unsafe "unsafe"
-
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	reflect "reflect"
+	sync "sync"
+	unsafe "unsafe"
 )
 
 const (
@@ -256,8 +255,8 @@ const file_secret_proto_rawDesc = "" +
 	"\n" +
 	"ciphertext\x18\x04 \x01(\fR\n" +
 	"ciphertext\x12\x1e\n" +
-	"\vaes_key_enc\x18\x05 \x01(\fR\taesKeyEnc\"\xa5\x02\n" +
-	"\bSecret\x12\x1f\n" +
+	"\vaes_key_enc\x18\x05 \x01(\fR\taesKeyEnc\"\xa3\x02\n" +
+	"\x06Secret\x12\x1f\n" +
 	"\vsecret_name\x18\x01 \x01(\tR\n" +
 	"secretName\x12\x1f\n" +
 	"\vsecret_type\x18\x02 \x01(\tR\n" +
@@ -272,10 +271,10 @@ const file_secret_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt2O\n" +
 	"\x12SecretWriteService\x129\n" +
-	"\x04Save\x12\x19.secret.SecretSaveRequest\x1a\x16.google.protobuf.Empty2z\n" +
-	"\x11SecretReadService\x121\n" +
-	"\x03Get\x12\x18.secret.SecretGetRequest\x1a\x10.secret.Secret\x122\n" +
-	"\x04List\x12\x16.google.protobuf.Empty\x1a\x10.secret.Secret0\x01B-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
+	"\x04Save\x12\x19.secret.SecretSaveRequest\x1a\x16.google.protobuf.Empty2v\n" +
+	"\x11SecretReadService\x12/\n" +
+	"\x03Get\x12\x18.secret.SecretGetRequest\x1a\x0e.secret.Secret\x120\n" +
+	"\x04List\x12\x16.google.protobuf.Empty\x1a\x0e.secret.Secret0\x01B-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
 	file_secret_proto_rawDescOnce sync.Once
