@@ -12,7 +12,14 @@ import (
 
 // SecretWriter defines write operations for secrets.
 type SecretWriter interface {
-	Save(ctx context.Context, secretOwner, secretName, secretType string, ciphertext, aesKeyEnc []byte) error
+	Save(
+		ctx context.Context,
+		secretOwner string,
+		secretName string,
+		secretType string,
+		ciphertext []byte,
+		aesKeyEnc []byte,
+	) error
 }
 
 // SecretReader defines read operations for secrets.
@@ -27,7 +34,6 @@ type JWTParser interface {
 }
 
 // NewSecretAddHandler returns an HTTP handler for adding a new secret.
-// It expects a valid Authorization Bearer token and a JSON body with secret details.
 func NewSecretAddHandler(
 	secretWriter SecretWriter,
 	jwtParser JWTParser,
@@ -36,13 +42,9 @@ func NewSecretAddHandler(
 		ctx := r.Context()
 
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "missing Authorization header", http.StatusUnauthorized)
-			return
-		}
 		parts := strings.Fields(authHeader)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			http.Error(w, "invalid Authorization header format", http.StatusUnauthorized)
+		if authHeader == "" || len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			http.Error(w, "invalid or missing authorization header", http.StatusUnauthorized)
 			return
 		}
 		tokenStr := parts[1]
@@ -54,7 +56,6 @@ func NewSecretAddHandler(
 		}
 
 		var req models.SecretSaveRequest
-
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
@@ -71,8 +72,6 @@ func NewSecretAddHandler(
 }
 
 // NewSecretGetHandler returns an HTTP handler to retrieve a secret by its type and name.
-// The secret_type and secret_name parameters are parsed from the URL path via chi router.
-// Requires a valid Authorization Bearer token.
 func NewSecretGetHandler(
 	secretReader SecretReader,
 	jwtParser JWTParser,
@@ -81,13 +80,9 @@ func NewSecretGetHandler(
 		ctx := r.Context()
 
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "missing Authorization header", http.StatusUnauthorized)
-			return
-		}
 		parts := strings.Fields(authHeader)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			http.Error(w, "invalid Authorization header format", http.StatusUnauthorized)
+		if authHeader == "" || len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			http.Error(w, "invalid or missing authorization header", http.StatusUnauthorized)
 			return
 		}
 		tokenStr := parts[1]
@@ -120,7 +115,6 @@ func NewSecretGetHandler(
 }
 
 // NewSecretListHandler returns an HTTP handler to list all secrets for the authenticated user.
-// Requires a valid Authorization Bearer token.
 func NewSecretListHandler(
 	secretReader SecretReader,
 	jwtParser JWTParser,
@@ -129,13 +123,9 @@ func NewSecretListHandler(
 		ctx := r.Context()
 
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			http.Error(w, "missing Authorization header", http.StatusUnauthorized)
-			return
-		}
 		parts := strings.Fields(authHeader)
-		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			http.Error(w, "invalid Authorization header format", http.StatusUnauthorized)
+		if authHeader == "" || len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			http.Error(w, "invalid or missing authorization header", http.StatusUnauthorized)
 			return
 		}
 		tokenStr := parts[1]

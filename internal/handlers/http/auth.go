@@ -16,13 +16,6 @@ type Loginer interface {
 	Login(ctx context.Context, username, password string) (*string, error)
 }
 
-// User represents a user account in the system.
-type AuthRequest struct {
-	Username string `json:"username"` // Username is the unique identifier for the user.
-	Password string `json:"password"` // PasswordHash is the hashed password.
-
-}
-
 // NewRegisterHandler returns an HTTP handler for user registration.
 func NewRegisterHandler(reg Registerer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
