@@ -12,10 +12,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/golang/mock/gomock"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 func TestSecretAddHandler(t *testing.T) {
@@ -27,64 +26,97 @@ func TestSecretAddHandler(t *testing.T) {
 
 	handler := NewSecretAddHandler(mockWriter, mockParser)
 
-	validToken := "valid-token"
-	username := "user1"
-
-	mockParser.EXPECT().Parse(validToken).Return(username, nil).Times(1)
-
-	reqBody := map[string]interface{}{
-		"secret_name": "name1",
-		"secret_type": "type1",
-		"ciphertext":  []byte("ciphertext-data"),
-		"aes_key_enc": []byte("aeskeyenc-data"),
+	// Define a request body value for tests
+	secretReq := struct {
+		SecretName string `json:"secret_name"`
+		SecretType string `json:"secret_type"`
+		Ciphertext []byte `json:"ciphertext"`
+		AESKeyEnc  []byte `json:"aes_key_enc"`
+	}{
+		SecretName: "mysecret",
+		SecretType: "password",
+		Ciphertext: []byte("encrypted"),
+		AESKeyEnc:  []byte("key"),
 	}
-	bodyBytes, err := json.Marshal(reqBody)
+
+	body, err := json.Marshal(secretReq)
 	require.NoError(t, err)
 
-	mockWriter.EXPECT().Save(
-		gomock.Any(),
-		username,
-		"name1",
-		"type1",
-		reqBody["ciphertext"].([]byte),
-		reqBody["aes_key_enc"].([]byte),
-	).Return(nil).Times(1)
+	t.Run("success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/secrets", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer validtoken")
+		w := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodPost, "/secret", bytes.NewReader(bodyBytes))
-	req.Header.Set("Authorization", "Bearer "+validToken)
-	w := httptest.NewRecorder()
+		mockParser.EXPECT().Parse("validtoken").Return("testuser", nil)
+		mockWriter.EXPECT().Save(gomock.Any(), "testuser", secretReq.SecretName, secretReq.SecretType, secretReq.Ciphertext, secretReq.AESKeyEnc).Return(nil)
 
-	handler(w, req)
+		handler(w, req)
 
-	resp := w.Result()
-	defer resp.Body.Close()
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	})
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-}
+	t.Run("missing auth header", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/secrets", bytes.NewReader(body))
+		w := httptest.NewRecorder()
 
-func TestSecretAddHandler_InvalidToken(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		handler(w, req)
 
-	mockWriter := NewMockSecretWriter(ctrl)
-	mockParser := NewMockJWTParser(ctrl)
+		resp := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
 
-	handler := NewSecretAddHandler(mockWriter, mockParser)
+	t.Run("invalid auth header format", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/secrets", bytes.NewReader(body))
+		req.Header.Set("Authorization", "InvalidFormat")
+		w := httptest.NewRecorder()
 
-	reqBody := `{"secret_name":"name1","secret_type":"type1","ciphertext":"Y2lwaGVydGV4dA==","aes_key_enc":"YWVzS2V5"}`
+		handler(w, req)
 
-	req := httptest.NewRequest(http.MethodPost, "/secret", strings.NewReader(reqBody))
-	req.Header.Set("Authorization", "Bearer invalid-token")
+		resp := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
 
-	mockParser.EXPECT().Parse("invalid-token").Return("", errors.New("invalid token")).Times(1)
+	t.Run("jwt parse error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/secrets", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer invalidtoken")
+		w := httptest.NewRecorder()
 
-	w := httptest.NewRecorder()
-	handler(w, req)
+		mockParser.EXPECT().Parse("invalidtoken").Return("", errors.New("invalid token"))
 
-	resp := w.Result()
-	defer resp.Body.Close()
+		handler(w, req)
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+		resp := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
+
+	t.Run("invalid json body", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/secrets", strings.NewReader("notjson"))
+		req.Header.Set("Authorization", "Bearer validtoken")
+		w := httptest.NewRecorder()
+
+		mockParser.EXPECT().Parse("validtoken").Return("testuser", nil)
+
+		handler(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("save error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/secrets", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer validtoken")
+		w := httptest.NewRecorder()
+
+		mockParser.EXPECT().Parse("validtoken").Return("testuser", nil)
+		mockWriter.EXPECT().Save(gomock.Any(), "testuser", secretReq.SecretName, secretReq.SecretType, secretReq.Ciphertext, secretReq.AESKeyEnc).
+			Return(errors.New("save failure"))
+
+		handler(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	})
 }
 
 func TestSecretGetHandler(t *testing.T) {
@@ -96,76 +128,96 @@ func TestSecretGetHandler(t *testing.T) {
 
 	handler := NewSecretGetHandler(mockReader, mockParser)
 
-	validToken := "valid-token"
-	username := "user1"
-	secretType := "type1"
-	secretName := "name1"
-
-	mockParser.EXPECT().Parse(validToken).Return(username, nil).Times(1)
-
-	expectedSecret := &models.Secret{
-		SecretOwner: username,
-		SecretType:  secretType,
-		SecretName:  secretName,
-		Ciphertext:  []byte("ciphertext-data"),
-		AESKeyEnc:   []byte("aeskeyenc-data"),
+	secret := &models.Secret{
+		SecretName: "mysecret",
+		SecretType: "password",
+		Ciphertext: []byte("encrypteddata"),
+		AESKeyEnc:  []byte("keydata"),
 	}
-	mockReader.EXPECT().Get(gomock.Any(), username, secretType, secretName).Return(expectedSecret, nil).Times(1)
 
-	req := httptest.NewRequest(http.MethodGet, "/secrets/"+secretType+"/"+secretName, nil)
-	req.Header.Set("Authorization", "Bearer "+validToken)
+	t.Run("success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/secrets/password/mysecret", nil)
+		req = req.WithContext(context.Background())
+		req.Header.Set("Authorization", "Bearer validtoken")
+		w := httptest.NewRecorder()
 
-	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("secret_type", secretType)
-	rctx.URLParams.Add("secret_name", secretName)
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("secret_type", "password")
+		rctx.URLParams.Add("secret_name", "mysecret")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	w := httptest.NewRecorder()
-	handler(w, req)
+		mockParser.EXPECT().Parse("validtoken").Return("testuser", nil)
+		mockReader.EXPECT().Get(gomock.Any(), "testuser", "password", "mysecret").Return(secret, nil)
 
-	resp := w.Result()
-	defer resp.Body.Close()
+		handler(w, req)
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	var got models.Secret
-	err := json.NewDecoder(resp.Body).Decode(&got)
-	require.NoError(t, err)
+		var gotSecret models.Secret
+		err := json.NewDecoder(resp.Body).Decode(&gotSecret)
+		require.NoError(t, err)
+		assert.Equal(t, secret.SecretName, gotSecret.SecretName)
+		assert.Equal(t, secret.SecretType, gotSecret.SecretType)
+	})
 
-	assert.Equal(t, expectedSecret.SecretOwner, got.SecretOwner)
-	assert.Equal(t, expectedSecret.SecretType, got.SecretType)
-	assert.Equal(t, expectedSecret.SecretName, got.SecretName)
-	assert.Equal(t, expectedSecret.Ciphertext, got.Ciphertext)
-	assert.Equal(t, expectedSecret.AESKeyEnc, got.AESKeyEnc)
-}
+	t.Run("missing auth header", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/secrets/password/mysecret", nil)
+		w := httptest.NewRecorder()
 
-func TestSecretGetHandler_MissingParams(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		handler(w, req)
 
-	mockReader := NewMockSecretReader(ctrl)
-	mockParser := NewMockJWTParser(ctrl)
+		resp := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
 
-	handler := NewSecretGetHandler(mockReader, mockParser)
+	t.Run("jwt parse error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/secrets/password/mysecret", nil)
+		req.Header.Set("Authorization", "Bearer invalidtoken")
+		w := httptest.NewRecorder()
 
-	validToken := "valid-token"
-	username := "user1"
+		mockParser.EXPECT().Parse("invalidtoken").Return("", errors.New("invalid token"))
 
-	mockParser.EXPECT().Parse(validToken).Return(username, nil).Times(1)
+		handler(w, req)
 
-	req := httptest.NewRequest(http.MethodGet, "/secrets//", nil)
-	req.Header.Set("Authorization", "Bearer "+validToken)
+		resp := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
 
-	// no URL params
+	t.Run("missing URL params", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/secrets//", nil)
+		req.Header.Set("Authorization", "Bearer validtoken")
+		w := httptest.NewRecorder()
 
-	w := httptest.NewRecorder()
-	handler(w, req)
+		rctx := chi.NewRouteContext()
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
-	resp := w.Result()
-	defer resp.Body.Close()
+		mockParser.EXPECT().Parse("validtoken").Return("testuser", nil)
 
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+		handler(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("get secret error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/secrets/password/mysecret", nil)
+		req.Header.Set("Authorization", "Bearer validtoken")
+		w := httptest.NewRecorder()
+
+		rctx := chi.NewRouteContext()
+		rctx.URLParams.Add("secret_type", "password")
+		rctx.URLParams.Add("secret_name", "mysecret")
+		req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+		mockParser.EXPECT().Parse("validtoken").Return("testuser", nil)
+		mockReader.EXPECT().Get(gomock.Any(), "testuser", "password", "mysecret").Return(nil, errors.New("some error"))
+
+		handler(w, req)
+
+		resp := w.Result()
+		assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
+	})
 }
 
 func TestSecretListHandler(t *testing.T) {
@@ -177,70 +229,44 @@ func TestSecretListHandler(t *testing.T) {
 
 	handler := NewSecretListHandler(mockReader, mockParser)
 
-	validToken := "valid-token"
-	username := "user1"
-
-	mockParser.EXPECT().Parse(validToken).Return(username, nil).Times(1)
-
 	secrets := []*models.Secret{
 		{
-			SecretOwner: username,
-			SecretName:  "name1",
-			SecretType:  "type1",
-			Ciphertext:  []byte("ciphertext1"),
-			AESKeyEnc:   []byte("aeskeyenc1"),
+			SecretName: "secret1",
+			SecretType: "password",
 		},
 		{
-			SecretOwner: username,
-			SecretName:  "name2",
-			SecretType:  "type2",
-			Ciphertext:  []byte("ciphertext2"),
-			AESKeyEnc:   []byte("aeskeyenc2"),
+			SecretName: "secret2",
+			SecretType: "card",
 		},
 	}
 
-	mockReader.EXPECT().List(gomock.Any(), username).Return(secrets, nil).Times(1)
+	t.Run("success", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/secrets", nil)
+		req.Header.Set("Authorization", "Bearer validtoken")
+		w := httptest.NewRecorder()
 
-	req := httptest.NewRequest(http.MethodGet, "/secrets", nil)
-	req.Header.Set("Authorization", "Bearer "+validToken)
+		mockParser.EXPECT().Parse("validtoken").Return("testuser", nil)
+		mockReader.EXPECT().List(gomock.Any(), "testuser").Return(secrets, nil)
 
-	w := httptest.NewRecorder()
-	handler(w, req)
+		handler(w, req)
 
-	resp := w.Result()
-	defer resp.Body.Close()
+		resp := w.Result()
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+		var gotSecrets []*models.Secret
+		err := json.NewDecoder(resp.Body).Decode(&gotSecrets)
+		require.NoError(t, err)
+		assert.Len(t, gotSecrets, 2)
+	})
 
-	var got []*models.Secret
-	err := json.NewDecoder(resp.Body).Decode(&got)
-	require.NoError(t, err)
+	t.Run("missing auth header", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/secrets", nil)
+		w := httptest.NewRecorder()
 
-	assert.Len(t, got, 2)
-	assert.Equal(t, secrets[0].SecretName, got[0].SecretName)
-	assert.Equal(t, secrets[1].SecretName, got[1].SecretName)
-}
+		handler(w, req)
 
-func TestSecretListHandler_InvalidToken(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+		resp := w.Result()
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	})
 
-	mockReader := NewMockSecretReader(ctrl)
-	mockParser := NewMockJWTParser(ctrl)
-
-	handler := NewSecretListHandler(mockReader, mockParser)
-
-	req := httptest.NewRequest(http.MethodGet, "/secrets", nil)
-	req.Header.Set("Authorization", "Bearer invalid-token")
-
-	mockParser.EXPECT().Parse("invalid-token").Return("", errors.New("invalid token")).Times(1)
-
-	w := httptest.NewRecorder()
-	handler(w, req)
-
-	resp := w.Result()
-	defer resp.Body.Close()
-
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }

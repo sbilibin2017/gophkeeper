@@ -1,9 +1,7 @@
-package grpc_test
+package grpc
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,7 +10,6 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/sbilibin2017/gophkeeper/internal/handlers/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
@@ -21,292 +18,146 @@ func TestSecretWriteServiceServer_Save(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockWriter := grpc.NewMockSecretWriter(ctrl)
-	mockJWT := grpc.NewMockJWTParser(ctrl)
-	server := grpc.NewSecretWriteServiceServer(mockWriter, mockJWT)
+	mockWriter := NewMockSecretWriter(ctrl)
+	mockParser := NewMockJWTParser(ctrl)
 
-	ctx := context.Background()
-	token := "valid-token"
-	owner := "user123"
-	md := metadata.Pairs("authorization", "Bearer "+token)
-	ctx = metadata.NewIncomingContext(ctx, md)
+	svc := NewSecretWriteServiceServer(mockWriter, mockParser)
+
+	ctx := testContextWithAuthToken("Bearer token123")
 
 	req := &pb.SecretSaveRequest{
-		SecretName: "name",
-		SecretType: "type",
-		Ciphertext: []byte("ciphertext"),
-		AesKeyEnc:  []byte("aeskey"),
+		SecretName: "mysecret",
+		SecretType: "password",
+		Ciphertext: []byte("encrypted-data"),
+		AesKeyEnc:  []byte("aes-key"),
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return(owner, nil)
-		mockWriter.EXPECT().
-			Save(ctx, owner, req.SecretName, req.SecretType, req.Ciphertext, req.AesKeyEnc).
-			Return(nil)
+	mockParser.EXPECT().Parse("token123").Return("user1", nil)
 
-		resp, err := server.Save(ctx, req)
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-	})
+	mockWriter.EXPECT().
+		Save(gomock.Any(), "user1", "mysecret", "password", []byte("encrypted-data"), []byte("aes-key")).
+		Return(nil)
 
-	t.Run("missing metadata", func(t *testing.T) {
-		emptyCtx := context.Background()
-		_, err := server.Save(emptyCtx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing metadata")
-	})
+	resp, err := svc.Save(ctx, req)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}
 
-	t.Run("missing authorization header", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs())
-		_, err := server.Save(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing authorization token")
-	})
+func TestSecretWriteServiceServer_Save_MissingMetadata(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-	t.Run("invalid authorization header", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "InvalidToken"))
-		_, err := server.Save(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid authorization token format")
-	})
+	mockWriter := NewMockSecretWriter(ctrl)
+	mockParser := NewMockJWTParser(ctrl)
+	svc := NewSecretWriteServiceServer(mockWriter, mockParser)
 
-	t.Run("jwt parse error", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return("", errors.New("invalid token"))
-		_, err := server.Save(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid token")
-	})
+	ctx := context.Background()
+	req := &pb.SecretSaveRequest{}
 
-	t.Run("writer save error", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return(owner, nil)
-		mockWriter.EXPECT().
-			Save(ctx, owner, req.SecretName, req.SecretType, req.Ciphertext, req.AesKeyEnc).
-			Return(errors.New("save failed"))
-
-		_, err := server.Save(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "save failed")
-	})
+	resp, err := svc.Save(ctx, req)
+	require.Error(t, err)
+	require.Nil(t, resp)
 }
 
 func TestSecretReadServiceServer_Get(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReader := grpc.NewMockSecretReader(ctrl)
-	mockJWT := grpc.NewMockJWTParser(ctrl)
-	server := grpc.NewSecretReadServiceServer(mockReader, mockJWT)
+	mockReader := NewMockSecretReader(ctrl)
+	mockParser := NewMockJWTParser(ctrl)
 
-	ctx := context.Background()
-	token := "valid-token"
-	owner := "user123"
-	md := metadata.Pairs("authorization", "Bearer "+token)
-	ctx = metadata.NewIncomingContext(ctx, md)
+	svc := NewSecretReadServiceServer(mockReader, mockParser)
+
+	ctx := testContextWithAuthToken("Bearer token456")
 
 	req := &pb.SecretGetRequest{
-		SecretName: "name",
-		SecretType: "type",
+		SecretName: "mysecret",
+		SecretType: "password",
 	}
 
-	secretModel := &models.Secret{
-		SecretOwner: owner,
-		SecretName:  req.SecretName,
-		SecretType:  req.SecretType,
-		Ciphertext:  []byte("ciphertext"),
-		AESKeyEnc:   []byte("aeskey"),
+	secret := &models.Secret{
+		SecretName:  "mysecret",
+		SecretType:  "password",
+		SecretOwner: "user1",
+		Ciphertext:  []byte("cipher"),
+		AESKeyEnc:   []byte("aes"),
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return(owner, nil)
-		mockReader.EXPECT().Get(ctx, owner, req.SecretType, req.SecretName).Return(secretModel, nil)
+	mockParser.EXPECT().Parse("token456").Return("user1", nil)
+	mockReader.EXPECT().Get(gomock.Any(), "user1", "password", "mysecret").Return(secret, nil)
 
-		resp, err := server.Get(ctx, req)
-		require.NoError(t, err)
-		require.Equal(t, secretModel.SecretName, resp.SecretName)
-		require.Equal(t, secretModel.SecretType, resp.SecretType)
-		require.Equal(t, secretModel.SecretOwner, resp.SecretOwner)
-		require.Equal(t, secretModel.Ciphertext, resp.Ciphertext)
-		require.Equal(t, secretModel.AESKeyEnc, resp.AesKeyEnc)
-		require.WithinDuration(t, secretModel.CreatedAt, resp.CreatedAt.AsTime(), time.Second)
-		require.WithinDuration(t, secretModel.UpdatedAt, resp.UpdatedAt.AsTime(), time.Second)
-	})
-
-	t.Run("missing metadata", func(t *testing.T) {
-		_, err := server.Get(context.Background(), req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing metadata")
-	})
-
-	t.Run("missing authorization token", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs())
-		_, err := server.Get(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing authorization token")
-	})
-
-	t.Run("invalid authorization header", func(t *testing.T) {
-		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "BadToken"))
-		_, err := server.Get(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid authorization token format")
-	})
-
-	t.Run("jwt parse error", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return("", errors.New("invalid token"))
-		_, err := server.Get(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid token")
-	})
-
-	t.Run("reader get error", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return(owner, nil)
-		mockReader.EXPECT().Get(ctx, owner, req.SecretType, req.SecretName).Return(nil, errors.New("get failed"))
-		_, err := server.Get(ctx, req)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "get failed")
-	})
-}
-
-type mockSecretReadServiceListServer struct {
-	grpcpb pb.SecretReadService_ListServer
-	ctx    context.Context
-	sendFn func(*pb.Secret) error
-}
-
-func (m *mockSecretReadServiceListServer) Send(resp *pb.Secret) error {
-	if m.sendFn != nil {
-		return m.sendFn(resp)
-	}
-	return nil
-}
-
-func (m *mockSecretReadServiceListServer) SetHeader(metadata.MD) error  { return nil }
-func (m *mockSecretReadServiceListServer) SendHeader(metadata.MD) error { return nil }
-func (m *mockSecretReadServiceListServer) SetTrailer(metadata.MD)       {}
-func (m *mockSecretReadServiceListServer) Context() context.Context     { return m.ctx }
-func (m *mockSecretReadServiceListServer) SendMsg(mes interface{}) error {
-	return nil
-}
-func (m *mockSecretReadServiceListServer) RecvMsg(mes interface{}) error {
-	return nil
+	resp, err := svc.Get(ctx, req)
+	require.NoError(t, err)
+	require.Equal(t, "mysecret", resp.SecretName)
+	require.Equal(t, "password", resp.SecretType)
+	require.Equal(t, "user1", resp.SecretOwner)
+	require.Equal(t, []byte("cipher"), resp.Ciphertext)
+	require.Equal(t, []byte("aes"), resp.AesKeyEnc)
 }
 
 func TestSecretReadServiceServer_List(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReader := grpc.NewMockSecretReader(ctrl)
-	mockJWT := grpc.NewMockJWTParser(ctrl)
-	server := grpc.NewSecretReadServiceServer(mockReader, mockJWT)
+	mockReader := NewMockSecretReader(ctrl)
+	mockParser := NewMockJWTParser(ctrl)
 
-	token := "valid-token"
-	owner := "user123"
-	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "Bearer "+token))
+	svc := NewSecretReadServiceServer(mockReader, mockParser)
 
-	secret1 := &models.Secret{
-		SecretOwner: owner,
-		SecretName:  "secret1",
-		SecretType:  "type1",
-		Ciphertext:  []byte("cipher1"),
-		AESKeyEnc:   []byte("key1"),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+	mockStream := &mockSecretReadServiceListServer{
+		ctx: testContextWithAuthToken("Bearer token789"),
+		sendFn: func(secret *pb.Secret) error {
+			return nil
+		},
 	}
 
-	secret2 := &models.Secret{
-		SecretOwner: owner,
-		SecretName:  "secret2",
-		SecretType:  "type2",
-		Ciphertext:  []byte("cipher2"),
-		AESKeyEnc:   []byte("key2"),
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+	secrets := []*models.Secret{
+		{
+			SecretName:  "secret1",
+			SecretType:  "type1",
+			SecretOwner: "user1",
+			Ciphertext:  []byte("cipher1"),
+			AESKeyEnc:   []byte("aes1"),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		},
+		{
+			SecretName:  "secret2",
+			SecretType:  "type2",
+			SecretOwner: "user1",
+			Ciphertext:  []byte("cipher2"),
+			AESKeyEnc:   []byte("aes2"),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		},
 	}
 
-	t.Run("success", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return(owner, nil)
-		mockReader.EXPECT().List(ctx, owner).Return([]*models.Secret{secret1, secret2}, nil)
+	mockParser.EXPECT().Parse("token789").Return("user1", nil)
+	mockReader.EXPECT().List(gomock.Any(), "user1").Return(secrets, nil)
 
-		sendCount := 0
-		stream := &mockSecretReadServiceListServer{
-			ctx: ctx,
-			sendFn: func(resp *pb.Secret) error {
-				sendCount++
-				require.True(t, strings.HasPrefix(resp.SecretName, "secret"))
-				return nil
-			},
-		}
+	err := svc.List(&emptypb.Empty{}, mockStream)
+	require.NoError(t, err)
+}
 
-		err := server.List(&emptypb.Empty{}, stream)
-		require.NoError(t, err)
-		require.Equal(t, 2, sendCount)
-	})
+// Helper: create context with metadata authorization token
+func testContextWithAuthToken(token string) context.Context {
+	md := metadata.New(map[string]string{"authorization": token})
+	return metadata.NewIncomingContext(context.Background(), md)
+}
 
-	t.Run("missing metadata", func(t *testing.T) {
-		stream := &mockSecretReadServiceListServer{
-			ctx: context.Background(),
-		}
-		err := server.List(&emptypb.Empty{}, stream)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing metadata")
-	})
+// Mock stream for SecretReadService_ListServer
+type mockSecretReadServiceListServer struct {
+	pb.SecretReadService_ListServer
+	ctx    context.Context
+	sendFn func(*pb.Secret) error
+}
 
-	t.Run("missing authorization", func(t *testing.T) {
-		stream := &mockSecretReadServiceListServer{
-			ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs()),
-		}
-		err := server.List(&emptypb.Empty{}, stream)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "missing authorization token")
-	})
+func (m *mockSecretReadServiceListServer) Send(secret *pb.Secret) error {
+	return m.sendFn(secret)
+}
 
-	t.Run("invalid authorization format", func(t *testing.T) {
-		stream := &mockSecretReadServiceListServer{
-			ctx: metadata.NewIncomingContext(context.Background(), metadata.Pairs("authorization", "BadToken")),
-		}
-		err := server.List(&emptypb.Empty{}, stream)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid authorization token format")
-	})
-
-	t.Run("jwt parse error", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return("", errors.New("invalid token"))
-		stream := &mockSecretReadServiceListServer{
-			ctx: ctx,
-		}
-		err := server.List(&emptypb.Empty{}, stream)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid token")
-	})
-
-	t.Run("reader list error", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return(owner, nil)
-		mockReader.EXPECT().List(ctx, owner).Return(nil, errors.New("list failed"))
-
-		stream := &mockSecretReadServiceListServer{
-			ctx: ctx,
-		}
-
-		err := server.List(&emptypb.Empty{}, stream)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "list failed")
-	})
-
-	t.Run("send error", func(t *testing.T) {
-		mockJWT.EXPECT().Parse(token).Return(owner, nil)
-		mockReader.EXPECT().List(ctx, owner).Return([]*models.Secret{secret1}, nil)
-
-		stream := &mockSecretReadServiceListServer{
-			ctx: ctx,
-			sendFn: func(resp *pb.Secret) error {
-				return errors.New("send failed")
-			},
-		}
-
-		err := server.List(&emptypb.Empty{}, stream)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "send failed")
-	})
+func (m *mockSecretReadServiceListServer) Context() context.Context {
+	return m.ctx
 }

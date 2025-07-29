@@ -13,20 +13,40 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// SecretWriter defines write operations for secrets.
+// SecretWriter defines the interface for writing secrets to storage.
 type SecretWriter interface {
-	Save(ctx context.Context, secretOwner, secretName, secretType string, ciphertext, aesKeyEnc []byte) error
+	// Save stores a secret for the given user.
+	Save(
+		ctx context.Context,
+		username string,
+		secretName string,
+		secretType string,
+		ciphertext []byte,
+		aesKeyEnc []byte,
+	) error
 }
 
-// SecretReader defines read operations for secrets.
+// SecretReader defines the interface for reading secrets from storage.
 type SecretReader interface {
-	Get(ctx context.Context, secretOwner, secretType, secretName string) (*models.Secret, error)
-	List(ctx context.Context, secretOwner string) ([]*models.Secret, error)
+	// Get retrieves a secret by type and name for the given user.
+	Get(
+		ctx context.Context,
+		username string,
+		secretType string,
+		secretName string,
+	) (*models.Secret, error)
+
+	// List returns all secrets for the given user.
+	List(
+		ctx context.Context,
+		username string,
+	) ([]*models.Secret, error)
 }
 
 // JWTParser defines the interface for parsing JWT tokens.
 type JWTParser interface {
-	Parse(tokenStr string) (string, error)
+	// Parse validates the token and returns the associated username.
+	Parse(token string) (username string, err error)
 }
 
 // SecretWriteServiceServer implements SecretWriteService gRPC interface.
@@ -37,6 +57,7 @@ type SecretWriteServiceServer struct {
 	jwtParser JWTParser
 }
 
+// NewSecretWriteServiceServer creates a new SecretWriteServiceServer.
 func NewSecretWriteServiceServer(writer SecretWriter, jwtParser JWTParser) *SecretWriteServiceServer {
 	return &SecretWriteServiceServer{
 		writer:    writer,
@@ -44,7 +65,11 @@ func NewSecretWriteServiceServer(writer SecretWriter, jwtParser JWTParser) *Secr
 	}
 }
 
-// Save implements the Save RPC for SecretWriteService.
+// Save handles saving a secret via gRPC.
+//
+// It extracts and validates the JWT token from metadata,
+// extracts the username from the token,
+// then saves the secret associated with the user.
 func (s *SecretWriteServiceServer) Save(ctx context.Context, req *pb.SecretSaveRequest) (*emptypb.Empty, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -62,15 +87,16 @@ func (s *SecretWriteServiceServer) Save(ctx context.Context, req *pb.SecretSaveR
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-	owner, err := s.jwtParser.Parse(token)
+
+	username, err := s.jwtParser.Parse(token)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.writer.Save(ctx, owner, req.GetSecretName(), req.GetSecretType(), req.GetCiphertext(), req.GetAesKeyEnc())
-	if err != nil {
+	if err := s.writer.Save(ctx, username, req.GetSecretName(), req.GetSecretType(), req.GetCiphertext(), req.GetAesKeyEnc()); err != nil {
 		return nil, err
 	}
+
 	return &emptypb.Empty{}, nil
 }
 
@@ -82,6 +108,7 @@ type SecretReadServiceServer struct {
 	jwtParser JWTParser
 }
 
+// NewSecretReadServiceServer creates a new SecretReadServiceServer.
 func NewSecretReadServiceServer(reader SecretReader, jwtParser JWTParser) *SecretReadServiceServer {
 	return &SecretReadServiceServer{
 		reader:    reader,
@@ -89,7 +116,11 @@ func NewSecretReadServiceServer(reader SecretReader, jwtParser JWTParser) *Secre
 	}
 }
 
-// Get implements the Get RPC for SecretReadService.
+// Get handles fetching a single secret via gRPC.
+//
+// It extracts and validates the JWT token from metadata,
+// extracts the username from the token,
+// then fetches the secret associated with the user.
 func (s *SecretReadServiceServer) Get(ctx context.Context, req *pb.SecretGetRequest) (*pb.Secret, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
@@ -107,12 +138,13 @@ func (s *SecretReadServiceServer) Get(ctx context.Context, req *pb.SecretGetRequ
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-	owner, err := s.jwtParser.Parse(token)
+
+	username, err := s.jwtParser.Parse(token)
 	if err != nil {
 		return nil, err
 	}
 
-	secret, err := s.reader.Get(ctx, owner, req.GetSecretType(), req.GetSecretName())
+	secret, err := s.reader.Get(ctx, username, req.GetSecretType(), req.GetSecretName())
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +160,14 @@ func (s *SecretReadServiceServer) Get(ctx context.Context, req *pb.SecretGetRequ
 	}, nil
 }
 
-// List implements the List RPC for SecretReadService.
+// List streams all secrets for the authenticated user.
+//
+// It extracts and validates the JWT token from metadata,
+// extracts the username from the token,
+// then streams all secrets associated with the user.
 func (s *SecretReadServiceServer) List(empty *emptypb.Empty, stream pb.SecretReadService_ListServer) error {
 	ctx := stream.Context()
+
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return errors.New("missing metadata in context")
@@ -147,18 +184,19 @@ func (s *SecretReadServiceServer) List(empty *emptypb.Empty, stream pb.SecretRea
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
-	owner, err := s.jwtParser.Parse(token)
+
+	username, err := s.jwtParser.Parse(token)
 	if err != nil {
 		return err
 	}
 
-	secrets, err := s.reader.List(ctx, owner)
+	secrets, err := s.reader.List(ctx, username)
 	if err != nil {
 		return err
 	}
 
 	for _, secret := range secrets {
-		err := stream.Send(&pb.Secret{
+		if err := stream.Send(&pb.Secret{
 			SecretName:  secret.SecretName,
 			SecretType:  secret.SecretType,
 			SecretOwner: secret.SecretOwner,
@@ -166,8 +204,7 @@ func (s *SecretReadServiceServer) List(empty *emptypb.Empty, stream pb.SecretRea
 			AesKeyEnc:   secret.AESKeyEnc,
 			CreatedAt:   timestamppb.New(secret.CreatedAt),
 			UpdatedAt:   timestamppb.New(secret.UpdatedAt),
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}

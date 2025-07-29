@@ -9,80 +9,118 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	models "github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// MockRegisterer is a mock of Registerer interface.
-type MockRegisterer struct {
+// MockUserSaver is a mock of UserSaver interface.
+type MockUserSaver struct {
 	ctrl     *gomock.Controller
-	recorder *MockRegistererMockRecorder
+	recorder *MockUserSaverMockRecorder
 }
 
-// MockRegistererMockRecorder is the mock recorder for MockRegisterer.
-type MockRegistererMockRecorder struct {
-	mock *MockRegisterer
+// MockUserSaverMockRecorder is the mock recorder for MockUserSaver.
+type MockUserSaverMockRecorder struct {
+	mock *MockUserSaver
 }
 
-// NewMockRegisterer creates a new mock instance.
-func NewMockRegisterer(ctrl *gomock.Controller) *MockRegisterer {
-	mock := &MockRegisterer{ctrl: ctrl}
-	mock.recorder = &MockRegistererMockRecorder{mock}
+// NewMockUserSaver creates a new mock instance.
+func NewMockUserSaver(ctrl *gomock.Controller) *MockUserSaver {
+	mock := &MockUserSaver{ctrl: ctrl}
+	mock.recorder = &MockUserSaverMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockRegisterer) EXPECT() *MockRegistererMockRecorder {
+func (m *MockUserSaver) EXPECT() *MockUserSaverMockRecorder {
 	return m.recorder
 }
 
-// Register mocks base method.
-func (m *MockRegisterer) Register(ctx context.Context, username, password string) (*string, error) {
+// Save mocks base method.
+func (m *MockUserSaver) Save(ctx context.Context, username, passwordHash string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Register", ctx, username, password)
-	ret0, _ := ret[0].(*string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "Save", ctx, username, passwordHash)
+	ret0, _ := ret[0].(error)
+	return ret0
 }
 
-// Register indicates an expected call of Register.
-func (mr *MockRegistererMockRecorder) Register(ctx, username, password interface{}) *gomock.Call {
+// Save indicates an expected call of Save.
+func (mr *MockUserSaverMockRecorder) Save(ctx, username, passwordHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockRegisterer)(nil).Register), ctx, username, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockUserSaver)(nil).Save), ctx, username, passwordHash)
 }
 
-// MockLoginer is a mock of Loginer interface.
-type MockLoginer struct {
+// MockUserGetter is a mock of UserGetter interface.
+type MockUserGetter struct {
 	ctrl     *gomock.Controller
-	recorder *MockLoginerMockRecorder
+	recorder *MockUserGetterMockRecorder
 }
 
-// MockLoginerMockRecorder is the mock recorder for MockLoginer.
-type MockLoginerMockRecorder struct {
-	mock *MockLoginer
+// MockUserGetterMockRecorder is the mock recorder for MockUserGetter.
+type MockUserGetterMockRecorder struct {
+	mock *MockUserGetter
 }
 
-// NewMockLoginer creates a new mock instance.
-func NewMockLoginer(ctrl *gomock.Controller) *MockLoginer {
-	mock := &MockLoginer{ctrl: ctrl}
-	mock.recorder = &MockLoginerMockRecorder{mock}
+// NewMockUserGetter creates a new mock instance.
+func NewMockUserGetter(ctrl *gomock.Controller) *MockUserGetter {
+	mock := &MockUserGetter{ctrl: ctrl}
+	mock.recorder = &MockUserGetterMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockLoginer) EXPECT() *MockLoginerMockRecorder {
+func (m *MockUserGetter) EXPECT() *MockUserGetterMockRecorder {
 	return m.recorder
 }
 
-// Login mocks base method.
-func (m *MockLoginer) Login(ctx context.Context, username, password string) (*string, error) {
+// Get mocks base method.
+func (m *MockUserGetter) Get(ctx context.Context, username string) (*models.User, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Login", ctx, username, password)
-	ret0, _ := ret[0].(*string)
+	ret := m.ctrl.Call(m, "Get", ctx, username)
+	ret0, _ := ret[0].(*models.User)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// Login indicates an expected call of Login.
-func (mr *MockLoginerMockRecorder) Login(ctx, username, password interface{}) *gomock.Call {
+// Get indicates an expected call of Get.
+func (mr *MockUserGetterMockRecorder) Get(ctx, username interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Login", reflect.TypeOf((*MockLoginer)(nil).Login), ctx, username, password)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockUserGetter)(nil).Get), ctx, username)
+}
+
+// MockJWTGenerator is a mock of JWTGenerator interface.
+type MockJWTGenerator struct {
+	ctrl     *gomock.Controller
+	recorder *MockJWTGeneratorMockRecorder
+}
+
+// MockJWTGeneratorMockRecorder is the mock recorder for MockJWTGenerator.
+type MockJWTGeneratorMockRecorder struct {
+	mock *MockJWTGenerator
+}
+
+// NewMockJWTGenerator creates a new mock instance.
+func NewMockJWTGenerator(ctrl *gomock.Controller) *MockJWTGenerator {
+	mock := &MockJWTGenerator{ctrl: ctrl}
+	mock.recorder = &MockJWTGeneratorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockJWTGenerator) EXPECT() *MockJWTGeneratorMockRecorder {
+	return m.recorder
+}
+
+// Generate mocks base method.
+func (m *MockJWTGenerator) Generate(username string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Generate", username)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Generate indicates an expected call of Generate.
+func (mr *MockJWTGeneratorMockRecorder) Generate(username interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Generate", reflect.TypeOf((*MockJWTGenerator)(nil).Generate), username)
 }

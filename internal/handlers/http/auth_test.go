@@ -3,163 +3,183 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	gomock "github.com/golang/mock/gomock"
+	"github.com/golang/mock/gomock"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// helper to encode JSON
-func toJSON(t *testing.T, v interface{}) *bytes.Buffer {
-	t.Helper()
-	b, err := json.Marshal(v)
-	require.NoError(t, err)
-	return bytes.NewBuffer(b)
-}
-
+// Test NewRegisterHandler success case
 func TestRegisterHandler_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReg := NewMockRegisterer(ctrl)
+	mockGetter := NewMockUserGetter(ctrl)
+	mockSaver := NewMockUserSaver(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	reqBody := map[string]string{
-		"username": "testuser",
-		"password": "testpass",
-	}
+	username := "testuser"
+	password := "pass123"
+	token := "jwt-token"
 
-	token := "mock-token"
-	mockReg.
-		EXPECT().
-		Register(gomock.Any(), "testuser", "testpass").
-		Return(&token, nil)
+	// UserGetter.Get returns nil (user does not exist)
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(nil, nil)
 
-	handler := NewRegisterHandler(mockReg)
+	// UserSaver.Save succeeds
+	mockSaver.EXPECT().
+		Save(gomock.Any(), username, gomock.Any()).
+		Return(nil)
 
-	req := httptest.NewRequest(http.MethodPost, "/register", toJSON(t, reqBody))
-	w := httptest.NewRecorder()
+	// JWTGenerator.Generate returns token
+	mockJWT.EXPECT().
+		Generate(username).
+		Return(token, nil)
 
-	handler(w, req)
+	handler := NewRegisterHandler(mockGetter, mockSaver, mockJWT)
 
-	resp := w.Result()
-	defer resp.Body.Close()
+	reqBody, _ := json.Marshal(map[string]string{
+		"username": username,
+		"password": password,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(reqBody))
+	rec := httptest.NewRecorder()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "Bearer "+token, resp.Header.Get("Authorization"))
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "Bearer "+token, rec.Header().Get("Authorization"))
 }
 
-func TestRegisterHandler_InvalidJSON(t *testing.T) {
+// Test NewRegisterHandler when user already exists
+func TestRegisterHandler_UserExists(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockReg := NewMockRegisterer(ctrl)
-	handler := NewRegisterHandler(mockReg)
+	mockGetter := NewMockUserGetter(ctrl)
+	mockSaver := NewMockUserSaver(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString("not-json"))
-	w := httptest.NewRecorder()
+	username := "existinguser"
 
-	handler(w, req)
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(&models.User{Username: username}, nil)
 
-	resp := w.Result()
-	defer resp.Body.Close()
+	handler := NewRegisterHandler(mockGetter, mockSaver, mockJWT)
 
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	reqBody, _ := json.Marshal(map[string]string{
+		"username": username,
+		"password": "irrelevant",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(reqBody))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusConflict, rec.Code)
+	assert.Contains(t, rec.Body.String(), errUserAlreadyExists.Error())
 }
 
-func TestRegisterHandler_Error(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockReg := NewMockRegisterer(ctrl)
-
-	mockReg.
-		EXPECT().
-		Register(gomock.Any(), "user", "pass").
-		Return(nil, assert.AnError)
-
-	handler := NewRegisterHandler(mockReg)
-
-	body := toJSON(t, map[string]string{"username": "user", "password": "pass"})
-	req := httptest.NewRequest(http.MethodPost, "/register", body)
-	w := httptest.NewRecorder()
-
-	handler(w, req)
-
-	resp := w.Result()
-	defer resp.Body.Close()
-
-	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode)
-}
-
+// Test NewLoginHandler success case
 func TestLoginHandler_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockLogin := NewMockLoginer(ctrl)
+	mockGetter := NewMockUserGetter(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	token := "login-token"
-	mockLogin.
-		EXPECT().
-		Login(gomock.Any(), "user", "pass").
-		Return(&token, nil)
+	username := "testuser"
+	password := "pass123"
+	token := "jwt-token"
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
-	handler := NewLoginHandler(mockLogin)
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(&models.User{Username: username, PasswordHash: string(hashedPassword)}, nil)
 
-	body := toJSON(t, map[string]string{"username": "user", "password": "pass"})
-	req := httptest.NewRequest(http.MethodPost, "/login", body)
-	w := httptest.NewRecorder()
+	mockJWT.EXPECT().
+		Generate(username).
+		Return(token, nil)
 
-	handler(w, req)
+	handler := NewLoginHandler(mockGetter, mockJWT)
 
-	resp := w.Result()
-	defer resp.Body.Close()
+	reqBody, _ := json.Marshal(map[string]string{
+		"username": username,
+		"password": password,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(reqBody))
+	rec := httptest.NewRecorder()
 
-	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	assert.Equal(t, "Bearer "+token, resp.Header.Get("Authorization"))
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "Bearer "+token, rec.Header().Get("Authorization"))
 }
 
-func TestLoginHandler_InvalidJSON(t *testing.T) {
+// Test NewLoginHandler invalid password
+func TestLoginHandler_InvalidPassword(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockLogin := NewMockLoginer(ctrl)
-	handler := NewLoginHandler(mockLogin)
+	mockGetter := NewMockUserGetter(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString("bad json"))
-	w := httptest.NewRecorder()
+	username := "testuser"
+	correctPassword := "correctpass"
+	wrongPassword := "wrongpass"
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
 
-	handler(w, req)
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(&models.User{Username: username, PasswordHash: string(hashedPassword)}, nil)
 
-	resp := w.Result()
-	defer resp.Body.Close()
+	handler := NewLoginHandler(mockGetter, mockJWT)
 
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	reqBody, _ := json.Marshal(map[string]string{
+		"username": username,
+		"password": wrongPassword,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(reqBody))
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	assert.Contains(t, rec.Body.String(), errInvalidLogin.Error())
 }
 
-func TestLoginHandler_Unauthorized(t *testing.T) {
+// Test NewLoginHandler user not found
+func TestLoginHandler_UserNotFound(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockLogin := NewMockLoginer(ctrl)
+	mockGetter := NewMockUserGetter(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	mockLogin.
-		EXPECT().
-		Login(gomock.Any(), "user", "wrong").
-		Return(nil, assert.AnError)
+	username := "nonexistent"
 
-	handler := NewLoginHandler(mockLogin)
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(nil, errors.New("not found"))
 
-	body := toJSON(t, map[string]string{"username": "user", "password": "wrong"})
-	req := httptest.NewRequest(http.MethodPost, "/login", body)
-	w := httptest.NewRecorder()
+	handler := NewLoginHandler(mockGetter, mockJWT)
 
-	handler(w, req)
+	reqBody, _ := json.Marshal(map[string]string{
+		"username": username,
+		"password": "any",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(reqBody))
+	rec := httptest.NewRecorder()
 
-	resp := w.Result()
-	defer resp.Body.Close()
+	handler.ServeHTTP(rec, req)
 
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+	assert.Contains(t, rec.Body.String(), errInvalidLogin.Error())
 }

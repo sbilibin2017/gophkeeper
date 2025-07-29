@@ -36,17 +36,17 @@ func (m *MockSecretWriter) EXPECT() *MockSecretWriterMockRecorder {
 }
 
 // Save mocks base method.
-func (m *MockSecretWriter) Save(ctx context.Context, secretOwner, secretName, secretType string, ciphertext, aesKeyEnc []byte) error {
+func (m *MockSecretWriter) Save(ctx context.Context, username, secretName, secretType string, ciphertext, aesKeyEnc []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", ctx, secretOwner, secretName, secretType, ciphertext, aesKeyEnc)
+	ret := m.ctrl.Call(m, "Save", ctx, username, secretName, secretType, ciphertext, aesKeyEnc)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Save indicates an expected call of Save.
-func (mr *MockSecretWriterMockRecorder) Save(ctx, secretOwner, secretName, secretType, ciphertext, aesKeyEnc interface{}) *gomock.Call {
+func (mr *MockSecretWriterMockRecorder) Save(ctx, username, secretName, secretType, ciphertext, aesKeyEnc interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockSecretWriter)(nil).Save), ctx, secretOwner, secretName, secretType, ciphertext, aesKeyEnc)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockSecretWriter)(nil).Save), ctx, username, secretName, secretType, ciphertext, aesKeyEnc)
 }
 
 // MockSecretReader is a mock of SecretReader interface.
@@ -73,33 +73,33 @@ func (m *MockSecretReader) EXPECT() *MockSecretReaderMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockSecretReader) Get(ctx context.Context, secretOwner, secretType, secretName string) (*models.Secret, error) {
+func (m *MockSecretReader) Get(ctx context.Context, username, secretType, secretName string) (*models.Secret, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", ctx, secretOwner, secretType, secretName)
+	ret := m.ctrl.Call(m, "Get", ctx, username, secretType, secretName)
 	ret0, _ := ret[0].(*models.Secret)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockSecretReaderMockRecorder) Get(ctx, secretOwner, secretType, secretName interface{}) *gomock.Call {
+func (mr *MockSecretReaderMockRecorder) Get(ctx, username, secretType, secretName interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSecretReader)(nil).Get), ctx, secretOwner, secretType, secretName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockSecretReader)(nil).Get), ctx, username, secretType, secretName)
 }
 
 // List mocks base method.
-func (m *MockSecretReader) List(ctx context.Context, secretOwner string) ([]*models.Secret, error) {
+func (m *MockSecretReader) List(ctx context.Context, username string) ([]*models.Secret, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, secretOwner)
+	ret := m.ctrl.Call(m, "List", ctx, username)
 	ret0, _ := ret[0].([]*models.Secret)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockSecretReaderMockRecorder) List(ctx, secretOwner interface{}) *gomock.Call {
+func (mr *MockSecretReaderMockRecorder) List(ctx, username interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockSecretReader)(nil).List), ctx, secretOwner)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockSecretReader)(nil).List), ctx, username)
 }
 
 // MockJWTParser is a mock of JWTParser interface.
@@ -126,16 +126,16 @@ func (m *MockJWTParser) EXPECT() *MockJWTParserMockRecorder {
 }
 
 // Parse mocks base method.
-func (m *MockJWTParser) Parse(tokenStr string) (string, error) {
+func (m *MockJWTParser) Parse(token string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Parse", tokenStr)
+	ret := m.ctrl.Call(m, "Parse", token)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Parse indicates an expected call of Parse.
-func (mr *MockJWTParserMockRecorder) Parse(tokenStr interface{}) *gomock.Call {
+func (mr *MockJWTParserMockRecorder) Parse(token interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parse", reflect.TypeOf((*MockJWTParser)(nil).Parse), tokenStr)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Parse", reflect.TypeOf((*MockJWTParser)(nil).Parse), token)
 }

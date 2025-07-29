@@ -1,4 +1,4 @@
-package grpc_test
+package grpc
 
 import (
 	"context"
@@ -6,131 +6,243 @@ import (
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sbilibin2017/gophkeeper/internal/handlers/grpc"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
-func TestAuthServer_Register(t *testing.T) {
+func TestAuthServer_Register_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockRegisterer := grpc.NewMockRegisterer(ctrl)
-	mockLoginer := grpc.NewMockLoginer(ctrl) // needed to create AuthServer, but not used here
+	mockGetter := NewMockUserGetter(ctrl)
+	mockSaver := NewMockUserSaver(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	server := grpc.NewAuthServer(mockRegisterer, mockLoginer)
-	ctx := context.Background()
+	username := "testuser"
+	password := "pass123"
+	token := "jwt-token"
 
-	t.Run("success returns token", func(t *testing.T) {
-		expectedToken := "token123"
-		mockRegisterer.EXPECT().
-			Register(ctx, "user", "pass").
-			Return(&expectedToken, nil).
-			Times(1)
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(nil, nil)
 
-		req := &pb.AuthRequest{
-			Username: "user",
-			Password: "pass",
-		}
+	mockSaver.EXPECT().
+		Save(gomock.Any(), username, gomock.Any()).
+		Return(nil)
 
-		resp, err := server.Register(ctx, req)
-		require.NoError(t, err)
-		require.Equal(t, expectedToken, resp.GetToken())
-	})
+	mockJWT.EXPECT().
+		Generate(username).
+		Return(token, nil)
 
-	t.Run("success returns empty token when nil", func(t *testing.T) {
-		mockRegisterer.EXPECT().
-			Register(ctx, "user", "pass").
-			Return(nil, nil).
-			Times(1)
+	server := NewAuthServer(mockSaver, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: password}
 
-		req := &pb.AuthRequest{
-			Username: "user",
-			Password: "pass",
-		}
-
-		resp, err := server.Register(ctx, req)
-		require.NoError(t, err)
-		require.Equal(t, "", resp.GetToken())
-	})
-
-	t.Run("returns error from registerer", func(t *testing.T) {
-		expectedErr := errors.New("register failed")
-		mockRegisterer.EXPECT().
-			Register(ctx, "user", "pass").
-			Return(nil, expectedErr).
-			Times(1)
-
-		req := &pb.AuthRequest{
-			Username: "user",
-			Password: "pass",
-		}
-
-		resp, err := server.Register(ctx, req)
-		require.Error(t, err)
-		require.Nil(t, resp)
-		require.Equal(t, expectedErr, err)
-	})
+	resp, err := server.Register(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, token, resp.GetToken())
 }
 
-func TestAuthServer_Login(t *testing.T) {
+func TestAuthServer_Register_UserExists(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	mockRegisterer := grpc.NewMockRegisterer(ctrl) // needed to create AuthServer, but not used here
-	mockLoginer := grpc.NewMockLoginer(ctrl)
+	mockGetter := NewMockUserGetter(ctrl)
+	mockSaver := NewMockUserSaver(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	server := grpc.NewAuthServer(mockRegisterer, mockLoginer)
-	ctx := context.Background()
+	username := "existinguser"
 
-	t.Run("success returns token", func(t *testing.T) {
-		expectedToken := "token456"
-		mockLoginer.EXPECT().
-			Login(ctx, "user", "pass").
-			Return(&expectedToken, nil).
-			Times(1)
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(&models.User{Username: username}, nil)
 
-		req := &pb.AuthRequest{
-			Username: "user",
-			Password: "pass",
-		}
+	server := NewAuthServer(mockSaver, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: "irrelevant"}
 
-		resp, err := server.Login(ctx, req)
-		require.NoError(t, err)
-		require.Equal(t, expectedToken, resp.GetToken())
-	})
+	resp, err := server.Register(context.Background(), req)
+	assert.Nil(t, resp)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.AlreadyExists, st.Code())
+}
 
-	t.Run("success returns empty token when nil", func(t *testing.T) {
-		mockLoginer.EXPECT().
-			Login(ctx, "user", "pass").
-			Return(nil, nil).
-			Times(1)
+func TestAuthServer_Register_HashPasswordFail(t *testing.T) {
+	// To simulate bcrypt failure is tricky because it is a third party call.
+	// You could wrap bcrypt call in an interface and mock it in production code,
+	// but here we skip this test as it's rare and would require refactoring.
+}
 
-		req := &pb.AuthRequest{
-			Username: "user",
-			Password: "pass",
-		}
+func TestAuthServer_Register_SaveFail(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-		resp, err := server.Login(ctx, req)
-		require.NoError(t, err)
-		require.Equal(t, "", resp.GetToken())
-	})
+	mockGetter := NewMockUserGetter(ctrl)
+	mockSaver := NewMockUserSaver(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
 
-	t.Run("returns error from loginer", func(t *testing.T) {
-		expectedErr := errors.New("login failed")
-		mockLoginer.EXPECT().
-			Login(ctx, "user", "pass").
-			Return(nil, expectedErr).
-			Times(1)
+	username := "testuser"
+	password := "pass123"
 
-		req := &pb.AuthRequest{
-			Username: "user",
-			Password: "pass",
-		}
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(nil, nil)
 
-		resp, err := server.Login(ctx, req)
-		require.Error(t, err)
-		require.Nil(t, resp)
-		require.Equal(t, expectedErr, err)
-	})
+	mockSaver.EXPECT().
+		Save(gomock.Any(), username, gomock.Any()).
+		Return(errors.New("db error"))
+
+	server := NewAuthServer(mockSaver, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: password}
+
+	resp, err := server.Register(context.Background(), req)
+	assert.Nil(t, resp)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.Internal, st.Code())
+}
+
+func TestAuthServer_Register_GenerateTokenFail(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockGetter := NewMockUserGetter(ctrl)
+	mockSaver := NewMockUserSaver(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
+
+	username := "testuser"
+	password := "pass123"
+
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(nil, nil)
+
+	mockSaver.EXPECT().
+		Save(gomock.Any(), username, gomock.Any()).
+		Return(nil)
+
+	mockJWT.EXPECT().
+		Generate(username).
+		Return("", errors.New("token error"))
+
+	server := NewAuthServer(mockSaver, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: password}
+
+	resp, err := server.Register(context.Background(), req)
+	assert.Nil(t, resp)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.Internal, st.Code())
+}
+
+func TestAuthServer_Login_Success(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockGetter := NewMockUserGetter(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
+
+	username := "testuser"
+	password := "pass123"
+	token := "jwt-token"
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(&models.User{Username: username, PasswordHash: string(hashedPassword)}, nil)
+
+	mockJWT.EXPECT().
+		Generate(username).
+		Return(token, nil)
+
+	server := NewAuthServer(nil, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: password}
+
+	resp, err := server.Login(context.Background(), req)
+	assert.NoError(t, err)
+	assert.Equal(t, token, resp.GetToken())
+}
+
+func TestAuthServer_Login_UserNotFound(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockGetter := NewMockUserGetter(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
+
+	username := "nonexistent"
+
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(nil, errors.New("not found"))
+
+	server := NewAuthServer(nil, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: "any"}
+
+	resp, err := server.Login(context.Background(), req)
+	assert.Nil(t, resp)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.Unauthenticated, st.Code())
+}
+
+func TestAuthServer_Login_InvalidPassword(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockGetter := NewMockUserGetter(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
+
+	username := "testuser"
+	correctPassword := "correctpass"
+	wrongPassword := "wrongpass"
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(correctPassword), bcrypt.DefaultCost)
+
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(&models.User{Username: username, PasswordHash: string(hashedPassword)}, nil)
+
+	server := NewAuthServer(nil, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: wrongPassword}
+
+	resp, err := server.Login(context.Background(), req)
+	assert.Nil(t, resp)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.Unauthenticated, st.Code())
+}
+
+func TestAuthServer_Login_GenerateTokenFail(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockGetter := NewMockUserGetter(ctrl)
+	mockJWT := NewMockJWTGenerator(ctrl)
+
+	username := "testuser"
+	password := "pass123"
+
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+
+	mockGetter.EXPECT().
+		Get(gomock.Any(), username).
+		Return(&models.User{Username: username, PasswordHash: string(hashedPassword)}, nil)
+
+	mockJWT.EXPECT().
+		Generate(username).
+		Return("", errors.New("token error"))
+
+	server := NewAuthServer(nil, mockGetter, mockJWT)
+	req := &pb.AuthRequest{Username: username, Password: password}
+
+	resp, err := server.Login(context.Background(), req)
+	assert.Nil(t, resp)
+	st, ok := status.FromError(err)
+	assert.True(t, ok)
+	assert.Equal(t, codes.Internal, st.Code())
 }

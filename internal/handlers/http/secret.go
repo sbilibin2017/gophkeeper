@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -10,11 +11,12 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// SecretWriter defines write operations for secrets.
+// SecretWriter defines the interface for writing secrets to storage.
 type SecretWriter interface {
+	// Save stores a secret for the given user.
 	Save(
 		ctx context.Context,
-		secretOwner string,
+		username string,
 		secretName string,
 		secretType string,
 		ciphertext []byte,
@@ -22,18 +24,37 @@ type SecretWriter interface {
 	) error
 }
 
-// SecretReader defines read operations for secrets.
+// SecretReader defines the interface for reading secrets from storage.
 type SecretReader interface {
-	Get(ctx context.Context, secretOwner, secretType, secretName string) (*models.Secret, error)
-	List(ctx context.Context, secretOwner string) ([]*models.Secret, error)
+	// Get retrieves a secret by type and name for the given user.
+	Get(
+		ctx context.Context,
+		username string,
+		secretType string,
+		secretName string,
+	) (*models.Secret, error)
+
+	// List returns all secrets for the given user.
+	List(
+		ctx context.Context,
+		username string,
+	) ([]*models.Secret, error)
 }
 
 // JWTParser defines the interface for parsing JWT tokens.
 type JWTParser interface {
-	Parse(tokenStr string) (string, error)
+	// Parse validates the token and returns the associated username.
+	Parse(token string) (username string, err error)
 }
 
+// ErrUnauthorized represents an unauthorized access error due to missing or invalid token.
+var ErrUnauthorized = errors.New("unauthorized")
+
 // NewSecretAddHandler returns an HTTP handler for adding a new secret.
+//
+// It expects a POST request with a JSON body matching models.SecretSaveRequest.
+// Requires a Bearer token in the Authorization header.
+// On success, responds with HTTP 200 OK.
 func NewSecretAddHandler(
 	secretWriter SecretWriter,
 	jwtParser JWTParser,
@@ -42,27 +63,33 @@ func NewSecretAddHandler(
 		ctx := r.Context()
 
 		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
+			return
+		}
 		parts := strings.Fields(authHeader)
-		if authHeader == "" || len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			http.Error(w, "invalid or missing authorization header", http.StatusUnauthorized)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
 			return
 		}
-		tokenStr := parts[1]
-
-		username, err := jwtParser.Parse(tokenStr)
+		username, err := jwtParser.Parse(parts[1])
 		if err != nil {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
 			return
 		}
 
-		var req models.SecretSaveRequest
+		var req struct {
+			SecretName string `json:"secret_name"`
+			SecretType string `json:"secret_type"`
+			Ciphertext []byte `json:"ciphertext"`
+			AESKeyEnc  []byte `json:"aes_key_enc"`
+		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
 
-		err = secretWriter.Save(ctx, username, req.SecretName, req.SecretType, req.Ciphertext, req.AESKeyEnc)
-		if err != nil {
+		if err := secretWriter.Save(ctx, username, req.SecretName, req.SecretType, req.Ciphertext, req.AESKeyEnc); err != nil {
 			http.Error(w, "failed to save secret", http.StatusInternalServerError)
 			return
 		}
@@ -71,7 +98,11 @@ func NewSecretAddHandler(
 	}
 }
 
-// NewSecretGetHandler returns an HTTP handler to retrieve a secret by its type and name.
+// NewSecretGetHandler returns an HTTP handler to retrieve a specific secret.
+//
+// Expects the secret type and name in the URL path, e.g., /secrets/{secret_type}/{secret_name}.
+// Requires a Bearer token in the Authorization header.
+// On success, responds with the secret as JSON.
 func NewSecretGetHandler(
 	secretReader SecretReader,
 	jwtParser JWTParser,
@@ -80,16 +111,18 @@ func NewSecretGetHandler(
 		ctx := r.Context()
 
 		authHeader := r.Header.Get("Authorization")
-		parts := strings.Fields(authHeader)
-		if authHeader == "" || len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			http.Error(w, "invalid or missing authorization header", http.StatusUnauthorized)
+		if authHeader == "" {
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
 			return
 		}
-		tokenStr := parts[1]
-
-		username, err := jwtParser.Parse(tokenStr)
+		parts := strings.Fields(authHeader)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
+			return
+		}
+		username, err := jwtParser.Parse(parts[1])
 		if err != nil {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
 			return
 		}
 
@@ -114,7 +147,10 @@ func NewSecretGetHandler(
 	}
 }
 
-// NewSecretListHandler returns an HTTP handler to list all secrets for the authenticated user.
+// NewSecretListHandler returns an HTTP handler to list all secrets for an authenticated user.
+//
+// Requires a Bearer token in the Authorization header.
+// On success, responds with a JSON array of all user's secrets.
 func NewSecretListHandler(
 	secretReader SecretReader,
 	jwtParser JWTParser,
@@ -123,16 +159,18 @@ func NewSecretListHandler(
 		ctx := r.Context()
 
 		authHeader := r.Header.Get("Authorization")
-		parts := strings.Fields(authHeader)
-		if authHeader == "" || len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			http.Error(w, "invalid or missing authorization header", http.StatusUnauthorized)
+		if authHeader == "" {
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
 			return
 		}
-		tokenStr := parts[1]
-
-		username, err := jwtParser.Parse(tokenStr)
+		parts := strings.Fields(authHeader)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
+			return
+		}
+		username, err := jwtParser.Parse(parts[1])
 		if err != nil {
-			http.Error(w, "invalid token", http.StatusUnauthorized)
+			http.Error(w, ErrUnauthorized.Error(), http.StatusUnauthorized)
 			return
 		}
 
