@@ -16,14 +16,6 @@ type SecretEncrypted struct {
 	AESKeyEnc  []byte `json:"aes_key_enc" db:"aes_key_enc"`
 }
 
-// SecretSaveRequest holds SecretEncrypted secret data.
-type SecretSaveRequest struct {
-	SecretName string `json:"secret_name"`
-	SecretType string `json:"secret_type"`
-	Ciphertext []byte `json:"ciphertext"`
-	AESKeyEnc  []byte `json:"aes_key_enc"`
-}
-
 // SecretGetRequest holds SecretEncrypted secret data.
 type SecretGetRequest struct {
 	SecretName string `json:"secret_name"`
