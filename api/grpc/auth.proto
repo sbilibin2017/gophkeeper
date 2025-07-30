@@ -2,13 +2,11 @@ syntax = "proto3";
 
 package auth;
 
-option go_package = "pkg/grpc";
-
-import "google/protobuf/empty.proto";
+option go_package = "github.com/sbilibin2017/gophkeeper/pkg/grpc";
 
 message AuthRequest {
   string username = 1;
-  string password = 2;  
+  string password = 2;
 }
 
 message AuthResponse {
@@ -18,5 +16,4 @@ message AuthResponse {
 service AuthService {
   rpc Register(AuthRequest) returns (AuthResponse);
   rpc Login(AuthRequest) returns (AuthResponse);
-  rpc Logout(google.protobuf.Empty) returns (google.protobuf.Empty);
 }

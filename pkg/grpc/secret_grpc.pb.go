@@ -20,16 +20,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SecretWriteService_Save_FullMethodName = "/bankcard.SecretWriteService/Save"
+	SecretWriteService_Save_FullMethodName = "/secret.SecretWriteService/Save"
 )
 
 // SecretWriteServiceClient is the client API for SecretWriteService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Write service
+// SecretWriteService handles saving SecretEncrypted secrets.
 type SecretWriteServiceClient interface {
-	Save(ctx context.Context, in *EncryptedSecret, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	// Saves an SecretEncrypted secret.
+	Save(ctx context.Context, in *SecretSaveRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 }
 
 type secretWriteServiceClient struct {
@@ -40,7 +41,7 @@ func NewSecretWriteServiceClient(cc grpc.ClientConnInterface) SecretWriteService
 	return &secretWriteServiceClient{cc}
 }
 
-func (c *secretWriteServiceClient) Save(ctx context.Context, in *EncryptedSecret, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+func (c *secretWriteServiceClient) Save(ctx context.Context, in *SecretSaveRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(emptypb.Empty)
 	err := c.cc.Invoke(ctx, SecretWriteService_Save_FullMethodName, in, out, cOpts...)
@@ -54,9 +55,10 @@ func (c *secretWriteServiceClient) Save(ctx context.Context, in *EncryptedSecret
 // All implementations must embed UnimplementedSecretWriteServiceServer
 // for forward compatibility.
 //
-// Write service
+// SecretWriteService handles saving SecretEncrypted secrets.
 type SecretWriteServiceServer interface {
-	Save(context.Context, *EncryptedSecret) (*emptypb.Empty, error)
+	// Saves an SecretEncrypted secret.
+	Save(context.Context, *SecretSaveRequest) (*emptypb.Empty, error)
 	mustEmbedUnimplementedSecretWriteServiceServer()
 }
 
@@ -67,7 +69,7 @@ type SecretWriteServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSecretWriteServiceServer struct{}
 
-func (UnimplementedSecretWriteServiceServer) Save(context.Context, *EncryptedSecret) (*emptypb.Empty, error) {
+func (UnimplementedSecretWriteServiceServer) Save(context.Context, *SecretSaveRequest) (*emptypb.Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Save not implemented")
 }
 func (UnimplementedSecretWriteServiceServer) mustEmbedUnimplementedSecretWriteServiceServer() {}
@@ -92,7 +94,7 @@ func RegisterSecretWriteServiceServer(s grpc.ServiceRegistrar, srv SecretWriteSe
 }
 
 func _SecretWriteService_Save_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EncryptedSecret)
+	in := new(SecretSaveRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -104,7 +106,7 @@ func _SecretWriteService_Save_Handler(srv interface{}, ctx context.Context, dec 
 		FullMethod: SecretWriteService_Save_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecretWriteServiceServer).Save(ctx, req.(*EncryptedSecret))
+		return srv.(SecretWriteServiceServer).Save(ctx, req.(*SecretSaveRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -113,7 +115,7 @@ func _SecretWriteService_Save_Handler(srv interface{}, ctx context.Context, dec 
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SecretWriteService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "bankcard.SecretWriteService",
+	ServiceName: "secret.SecretWriteService",
 	HandlerType: (*SecretWriteServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -126,18 +128,20 @@ var SecretWriteService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	SecretReadService_Get_FullMethodName  = "/bankcard.SecretReadService/Get"
-	SecretReadService_List_FullMethodName = "/bankcard.SecretReadService/List"
+	SecretReadService_Get_FullMethodName  = "/secret.SecretReadService/Get"
+	SecretReadService_List_FullMethodName = "/secret.SecretReadService/List"
 )
 
 // SecretReadServiceClient is the client API for SecretReadService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Read service
+// SecretReadService handles reading SecretEncrypted secrets.
 type SecretReadServiceClient interface {
-	Get(ctx context.Context, in *GetSecretRequest, opts ...grpc.CallOption) (*EncryptedSecret, error)
-	List(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[EncryptedSecret], error)
+	// Retrieves a specific secret by name and type.
+	Get(ctx context.Context, in *SecretGetRequest, opts ...grpc.CallOption) (*Secret, error)
+	// Lists all secrets for the authenticated user.
+	List(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Secret], error)
 }
 
 type secretReadServiceClient struct {
@@ -148,9 +152,9 @@ func NewSecretReadServiceClient(cc grpc.ClientConnInterface) SecretReadServiceCl
 	return &secretReadServiceClient{cc}
 }
 
-func (c *secretReadServiceClient) Get(ctx context.Context, in *GetSecretRequest, opts ...grpc.CallOption) (*EncryptedSecret, error) {
+func (c *secretReadServiceClient) Get(ctx context.Context, in *SecretGetRequest, opts ...grpc.CallOption) (*Secret, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(EncryptedSecret)
+	out := new(Secret)
 	err := c.cc.Invoke(ctx, SecretReadService_Get_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -158,13 +162,13 @@ func (c *secretReadServiceClient) Get(ctx context.Context, in *GetSecretRequest,
 	return out, nil
 }
 
-func (c *secretReadServiceClient) List(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[EncryptedSecret], error) {
+func (c *secretReadServiceClient) List(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Secret], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &SecretReadService_ServiceDesc.Streams[0], SecretReadService_List_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &grpc.GenericClientStream[emptypb.Empty, EncryptedSecret]{ClientStream: stream}
+	x := &grpc.GenericClientStream[emptypb.Empty, Secret]{ClientStream: stream}
 	if err := x.ClientStream.SendMsg(in); err != nil {
 		return nil, err
 	}
@@ -175,16 +179,18 @@ func (c *secretReadServiceClient) List(ctx context.Context, in *emptypb.Empty, o
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type SecretReadService_ListClient = grpc.ServerStreamingClient[EncryptedSecret]
+type SecretReadService_ListClient = grpc.ServerStreamingClient[Secret]
 
 // SecretReadServiceServer is the server API for SecretReadService service.
 // All implementations must embed UnimplementedSecretReadServiceServer
 // for forward compatibility.
 //
-// Read service
+// SecretReadService handles reading SecretEncrypted secrets.
 type SecretReadServiceServer interface {
-	Get(context.Context, *GetSecretRequest) (*EncryptedSecret, error)
-	List(*emptypb.Empty, grpc.ServerStreamingServer[EncryptedSecret]) error
+	// Retrieves a specific secret by name and type.
+	Get(context.Context, *SecretGetRequest) (*Secret, error)
+	// Lists all secrets for the authenticated user.
+	List(*emptypb.Empty, grpc.ServerStreamingServer[Secret]) error
 	mustEmbedUnimplementedSecretReadServiceServer()
 }
 
@@ -195,10 +201,10 @@ type SecretReadServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedSecretReadServiceServer struct{}
 
-func (UnimplementedSecretReadServiceServer) Get(context.Context, *GetSecretRequest) (*EncryptedSecret, error) {
+func (UnimplementedSecretReadServiceServer) Get(context.Context, *SecretGetRequest) (*Secret, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (UnimplementedSecretReadServiceServer) List(*emptypb.Empty, grpc.ServerStreamingServer[EncryptedSecret]) error {
+func (UnimplementedSecretReadServiceServer) List(*emptypb.Empty, grpc.ServerStreamingServer[Secret]) error {
 	return status.Errorf(codes.Unimplemented, "method List not implemented")
 }
 func (UnimplementedSecretReadServiceServer) mustEmbedUnimplementedSecretReadServiceServer() {}
@@ -223,7 +229,7 @@ func RegisterSecretReadServiceServer(s grpc.ServiceRegistrar, srv SecretReadServ
 }
 
 func _SecretReadService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSecretRequest)
+	in := new(SecretGetRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -235,7 +241,7 @@ func _SecretReadService_Get_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: SecretReadService_Get_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(SecretReadServiceServer).Get(ctx, req.(*GetSecretRequest))
+		return srv.(SecretReadServiceServer).Get(ctx, req.(*SecretGetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -245,17 +251,17 @@ func _SecretReadService_List_Handler(srv interface{}, stream grpc.ServerStream) 
 	if err := stream.RecvMsg(m); err != nil {
 		return err
 	}
-	return srv.(SecretReadServiceServer).List(m, &grpc.GenericServerStream[emptypb.Empty, EncryptedSecret]{ServerStream: stream})
+	return srv.(SecretReadServiceServer).List(m, &grpc.GenericServerStream[emptypb.Empty, Secret]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type SecretReadService_ListServer = grpc.ServerStreamingServer[EncryptedSecret]
+type SecretReadService_ListServer = grpc.ServerStreamingServer[Secret]
 
 // SecretReadService_ServiceDesc is the grpc.ServiceDesc for SecretReadService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var SecretReadService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "bankcard.SecretReadService",
+	ServiceName: "secret.SecretReadService",
 	HandlerType: (*SecretReadServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

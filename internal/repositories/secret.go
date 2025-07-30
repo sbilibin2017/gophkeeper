@@ -8,104 +8,94 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// EncryptedSecretWriteRepository handles write operations for EncryptedSecret using sqlx.
-type EncryptedSecretWriteRepository struct {
+// SecretWriteRepository handles write operations related to secrets.
+type SecretWriteRepository struct {
 	db *sqlx.DB
 }
 
-func NewEncryptedSecretWriteRepository(db *sqlx.DB) *EncryptedSecretWriteRepository {
-	return &EncryptedSecretWriteRepository{db: db}
+func NewSecretWriteRepository(db *sqlx.DB) *SecretWriteRepository {
+	return &SecretWriteRepository{db: db}
 }
 
-// Save inserts a new encrypted secret into the database.
-func (r *EncryptedSecretWriteRepository) Save(ctx context.Context, secret *models.EncryptedSecret) error {
+// Save inserts or updates a secret, taking explicit arguments.
+func (r *SecretWriteRepository) Save(
+	ctx context.Context,
+	secretOwner string,
+	secretName string,
+	secretType string,
+	ciphertext []byte,
+	aesKeyEnc []byte,
+) error {
 	query := `
-		INSERT INTO encrypted_secrets (secret_name, secret_type, ciphertext, aes_key_enc, timestamp)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (secret_name) DO UPDATE SET
-			secret_type = EXCLUDED.secret_type,
+		INSERT INTO secrets (secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT(secret_name, secret_type, secret_owner) DO UPDATE SET
 			ciphertext = EXCLUDED.ciphertext,
 			aes_key_enc = EXCLUDED.aes_key_enc,
-			timestamp = EXCLUDED.timestamp;
+			updated_at = CURRENT_TIMESTAMP;
 	`
-
 	_, err := r.db.ExecContext(ctx, query,
-		secret.SecretName,
-		secret.SecretType,
-		secret.Ciphertext,
-		secret.AESKeyEnc,
-		secret.Timestamp,
+		secretName,
+		secretType,
+		secretOwner,
+		ciphertext,
+		aesKeyEnc,
 	)
 	if err != nil {
-		return fmt.Errorf("failed to save secret '%s': %w", secret.SecretName, err)
+		return fmt.Errorf("failed to save secret: %w", err)
 	}
 	return nil
 }
 
-// EncryptedSecretReadRepository handles read operations for EncryptedSecret using sqlx.
-type EncryptedSecretReadRepository struct {
+// SecretReadRepository handles read operations related to secrets.
+type SecretReadRepository struct {
 	db *sqlx.DB
 }
 
-func NewEncryptedSecretReadRepository(db *sqlx.DB) *EncryptedSecretReadRepository {
-	return &EncryptedSecretReadRepository{db: db}
+func NewSecretReadRepository(db *sqlx.DB) *SecretReadRepository {
+	return &SecretReadRepository{db: db}
 }
 
-// Get retrieves a single encrypted secret by its secret name.
-func (r *EncryptedSecretReadRepository) Get(ctx context.Context, secretName string) (*models.EncryptedSecret, error) {
+// Get fetches a secret by name, type, and owner.
+func (r *SecretReadRepository) Get(
+	ctx context.Context,
+	secretOwner string,
+	secretType string,
+	secretName string,
+) (*models.Secret, error) {
 	query := `
-		SELECT secret_name, secret_type, ciphertext, aes_key_enc, timestamp
-		FROM encrypted_secrets
-		WHERE secret_name = $1
+		SELECT secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at
+		FROM secrets
+		WHERE secret_name = $1 AND secret_type = $2 AND secret_owner = $3
 	`
 
-	var secret models.EncryptedSecret
-	err := r.db.GetContext(ctx, &secret, query, secretName)
+	var secret models.Secret
+	err := r.db.GetContext(ctx, &secret, query,
+		secretName,
+		secretType,
+		secretOwner,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secret '%s': %w", secretName, err)
+		return nil, fmt.Errorf("failed to get secret: %w", err)
 	}
 	return &secret, nil
 }
 
-// List fetches all encrypted secrets.
-func (r *EncryptedSecretReadRepository) List(ctx context.Context) ([]*models.EncryptedSecret, error) {
+// List fetches all secrets for a given owner.
+func (r *SecretReadRepository) List(
+	ctx context.Context,
+	secretOwner string,
+) ([]*models.Secret, error) {
 	query := `
-		SELECT secret_name, secret_type, ciphertext, aes_key_enc, timestamp
-		FROM encrypted_secrets
+		SELECT secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at
+		FROM secrets
+		WHERE secret_owner = $1
 	`
 
-	var secrets []*models.EncryptedSecret
-	err := r.db.SelectContext(ctx, &secrets, query)
+	var secrets []*models.Secret
+	err := r.db.SelectContext(ctx, &secrets, query, secretOwner)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list secrets: %w", err)
 	}
 	return secrets, nil
-}
-
-// CreateEncryptedSecretsTable creates the encrypted_secrets table.
-func CreateEncryptedSecretsTable(ctx context.Context, db *sqlx.DB) error {
-	const query = `
-	CREATE TABLE encrypted_secrets (
-		secret_name TEXT PRIMARY KEY,
-		secret_type TEXT NOT NULL,
-		ciphertext BYTEA NOT NULL,
-		aes_key_enc BYTEA NOT NULL,
-		timestamp BIGINT NOT NULL
-	);
-	`
-	_, err := db.ExecContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to create encrypted_secrets table: %w", err)
-	}
-	return nil
-}
-
-// DropEncryptedSecretsTable drops the encrypted_secrets table.
-func DropEncryptedSecretsTable(ctx context.Context, db *sqlx.DB) error {
-	const query = `DROP TABLE encrypted_secrets;`
-	_, err := db.ExecContext(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to drop encrypted_secrets table: %w", err)
-	}
-	return nil
 }

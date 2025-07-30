@@ -1,0 +1,260 @@
+definitions:
+  handlers.LoginRequest:
+    properties:
+      password:
+        description: |-
+          Password of the user
+          example: secret123
+        type: string
+      username:
+        description: |-
+          Username of the user
+          example: johndoe
+        type: string
+    type: object
+  handlers.RegisterRequest:
+    properties:
+      password:
+        description: |-
+          Password for the new user
+          example: secret123
+        type: string
+      username:
+        description: |-
+          Username for the new user
+          example: johndoe
+        type: string
+    type: object
+  handlers.SecretResponse:
+    properties:
+      aes_key_enc:
+        description: AESKeyEnc is the encrypted AES key, base64 encoded.
+        items:
+          type: integer
+        type: array
+      ciphertext:
+        description: Ciphertext is the encrypted secret data, base64 encoded.
+        items:
+          type: integer
+        type: array
+      secret_name:
+        description: SecretName is the unique name of the secret.
+        type: string
+      secret_type:
+        description: SecretType represents the type/category of the secret.
+        type: string
+    type: object
+  handlers.SecretSaveRequest:
+    properties:
+      aes_key_enc:
+        description: |-
+          AESKeyEnc is the encrypted AES key, base64 encoded.
+          example: U29tZUVuY3J5cHRlZEtleQ==
+        items:
+          type: integer
+        type: array
+      ciphertext:
+        description: |-
+          Ciphertext is the encrypted secret data, base64 encoded.
+          example: SGVsbG8sIHNlY3JldCE=
+        items:
+          type: integer
+        type: array
+      secret_name:
+        description: |-
+          SecretName is the unique name of the secret.
+          example: my-bank-password
+        type: string
+      secret_type:
+        description: |-
+          SecretType represents the type/category of the secret.
+          example: password
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates user and returns JWT token
+      parameters:
+      - description: Login request payload
+        in: body
+        name: loginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token returned in Authorization header
+          schema:
+            type: string
+        "400":
+          description: invalid request body
+          schema:
+            type: string
+        "401":
+          description: invalid username or password
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Authenticate a user (login)
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a user with username and password, returns JWT token
+      parameters:
+      - description: Register request payload
+        in: body
+        name: registerRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token returned in Authorization header
+          schema:
+            type: string
+        "400":
+          description: invalid request body
+          schema:
+            type: string
+        "409":
+          description: user already exists
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Register a new user
+      tags:
+      - auth
+  /secrets:
+    get:
+      consumes:
+      - application/json
+      description: Returns all secrets belonging to the authenticated user.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.SecretResponse'
+            type: array
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: failed to list secrets
+          schema:
+            type: string
+      summary: List all secrets for a user
+      tags:
+      - secrets
+    post:
+      consumes:
+      - application/json
+      description: Adds a new secret for the authenticated user.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Secret data to save
+        in: body
+        name: secret
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SecretSaveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: invalid request body
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: failed to save secret
+          schema:
+            type: string
+      summary: Add a new secret
+      tags:
+      - secrets
+  /secrets/{secret_type}/{secret_name}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a secret for the authenticated user by secret type and
+        name.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Secret type
+        example: password
+        in: path
+        name: secret_type
+        required: true
+        type: string
+      - description: Secret name
+        example: my-bank-password
+        in: path
+        name: secret_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SecretResponse'
+        "400":
+          description: missing secret_type or secret_name URL parameter
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: failed to get secret
+          schema:
+            type: string
+      summary: Get a secret by type and name
+      tags:
+      - secrets
+swagger: "2.0"

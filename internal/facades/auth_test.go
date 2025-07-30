@@ -2,297 +2,153 @@ package facades
 
 import (
 	"context"
+	"encoding/json"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// Minimal HTTP handler example
-func startTestHTTPServer(t *testing.T) *http.Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/auth/register", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"token":"http_test_token"}`))
-	})
-	mux.HandleFunc("/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"token":"http_test_token"}`))
-	})
-	mux.HandleFunc("/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+// --- HTTP Tests ---
+
+func TestAuthHTTPFacade_RegisterAndLogin(t *testing.T) {
+	handler := http.NewServeMux()
+
+	handler.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
+		}
+		err := json.NewDecoder(r.Body).Decode(&req)
+		require.NoError(t, err)
+
+		w.Header().Set("Authorization", "Bearer register-token-for-"+req.Username)
 		w.WriteHeader(http.StatusOK)
 	})
 
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: mux,
-	}
-
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			t.Errorf("HTTP server error: %v", err)
+	handler.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			Username string `json:"username"`
+			Password string `json:"password"`
 		}
-	}()
-
-	// wait briefly for server to start
-	time.Sleep(100 * time.Millisecond)
-
-	return srv
-}
-
-// Minimal gRPC AuthService implementation
-type authServer struct {
-	pb.UnimplementedAuthServiceServer
-}
-
-func (s *authServer) Register(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	return &pb.AuthResponse{Token: "grpc_test_token"}, nil
-}
-
-func (s *authServer) Login(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	return &pb.AuthResponse{Token: "grpc_test_token"}, nil
-}
-
-func (s *authServer) Logout(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
-	return &emptypb.Empty{}, nil
-}
-
-func startTestGRPCServer(t *testing.T) (*grpc.Server, net.Listener) {
-	lis, err := net.Listen("tcp", ":9090")
-	require.NoError(t, err)
-
-	grpcServer := grpc.NewServer()
-	pb.RegisterAuthServiceServer(grpcServer, &authServer{})
-
-	go func() {
-		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
-			t.Errorf("gRPC server error: %v", err)
-		}
-	}()
-
-	// wait briefly for server to start
-	time.Sleep(100 * time.Millisecond)
-
-	return grpcServer, lis
-}
-
-func TestWithEmbeddedServers(t *testing.T) {
-	httpServer := startTestHTTPServer(t)
-	defer func() {
-		err := httpServer.Shutdown(context.Background())
+		err := json.NewDecoder(r.Body).Decode(&req)
 		require.NoError(t, err)
-	}()
 
-	grpcServer, lis := startTestGRPCServer(t)
-	defer func() {
-		grpcServer.Stop()
-		lis.Close()
-	}()
+		w.Header().Set("Authorization", "Bearer login-token-for-"+req.Username)
+		w.WriteHeader(http.StatusOK)
+	})
 
-	// HTTP facade setup
-	httpFacade := NewAuthHTTPFacade(resty.New().SetBaseURL("http://localhost:8080"))
+	server := httptest.NewServer(handler)
+	defer server.Close()
 
-	// gRPC facade setup
-	grpcConn, err := grpc.Dial("localhost:9090", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	client := NewAuthHTTPFacade(newRestyClientWithBaseURL(server.URL))
+	ctx := context.Background()
+
+	// Test Register
+	registerResp, err := client.Register(ctx, "user1", "pass")
 	require.NoError(t, err)
-	defer grpcConn.Close()
-	grpcFacade := NewAuthGRPCFacade(grpcConn)
+	require.NotNil(t, registerResp)
+	assert.Equal(t, "register-token-for-user1", *registerResp)
 
-	// HTTP Register test
-	resp, err := httpFacade.Register(context.Background(), &models.AuthRequest{Login: "user", Password: "pass"})
+	// Test Login
+	loginResp, err := client.Login(ctx, "user1", "pass")
 	require.NoError(t, err)
-	require.Equal(t, "http_test_token", resp.Token)
-
-	// HTTP Login test
-	resp, err = httpFacade.Login(context.Background(), &models.AuthRequest{Login: "user", Password: "pass"})
-	require.NoError(t, err)
-	require.Equal(t, "http_test_token", resp.Token)
-
-	// HTTP Logout test
-	err = httpFacade.Logout(context.Background())
-	require.NoError(t, err)
-
-	// gRPC Register test
-	grpcResp, err := grpcFacade.Register(context.Background(), &models.AuthRequest{Login: "user", Password: "pass"})
-	require.NoError(t, err)
-	require.Equal(t, "grpc_test_token", grpcResp.Token)
-
-	// gRPC Login test
-	grpcResp, err = grpcFacade.Login(context.Background(), &models.AuthRequest{Login: "user", Password: "pass"})
-	require.NoError(t, err)
-	require.Equal(t, "grpc_test_token", grpcResp.Token)
-
-	// gRPC Logout test
-	err = grpcFacade.Logout(context.Background())
-	require.NoError(t, err)
+	require.NotNil(t, loginResp)
+	assert.Equal(t, "login-token-for-user1", *loginResp)
 }
 
-// -- HTTP Error Tests --
-
-func TestAuthHTTPFacade_Register_Error(t *testing.T) {
-	// Use a client pointing to an invalid URL to force connection error
-	f := &AuthHTTPFacade{client: resty.New().SetBaseURL("http://127.0.0.1:0")}
-	_, err := f.Register(context.Background(), &models.AuthRequest{Login: "x", Password: "x"})
-	require.Error(t, err)
+// helper function for resty client with base URL for tests
+func newRestyClientWithBaseURL(baseURL string) *resty.Client {
+	client := resty.New()
+	client.SetBaseURL(baseURL)
+	return client
 }
 
-func TestAuthHTTPFacade_Login_Error(t *testing.T) {
-	f := &AuthHTTPFacade{client: resty.New().SetBaseURL("http://127.0.0.1:0")}
-	_, err := f.Login(context.Background(), &models.AuthRequest{Login: "x", Password: "x"})
-	require.Error(t, err)
-}
+// --- gRPC Tests ---
 
-func TestAuthHTTPFacade_Logout_Error(t *testing.T) {
-	f := &AuthHTTPFacade{client: resty.New().SetBaseURL("http://127.0.0.1:0")}
-	err := f.Logout(context.Background())
-	require.Error(t, err)
-}
-
-func TestAuthHTTPFacade_Register_HTTPErrorStatus(t *testing.T) {
-	// Setup server that returns error status
-	srv := &http.Server{
-		Addr: ":8081",
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "bad request", http.StatusBadRequest)
-		}),
-	}
-	go srv.ListenAndServe()
-	defer srv.Close()
-	time.Sleep(50 * time.Millisecond)
-
-	f := &AuthHTTPFacade{client: resty.New().SetBaseURL("http://localhost:8081")}
-	_, err := f.Register(context.Background(), &models.AuthRequest{Login: "x", Password: "x"})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to register")
-}
-
-func TestAuthHTTPFacade_Login_HTTPErrorStatus(t *testing.T) {
-	srv := &http.Server{
-		Addr: ":8082",
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-		}),
-	}
-	go srv.ListenAndServe()
-	defer srv.Close()
-	time.Sleep(50 * time.Millisecond)
-
-	f := &AuthHTTPFacade{client: resty.New().SetBaseURL("http://localhost:8082")}
-	_, err := f.Login(context.Background(), &models.AuthRequest{Login: "x", Password: "x"})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to login")
-}
-
-func TestAuthHTTPFacade_Logout_HTTPErrorStatus(t *testing.T) {
-	srv := &http.Server{
-		Addr: ":8083",
-		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "internal error", http.StatusInternalServerError)
-		}),
-	}
-	go srv.ListenAndServe()
-	defer srv.Close()
-	time.Sleep(50 * time.Millisecond)
-
-	f := &AuthHTTPFacade{client: resty.New().SetBaseURL("http://localhost:8083")}
-	err := f.Logout(context.Background())
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "failed to logout")
-}
-
-// -- gRPC Error Tests --
-
-type authServerError struct {
+// mockAuthServiceServer implements pb.AuthServiceServer for testing
+type mockAuthServiceServer struct {
 	pb.UnimplementedAuthServiceServer
 }
 
-func (s *authServerError) Register(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	return nil, status.Error(codes.Internal, "internal error")
+func (m *mockAuthServiceServer) Register(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
+	return &pb.AuthResponse{Token: "register-token-for-" + req.Username}, nil
 }
 
-func (s *authServerError) Login(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	return nil, status.Error(codes.Unauthenticated, "unauthenticated")
+func (m *mockAuthServiceServer) Login(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
+	return &pb.AuthResponse{Token: "login-token-for-" + req.Username}, nil
 }
 
-func (s *authServerError) Logout(ctx context.Context, _ *emptypb.Empty) (*emptypb.Empty, error) {
-	return nil, status.Error(codes.Unknown, "unknown error")
-}
-
-func startTestGRPCServerError(t *testing.T) (*grpc.Server, net.Listener) {
-	lis, err := net.Listen("tcp", ":9091")
+func TestAuthGRPCFacade_RegisterAndLogin(t *testing.T) {
+	lis, err := net.Listen("tcp", "127.0.0.1:0") // choose random available port
 	require.NoError(t, err)
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterAuthServiceServer(grpcServer, &authServerError{})
+	pb.RegisterAuthServiceServer(grpcServer, &mockAuthServiceServer{})
 
-	go func() {
-		if err := grpcServer.Serve(lis); err != nil && err != grpc.ErrServerStopped {
-			t.Errorf("gRPC server error: %v", err)
-		}
-	}()
+	go grpcServer.Serve(lis)
+	defer grpcServer.Stop()
 
-	time.Sleep(100 * time.Millisecond)
-	return grpcServer, lis
-}
-
-func TestAuthGRPCFacade_Register_Error(t *testing.T) {
-	grpcServer, lis := startTestGRPCServerError(t)
-	defer func() {
-		grpcServer.Stop()
-		lis.Close()
-	}()
-
-	conn, err := grpc.Dial("localhost:9091", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
 	require.NoError(t, err)
 	defer conn.Close()
 
-	f := NewAuthGRPCFacade(conn)
-	_, err = f.Register(context.Background(), &models.AuthRequest{Login: "user", Password: "pass"})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "grpc Register failed")
+	client := NewAuthGRPCFacade(conn)
+	ctx := context.Background()
+
+	// Test Register
+	registerResp, err := client.Register(ctx, "user1", "pass")
+	require.NoError(t, err)
+	require.NotNil(t, registerResp)
+	assert.Equal(t, "register-token-for-user1", *registerResp)
+
+	// Test Login
+	loginResp, err := client.Login(ctx, "user1", "pass")
+	require.NoError(t, err)
+	require.NotNil(t, loginResp)
+	assert.Equal(t, "login-token-for-user1", *loginResp)
 }
 
-func TestAuthGRPCFacade_Login_Error(t *testing.T) {
-	grpcServer, lis := startTestGRPCServerError(t)
-	defer func() {
-		grpcServer.Stop()
-		lis.Close()
-	}()
+func TestAuthHTTPFacade_ErrorCases(t *testing.T) {
+	// HTTP 500 error simulation
+	handler := http.NewServeMux()
+	handler.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	})
+	handler.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+	})
 
-	conn, err := grpc.Dial("localhost:9091", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	defer conn.Close()
+	server := httptest.NewServer(handler)
+	defer server.Close()
 
-	f := NewAuthGRPCFacade(conn)
-	_, err = f.Login(context.Background(), &models.AuthRequest{Login: "user", Password: "pass"})
+	client := NewAuthHTTPFacade(newRestyClientWithBaseURL(server.URL))
+	ctx := context.Background()
+
+	// Register HTTP error
+	_, err := client.Register(ctx, "user1", "pass")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "grpc Login failed")
-}
+	assert.Contains(t, err.Error(), "register request returned error")
 
-func TestAuthGRPCFacade_Logout_Error(t *testing.T) {
-	grpcServer, lis := startTestGRPCServerError(t)
-	defer func() {
-		grpcServer.Stop()
-		lis.Close()
-	}()
-
-	conn, err := grpc.Dial("localhost:9091", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(t, err)
-	defer conn.Close()
-
-	f := NewAuthGRPCFacade(conn)
-	err = f.Logout(context.Background())
+	// Login HTTP error
+	_, err = client.Login(ctx, "user1", "pass")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "grpc Logout failed")
+	assert.Contains(t, err.Error(), "login request returned error")
+
+	// Network error (invalid URL)
+	badClient := NewAuthHTTPFacade(newRestyClientWithBaseURL("http://invalid.localhost"))
+	_, err = badClient.Register(ctx, "user1", "pass")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "register request failed")
+
+	_, err = badClient.Login(ctx, "user1", "pass")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "login request failed")
 }
