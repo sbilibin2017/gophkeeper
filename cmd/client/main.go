@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/transport/grpc"
 	"github.com/sbilibin2017/gophkeeper/internal/transport/http"
 	"github.com/sbilibin2017/gophkeeper/internal/validators"
+	_ "modernc.org/sqlite"
 )
 
 func main() {
@@ -91,373 +93,75 @@ func init() {
 // appropriate connections and clients, handling encryption and retries.
 func run(ctx context.Context, args []string) error {
 	command := client.GetCommand(args)
-
 	const apiVersion = "/api/v1"
 
 	schm := scheme.GetSchemeFromURL(serverURL)
 
 	switch command {
+
 	case client.CommandRegister:
-		if err := validators.ValidateUsername(username); err != nil {
-			return fmt.Errorf("invalid username: %w", err)
-		}
-		if err := validators.ValidatePassword(password); err != nil {
-			return fmt.Errorf("invalid password: %w", err)
-		}
-
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			dbConn, err := db.New(
-				"sqlite",
-				"client.db",
-				db.WithMaxOpenConns(1),
-				db.WithMaxIdleConns(1),
-				db.WithConnMaxLifetime(30*time.Minute),
-			)
-			if err != nil {
-				return fmt.Errorf("failed to connect to DB: %w", err)
-			}
-			defer dbConn.Close()
-
-			if err := goose.SetDialect("sqlite"); err != nil {
-				return fmt.Errorf("failed to set goose dialect: %w", err)
-			}
-
-			if err := goose.Up(dbConn.DB, "../../../migrations"); err != nil {
-				return fmt.Errorf("failed to run migrations: %w", err)
-			}
-
-			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
+			tk, err := runRegisterHTTP(ctx, apiVersion, serverURL, username, password, "client.db", "../../migrations")
 			if err != nil {
 				return err
 			}
-			authFacade := facades.NewAuthHTTPFacade(httpClient)
-
-			tk, err := client.ClientRegister(ctx, authFacade, username, password)
-			if err != nil {
-				return err
-			}
-			fmt.Println(tk)
-			return nil
+			fmt.Println("Registered. Token:", tk)
 
 		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
+			tk, err := runRegisterGRPC(ctx, apiVersion, serverURL, username, password, "client.db", "../../migrations")
 			if err != nil {
 				return err
 			}
-			defer grpcConn.Close()
-
-			authFacade := facades.NewAuthGRPCFacade(grpcConn)
-
-			tk, err := client.ClientRegister(ctx, authFacade, username, password)
-			if err != nil {
-				return err
-			}
-			fmt.Println(tk)
-			return nil
-
-		default:
-			return errors.New("unsupported scheme")
-		}
-
-	case client.CommandLogin:
-		switch schm {
-		case scheme.HTTP, scheme.HTTPS:
-			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
-			if err != nil {
-				return err
-			}
-			authFacade := facades.NewAuthHTTPFacade(httpClient)
-
-			tk, err := client.ClientLogin(ctx, authFacade, username, password)
-			if err != nil {
-				return err
-			}
-			fmt.Println(tk)
-			return nil
-
-		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
-			if err != nil {
-				return err
-			}
-			defer grpcConn.Close()
-
-			authFacade := facades.NewAuthGRPCFacade(grpcConn)
-
-			tk, err := client.ClientLogin(ctx, authFacade, username, password)
-			if err != nil {
-				return err
-			}
-			fmt.Println(tk)
-			return nil
+			fmt.Println("Registered. Token:", tk)
 
 		default:
 			return errors.New("unsupported scheme")
 		}
 
 	case client.CommandAddBankcard:
-		if err := validators.ValidateLuhn(number); err != nil {
-			return fmt.Errorf("invalid card number: %w", err)
-		}
-		if err := validators.ValidateCVV(cvv); err != nil {
-			return fmt.Errorf("invalid CVV: %w", err)
-		}
-
-		dbConn, err := db.New("sqlite", "client.db",
-			db.WithMaxOpenConns(1),
-			db.WithMaxIdleConns(1),
-			db.WithConnMaxLifetime(30*time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		clientWriter := repositories.NewSecretWriteRepository(dbConn)
-
-		cryptorInst, err := cryptor.New(
-			cryptor.WithPublicKeyPEM([]byte(pubKey)),
-			cryptor.WithPrivateKeyPEM([]byte(privKey)),
-		)
-		if err != nil {
-			return fmt.Errorf("cryptor setup failed: %w", err)
-		}
-
-		return client.ClientAddBankcard(ctx, clientWriter, cryptorInst, token, secretName, number, owner, exp, cvv, meta)
+		return runAddSecretBankcard(ctx, token, secretName, number, owner, exp, cvv, meta, pubKey, "client.db")
 
 	case client.CommandAddText:
-		dbConn, err := db.New("sqlite", "client.db",
-			db.WithMaxOpenConns(1),
-			db.WithMaxIdleConns(1),
-			db.WithConnMaxLifetime(30*time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		clientWriter := repositories.NewSecretWriteRepository(dbConn)
-
-		cryptorInst, err := cryptor.New(
-			cryptor.WithPublicKeyPEM([]byte(pubKey)),
-			cryptor.WithPrivateKeyPEM([]byte(privKey)),
-		)
-		if err != nil {
-			return fmt.Errorf("cryptor setup failed: %w", err)
-		}
-
-		return client.ClientAddText(ctx, clientWriter, cryptorInst, token, secretName, data, meta)
+		return runAddSecretText(ctx, token, secretName, data, meta, pubKey, "client.db")
 
 	case client.CommandAddBinary:
-		dbConn, err := db.New("sqlite", "client.db",
-			db.WithMaxOpenConns(1),
-			db.WithMaxIdleConns(1),
-			db.WithConnMaxLifetime(30*time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		clientWriter := repositories.NewSecretWriteRepository(dbConn)
-
-		cryptorInst, err := cryptor.New(
-			cryptor.WithPublicKeyPEM([]byte(pubKey)),
-			cryptor.WithPrivateKeyPEM([]byte(privKey)),
-		)
-		if err != nil {
-			return fmt.Errorf("cryptor setup failed: %w", err)
-		}
-
-		return client.ClientAddBinary(ctx, clientWriter, cryptorInst, token, secretName, data, meta)
+		return runAddSecretBinary(ctx, token, secretName, []byte(data), meta, pubKey, "client.db")
 
 	case client.CommandAddUser:
-		dbConn, err := db.New("sqlite", "client.db",
-			db.WithMaxOpenConns(1),
-			db.WithMaxIdleConns(1),
-			db.WithConnMaxLifetime(30*time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		clientWriter := repositories.NewSecretWriteRepository(dbConn)
-
-		cryptorInst, err := cryptor.New(
-			cryptor.WithPublicKeyPEM([]byte(pubKey)),
-			cryptor.WithPrivateKeyPEM([]byte(privKey)),
-		)
-		if err != nil {
-			return fmt.Errorf("cryptor setup failed: %w", err)
-		}
-
-		return client.ClientAddUser(ctx, clientWriter, cryptorInst, token, secretName, username, password, meta)
+		return runAddSecretUser(ctx, token, secretName, username, password, meta, pubKey, "client.db")
 
 	case client.CommandList:
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
+			list, err := runSecretListHTTP(ctx, apiVersion, serverURL, token, privKey)
 			if err != nil {
 				return err
 			}
-			secretReader := facades.NewSecretReaderHTTP(httpClient)
-
-			cryptor, err := cryptor.New(
-				cryptor.WithPrivateKeyPEM([]byte(privKey)),
-			)
-			if err != nil {
-				return fmt.Errorf("cryptor setup failed: %w", err)
-			}
-
-			secretsStr, err := client.ClientListSecrets(ctx, secretReader, cryptor, token)
-			if err != nil {
-				return fmt.Errorf("failed to list secrets: %w", err)
-			}
-			fmt.Println(secretsStr)
-			return nil
+			fmt.Println(list)
 
 		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
+			list, err := runSecretListGRPC(ctx, apiVersion, serverURL, token, privKey)
 			if err != nil {
 				return err
 			}
-			defer grpcConn.Close()
-
-			secretReader := facades.NewSecretReaderGRPC(grpcConn)
-
-			cryptor, err := cryptor.New(
-				cryptor.WithPrivateKeyPEM([]byte(privKey)),
-			)
-			if err != nil {
-				return fmt.Errorf("cryptor setup failed: %w", err)
-			}
-
-			secretsStr, err := client.ClientListSecrets(ctx, secretReader, cryptor, token)
-			if err != nil {
-				return fmt.Errorf("failed to list secrets: %w", err)
-			}
-			fmt.Println(secretsStr)
-			return nil
+			fmt.Println(list)
 
 		default:
 			return errors.New("unsupported scheme")
 		}
 
 	case client.CommandSync:
-		dbConn, err := db.New("sqlite", "client.db",
-			db.WithMaxOpenConns(1),
-			db.WithMaxIdleConns(1),
-			db.WithConnMaxLifetime(30*time.Minute),
-		)
-		if err != nil {
-			return fmt.Errorf("failed to connect to DB: %w", err)
-		}
-		defer dbConn.Close()
-
-		clientReader := repositories.NewSecretReadRepository(dbConn)
-
-		cryptorInst, err := cryptor.New(
-			cryptor.WithPublicKeyPEM([]byte(pubKey)),
-			cryptor.WithPrivateKeyPEM([]byte(privKey)),
-		)
-		if err != nil {
-			return fmt.Errorf("cryptor setup failed: %w", err)
-		}
-
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
-			if err != nil {
-				return err
-			}
-			serverGetter := facades.NewSecretReaderHTTP(httpClient)
-			serverSaver := facades.NewSecretWriterHTTP(httpClient)
-
-			switch syncMode {
-			case client.ResolveStrategyServer:
-				return nil
-
-			case client.ResolveStrategyClient:
-				if err := client.ClientSyncClient(ctx, clientReader, serverGetter, serverSaver, token); err != nil {
-					return fmt.Errorf("client sync failed: %w", err)
-				}
-
-			case client.ResolveStrategyInteractive:
-				if err := client.ClientSyncInteractive(ctx, clientReader, serverGetter, serverSaver, cryptorInst, token, os.Stdin); err != nil {
-					return fmt.Errorf("interactive sync failed: %w", err)
-				}
-
-			default:
-				return fmt.Errorf("unknown sync mode: %s", syncMode)
-			}
+			return runSyncHTTP(ctx, apiVersion, serverURL, token, pubKey, privKey, syncMode, "client.db")
 
 		case scheme.GRPC:
-			grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
-				Count:   3,
-				Wait:    1 * time.Second,
-				MaxWait: 5 * time.Second,
-			}))
-			if err != nil {
-				return err
-			}
-			defer grpcConn.Close()
-
-			serverGetter := facades.NewSecretReaderGRPC(grpcConn)
-			serverSaver := facades.NewSecretWriterGRPC(grpcConn)
-
-			switch syncMode {
-			case client.ResolveStrategyServer:
-				return nil
-
-			case client.ResolveStrategyClient:
-				if err := client.ClientSyncClient(ctx, clientReader, serverGetter, serverSaver, token); err != nil {
-					return fmt.Errorf("client sync failed: %w", err)
-				}
-
-			case client.ResolveStrategyInteractive:
-				if err := client.ClientSyncInteractive(ctx, clientReader, serverGetter, serverSaver, cryptorInst, token, os.Stdin); err != nil {
-					return fmt.Errorf("interactive sync failed: %w", err)
-				}
-
-			default:
-				return fmt.Errorf("unknown sync mode: %s", syncMode)
-			}
+			return runSyncGRPC(ctx, apiVersion, serverURL, token, pubKey, privKey, syncMode, "client.db")
 
 		default:
 			return errors.New("unsupported scheme")
 		}
-
-		return nil
 
 	case client.CommandVersion:
 		fmt.Printf("Version: %s\nBuild Date: %s\n", buildVersion, buildDate)
@@ -470,4 +174,446 @@ func run(ctx context.Context, args []string) error {
 	default:
 		return errors.New("unknown command")
 	}
+	return nil
+}
+
+func runRegisterHTTP(
+	ctx context.Context,
+	apiVersion string,
+	serverURL string,
+	username string,
+	password string,
+	pathToDB string,
+	pathToMigrationsDir string,
+) (string, error) {
+	if err := validators.ValidateUsername(username); err != nil {
+		return "", fmt.Errorf("invalid username: %w", err)
+	}
+	if err := validators.ValidatePassword(password); err != nil {
+		return "", fmt.Errorf("invalid password: %w", err)
+	}
+
+	dbConn, err := db.New(
+		"sqlite",
+		pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	if err := goose.SetDialect("sqlite"); err != nil {
+		return "", fmt.Errorf("failed to set goose dialect: %w", err)
+	}
+
+	if err := goose.Up(dbConn.DB, pathToMigrationsDir); err != nil {
+		return "", fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
+		Count:   3,
+		Wait:    1 * time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return "", err
+	}
+	authFacade := facades.NewAuthHTTPFacade(httpClient)
+
+	tk, err := client.ClientRegister(ctx, authFacade, username, password)
+	if err != nil {
+		return "", err
+	}
+
+	return tk, nil
+}
+
+func runRegisterGRPC(
+	ctx context.Context,
+	apiVersion string,
+	serverURL string,
+	username string,
+	password string,
+	pathToDB string,
+	pathToMigrationsDir string,
+) (string, error) {
+	if err := validators.ValidateUsername(username); err != nil {
+		return "", fmt.Errorf("invalid username: %w", err)
+	}
+	if err := validators.ValidatePassword(password); err != nil {
+		return "", fmt.Errorf("invalid password: %w", err)
+	}
+
+	dbConn, err := db.New(
+		"sqlite",
+		pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	if err := goose.SetDialect("sqlite"); err != nil {
+		return "", fmt.Errorf("failed to set goose dialect: %w", err)
+	}
+
+	if err := goose.Up(dbConn.DB, pathToMigrationsDir); err != nil {
+		return "", fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
+		Count:   3,
+		Wait:    1 * time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return "", err
+	}
+	defer grpcConn.Close()
+
+	authFacade := facades.NewAuthGRPCFacade(grpcConn)
+
+	tk, err := client.ClientRegister(ctx, authFacade, username, password)
+	if err != nil {
+		return "", err
+	}
+
+	return tk, nil
+}
+
+func runAddSecretBankcard(
+	ctx context.Context,
+	token string,
+	secretName string,
+	number string,
+	owner string,
+	exp string,
+	cvv string,
+	meta string,
+	pubKey string,
+	pathToDB string,
+) error {
+	if err := validators.ValidateLuhn(number); err != nil {
+		return fmt.Errorf("invalid card number: %w", err)
+	}
+	if err := validators.ValidateCVV(cvv); err != nil {
+		return fmt.Errorf("invalid CVV: %w", err)
+	}
+
+	dbConn, err := db.New("sqlite", pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	clientWriter := repositories.NewSecretWriteRepository(dbConn)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPublicKeyPEM([]byte(pubKey)),
+	)
+	if err != nil {
+		return fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	return client.ClientAddBankcard(ctx, clientWriter, cryptorInst, token, secretName, number, owner, exp, cvv, meta)
+}
+
+func runAddSecretText(
+	ctx context.Context,
+	token string,
+	secretName string,
+	data string,
+	meta string,
+	pubKey string,
+	pathToDB string,
+) error {
+	dbConn, err := db.New("sqlite", pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	clientWriter := repositories.NewSecretWriteRepository(dbConn)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPublicKeyPEM([]byte(pubKey)),
+	)
+	if err != nil {
+		return fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	return client.ClientAddText(ctx, clientWriter, cryptorInst, token, secretName, data, meta)
+}
+
+func runAddSecretBinary(
+	ctx context.Context,
+	token string,
+	secretName string,
+	data []byte,
+	meta string,
+	pubKey string,
+	pathToDB string,
+) error {
+	dbConn, err := db.New("sqlite", pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	clientWriter := repositories.NewSecretWriteRepository(dbConn)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPublicKeyPEM([]byte(pubKey)),
+	)
+	if err != nil {
+		return fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return client.ClientAddBinary(ctx, clientWriter, cryptorInst, token, secretName, encodedData, meta)
+}
+
+func runAddSecretUser(
+	ctx context.Context,
+	token string,
+	secretName string,
+	username string,
+	password string,
+	meta string,
+	pubKey string,
+	pathToDB string,
+) error {
+	dbConn, err := db.New("sqlite", pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	clientWriter := repositories.NewSecretWriteRepository(dbConn)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPublicKeyPEM([]byte(pubKey)),
+	)
+	if err != nil {
+		return fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	return client.ClientAddUser(ctx, clientWriter, cryptorInst, token, secretName, username, password, meta)
+}
+
+func runSecretListHTTP(
+	ctx context.Context,
+	apiVersion string,
+	serverURL string,
+	token string,
+	privKey string,
+) (string, error) {
+	httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
+		Count:   3,
+		Wait:    1 * time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize HTTP client: %w", err)
+	}
+
+	secretReader := facades.NewSecretReaderHTTP(httpClient)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPrivateKeyPEM([]byte(privKey)),
+	)
+	if err != nil {
+		return "", fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	secretsStr, err := client.ClientListSecrets(ctx, secretReader, cryptorInst, token)
+	if err != nil {
+		return "", fmt.Errorf("failed to list secrets: %w", err)
+	}
+
+	return secretsStr, nil
+}
+
+func runSecretListGRPC(
+	ctx context.Context,
+	apiVersion string,
+	serverURL string,
+	token string,
+	privKey string,
+) (string, error) {
+	grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
+		Count:   3,
+		Wait:    1 * time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return "", fmt.Errorf("failed to initialize gRPC client: %w", err)
+	}
+	defer grpcConn.Close()
+
+	secretReader := facades.NewSecretReaderGRPC(grpcConn)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPrivateKeyPEM([]byte(privKey)),
+	)
+	if err != nil {
+		return "", fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	secretsStr, err := client.ClientListSecrets(ctx, secretReader, cryptorInst, token)
+	if err != nil {
+		return "", fmt.Errorf("failed to list secrets: %w", err)
+	}
+
+	return secretsStr, nil
+}
+
+func runSyncHTTP(
+	ctx context.Context,
+	apiVersion string,
+	serverURL string,
+	token string,
+	pubKey string,
+	privKey string,
+	syncMode string,
+	pathToDB string,
+) error {
+	dbConn, err := db.New("sqlite", pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	clientReader := repositories.NewSecretReadRepository(dbConn)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPublicKeyPEM([]byte(pubKey)),
+		cryptor.WithPrivateKeyPEM([]byte(privKey)),
+	)
+	if err != nil {
+		return fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
+		Count:   3,
+		Wait:    1 * time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return err
+	}
+
+	serverGetter := facades.NewSecretReaderHTTP(httpClient)
+	serverSaver := facades.NewSecretWriterHTTP(httpClient)
+
+	switch syncMode {
+	case client.ResolveStrategyServer:
+		return nil
+
+	case client.ResolveStrategyClient:
+		if err := client.ClientSyncClient(ctx, clientReader, serverGetter, serverSaver, token); err != nil {
+			return fmt.Errorf("client sync failed: %w", err)
+		}
+
+	case client.ResolveStrategyInteractive:
+		if err := client.ClientSyncInteractive(ctx, clientReader, serverGetter, serverSaver, cryptorInst, token, os.Stdin); err != nil {
+			return fmt.Errorf("interactive sync failed: %w", err)
+		}
+
+	default:
+		return fmt.Errorf("unknown sync mode: %s", syncMode)
+	}
+
+	return nil
+}
+
+func runSyncGRPC(
+	ctx context.Context,
+	apiVersion string,
+	serverURL string,
+	token string,
+	pubKey string,
+	privKey string,
+	syncMode string,
+	pathToDB string,
+) error {
+	dbConn, err := db.New("sqlite", pathToDB,
+		db.WithMaxOpenConns(1),
+		db.WithMaxIdleConns(1),
+		db.WithConnMaxLifetime(30*time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to connect to DB: %w", err)
+	}
+	defer dbConn.Close()
+
+	clientReader := repositories.NewSecretReadRepository(dbConn)
+
+	cryptorInst, err := cryptor.New(
+		cryptor.WithPublicKeyPEM([]byte(pubKey)),
+		cryptor.WithPrivateKeyPEM([]byte(privKey)),
+	)
+	if err != nil {
+		return fmt.Errorf("cryptor setup failed: %w", err)
+	}
+
+	grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
+		Count:   3,
+		Wait:    1 * time.Second,
+		MaxWait: 5 * time.Second,
+	}))
+	if err != nil {
+		return err
+	}
+	defer grpcConn.Close()
+
+	serverGetter := facades.NewSecretReaderGRPC(grpcConn)
+	serverSaver := facades.NewSecretWriterGRPC(grpcConn)
+
+	switch syncMode {
+	case client.ResolveStrategyServer:
+		return nil
+
+	case client.ResolveStrategyClient:
+		if err := client.ClientSyncClient(ctx, clientReader, serverGetter, serverSaver, token); err != nil {
+			return fmt.Errorf("client sync failed: %w", err)
+		}
+
+	case client.ResolveStrategyInteractive:
+		if err := client.ClientSyncInteractive(ctx, clientReader, serverGetter, serverSaver, cryptorInst, token, os.Stdin); err != nil {
+			return fmt.Errorf("interactive sync failed: %w", err)
+		}
+
+	default:
+		return fmt.Errorf("unknown sync mode: %s", syncMode)
+	}
+
+	return nil
 }

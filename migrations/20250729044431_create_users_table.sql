@@ -3,8 +3,8 @@
 CREATE TABLE IF NOT EXISTS users (
     username TEXT PRIMARY KEY,
     password_hash TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 -- +goose StatementEnd
 
