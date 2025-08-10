@@ -51,20 +51,22 @@ var (
 )
 
 func init() {
-	flag.StringVar(&serverURL, "server-url", "", "Server URL (e.g. http://localhost:8080 or localhost:8080)")
-	flag.StringVar(&databaseDSN, "database-dsn", "", "Database DSN (Data Source Name)")
-	flag.StringVar(&jwtSecretKey, "jwt-secret-key", "", "JWT secret key")
-	flag.DurationVar(&jwtExp, "jwt-exp", 0, "JWT expiration duration (e.g. 24h, 30m)")
+	flag.StringVar(&serverURL, "server-url", "http://localhost:8080", "Server URL (e.g. http://localhost:8080 or localhost:8080)")
+	flag.StringVar(&databaseDSN, "database-dsn", "server.db", "Database DSN (Data Source Name)")
+	flag.StringVar(&jwtSecretKey, "jwt-secret-key", "secret", "JWT secret key")
+	flag.DurationVar(&jwtExp, "jwt-exp", 9999, "JWT expiration duration (e.g. 24h, 30m)")
 }
 
 func printBuildInfo() {
 	fmt.Printf("GophKeeper Server - Build version: %s, Build date: %s\n", buildVersion, buildDate)
 }
 
-func run(ctx context.Context) error {
-	apiVersion := "/api/v1"
-	pathToMigrationsDir := "../../../migrations"
+const (
+	apiVersion          = "/api/v1"
+	pathToMigrationsDir = "migrations"
+)
 
+func run(ctx context.Context) error {
 	schm := scheme.GetSchemeFromURL(serverURL)
 
 	parsedURL, err := url.Parse(serverURL)

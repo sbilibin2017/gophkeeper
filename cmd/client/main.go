@@ -62,6 +62,13 @@ var (
 	syncMode string
 )
 
+const (
+	apiVersion          = "/api/v1"
+	databaseDriver      = "sqlite"
+	databaseDSN         = "client.db"
+	pathToMigrationsDir = "migrations"
+)
+
 func init() {
 	flag.StringVar(&serverURL, "server-url", "", "Server URL")
 	flag.StringVar(&pubKey, "pubkey", "", "Public key")
@@ -93,7 +100,6 @@ func init() {
 // appropriate connections and clients, handling encryption and retries.
 func run(ctx context.Context, args []string) error {
 	command := client.GetCommand(args)
-	const apiVersion = "/api/v1"
 
 	schm := scheme.GetSchemeFromURL(serverURL)
 
@@ -102,14 +108,14 @@ func run(ctx context.Context, args []string) error {
 	case client.CommandRegister:
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			tk, err := runRegisterHTTP(ctx, apiVersion, serverURL, username, password, "client.db", "../../migrations")
+			tk, err := runRegisterHTTP(ctx)
 			if err != nil {
 				return err
 			}
 			fmt.Println("Registered. Token:", tk)
 
 		case scheme.GRPC:
-			tk, err := runRegisterGRPC(ctx, apiVersion, serverURL, username, password, "client.db", "../../migrations")
+			tk, err := runRegisterGRPC(ctx)
 			if err != nil {
 				return err
 			}
@@ -120,28 +126,28 @@ func run(ctx context.Context, args []string) error {
 		}
 
 	case client.CommandAddBankcard:
-		return runAddSecretBankcard(ctx, token, secretName, number, owner, exp, cvv, meta, pubKey, "client.db")
+		return runAddSecretBankcard(ctx)
 
 	case client.CommandAddText:
-		return runAddSecretText(ctx, token, secretName, data, meta, pubKey, "client.db")
+		return runAddSecretText(ctx)
 
 	case client.CommandAddBinary:
-		return runAddSecretBinary(ctx, token, secretName, []byte(data), meta, pubKey, "client.db")
+		return runAddSecretBinary(ctx)
 
 	case client.CommandAddUser:
-		return runAddSecretUser(ctx, token, secretName, username, password, meta, pubKey, "client.db")
+		return runAddSecretUser(ctx)
 
 	case client.CommandList:
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			list, err := runSecretListHTTP(ctx, apiVersion, serverURL, token, privKey)
+			list, err := runSecretListHTTP(ctx)
 			if err != nil {
 				return err
 			}
 			fmt.Println(list)
 
 		case scheme.GRPC:
-			list, err := runSecretListGRPC(ctx, apiVersion, serverURL, token, privKey)
+			list, err := runSecretListGRPC(ctx)
 			if err != nil {
 				return err
 			}
@@ -154,10 +160,10 @@ func run(ctx context.Context, args []string) error {
 	case client.CommandSync:
 		switch schm {
 		case scheme.HTTP, scheme.HTTPS:
-			return runSyncHTTP(ctx, apiVersion, serverURL, token, pubKey, privKey, syncMode, "client.db")
+			return runSyncHTTP(ctx)
 
 		case scheme.GRPC:
-			return runSyncGRPC(ctx, apiVersion, serverURL, token, pubKey, privKey, syncMode, "client.db")
+			return runSyncGRPC(ctx)
 
 		default:
 			return errors.New("unsupported scheme")
@@ -177,15 +183,7 @@ func run(ctx context.Context, args []string) error {
 	return nil
 }
 
-func runRegisterHTTP(
-	ctx context.Context,
-	apiVersion string,
-	serverURL string,
-	username string,
-	password string,
-	pathToDB string,
-	pathToMigrationsDir string,
-) (string, error) {
+func runRegisterHTTP(ctx context.Context) (string, error) {
 	if err := validators.ValidateUsername(username); err != nil {
 		return "", fmt.Errorf("invalid username: %w", err)
 	}
@@ -194,8 +192,8 @@ func runRegisterHTTP(
 	}
 
 	dbConn, err := db.New(
-		"sqlite",
-		pathToDB,
+		databaseDriver,
+		databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
@@ -231,15 +229,7 @@ func runRegisterHTTP(
 	return tk, nil
 }
 
-func runRegisterGRPC(
-	ctx context.Context,
-	apiVersion string,
-	serverURL string,
-	username string,
-	password string,
-	pathToDB string,
-	pathToMigrationsDir string,
-) (string, error) {
+func runRegisterGRPC(ctx context.Context) (string, error) {
 	if err := validators.ValidateUsername(username); err != nil {
 		return "", fmt.Errorf("invalid username: %w", err)
 	}
@@ -248,8 +238,8 @@ func runRegisterGRPC(
 	}
 
 	dbConn, err := db.New(
-		"sqlite",
-		pathToDB,
+		databaseDriver,
+		databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
@@ -287,18 +277,7 @@ func runRegisterGRPC(
 	return tk, nil
 }
 
-func runAddSecretBankcard(
-	ctx context.Context,
-	token string,
-	secretName string,
-	number string,
-	owner string,
-	exp string,
-	cvv string,
-	meta string,
-	pubKey string,
-	pathToDB string,
-) error {
+func runAddSecretBankcard(ctx context.Context) error {
 	if err := validators.ValidateLuhn(number); err != nil {
 		return fmt.Errorf("invalid card number: %w", err)
 	}
@@ -306,7 +285,9 @@ func runAddSecretBankcard(
 		return fmt.Errorf("invalid CVV: %w", err)
 	}
 
-	dbConn, err := db.New("sqlite", pathToDB,
+	dbConn, err := db.New(
+		databaseDriver,
+		databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
@@ -328,16 +309,10 @@ func runAddSecretBankcard(
 	return client.ClientAddBankcard(ctx, clientWriter, cryptorInst, token, secretName, number, owner, exp, cvv, meta)
 }
 
-func runAddSecretText(
-	ctx context.Context,
-	token string,
-	secretName string,
-	data string,
-	meta string,
-	pubKey string,
-	pathToDB string,
-) error {
-	dbConn, err := db.New("sqlite", pathToDB,
+func runAddSecretText(ctx context.Context) error {
+	dbConn, err := db.New(
+		databaseDriver,
+		databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
@@ -359,16 +334,10 @@ func runAddSecretText(
 	return client.ClientAddText(ctx, clientWriter, cryptorInst, token, secretName, data, meta)
 }
 
-func runAddSecretBinary(
-	ctx context.Context,
-	token string,
-	secretName string,
-	data []byte,
-	meta string,
-	pubKey string,
-	pathToDB string,
-) error {
-	dbConn, err := db.New("sqlite", pathToDB,
+func runAddSecretBinary(ctx context.Context) error {
+	dbConn, err := db.New(
+		databaseDriver,
+		databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
@@ -387,22 +356,15 @@ func runAddSecretBinary(
 		return fmt.Errorf("cryptor setup failed: %w", err)
 	}
 
-	encodedData := base64.StdEncoding.EncodeToString(data)
+	encodedData := base64.StdEncoding.EncodeToString([]byte(data))
 
 	return client.ClientAddBinary(ctx, clientWriter, cryptorInst, token, secretName, encodedData, meta)
 }
 
-func runAddSecretUser(
-	ctx context.Context,
-	token string,
-	secretName string,
-	username string,
-	password string,
-	meta string,
-	pubKey string,
-	pathToDB string,
-) error {
-	dbConn, err := db.New("sqlite", pathToDB,
+func runAddSecretUser(ctx context.Context) error {
+	dbConn, err := db.New(
+		databaseDriver,
+		databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
@@ -424,13 +386,7 @@ func runAddSecretUser(
 	return client.ClientAddUser(ctx, clientWriter, cryptorInst, token, secretName, username, password, meta)
 }
 
-func runSecretListHTTP(
-	ctx context.Context,
-	apiVersion string,
-	serverURL string,
-	token string,
-	privKey string,
-) (string, error) {
+func runSecretListHTTP(ctx context.Context) (string, error) {
 	httpClient, err := http.New(serverURL+apiVersion, http.WithRetryPolicy(http.RetryPolicy{
 		Count:   3,
 		Wait:    1 * time.Second,
@@ -457,13 +413,7 @@ func runSecretListHTTP(
 	return secretsStr, nil
 }
 
-func runSecretListGRPC(
-	ctx context.Context,
-	apiVersion string,
-	serverURL string,
-	token string,
-	privKey string,
-) (string, error) {
+func runSecretListGRPC(ctx context.Context) (string, error) {
 	grpcConn, err := grpc.New(serverURL+apiVersion, grpc.WithRetryPolicy(grpc.RetryPolicy{
 		Count:   3,
 		Wait:    1 * time.Second,
@@ -491,17 +441,8 @@ func runSecretListGRPC(
 	return secretsStr, nil
 }
 
-func runSyncHTTP(
-	ctx context.Context,
-	apiVersion string,
-	serverURL string,
-	token string,
-	pubKey string,
-	privKey string,
-	syncMode string,
-	pathToDB string,
-) error {
-	dbConn, err := db.New("sqlite", pathToDB,
+func runSyncHTTP(ctx context.Context) error {
+	dbConn, err := db.New("sqlite", databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
@@ -554,17 +495,8 @@ func runSyncHTTP(
 	return nil
 }
 
-func runSyncGRPC(
-	ctx context.Context,
-	apiVersion string,
-	serverURL string,
-	token string,
-	pubKey string,
-	privKey string,
-	syncMode string,
-	pathToDB string,
-) error {
-	dbConn, err := db.New("sqlite", pathToDB,
+func runSyncGRPC(ctx context.Context) error {
+	dbConn, err := db.New("sqlite", databaseDSN,
 		db.WithMaxOpenConns(1),
 		db.WithMaxIdleConns(1),
 		db.WithConnMaxLifetime(30*time.Minute),
