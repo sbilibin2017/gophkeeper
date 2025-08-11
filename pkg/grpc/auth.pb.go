@@ -9,6 +9,7 @@ package grpc
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -117,20 +118,67 @@ func (x *AuthResponse) GetToken() string {
 	return ""
 }
 
+type GetUsernameResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Username      string                 `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUsernameResponse) Reset() {
+	*x = GetUsernameResponse{}
+	mi := &file_auth_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUsernameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUsernameResponse) ProtoMessage() {}
+
+func (x *GetUsernameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUsernameResponse.ProtoReflect.Descriptor instead.
+func (*GetUsernameResponse) Descriptor() ([]byte, []int) {
+	return file_auth_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetUsernameResponse) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
 var File_auth_proto protoreflect.FileDescriptor
 
 const file_auth_proto_rawDesc = "" +
 	"\n" +
 	"\n" +
-	"auth.proto\x12\x04auth\"E\n" +
+	"auth.proto\x12\x04auth\x1a\x1bgoogle/protobuf/empty.proto\"E\n" +
 	"\vAuthRequest\x12\x1a\n" +
 	"\busername\x18\x01 \x01(\tR\busername\x12\x1a\n" +
 	"\bpassword\x18\x02 \x01(\tR\bpassword\"$\n" +
 	"\fAuthResponse\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token2p\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"1\n" +
+	"\x13GetUsernameResponse\x12\x1a\n" +
+	"\busername\x18\x01 \x01(\tR\busername2\xb2\x01\n" +
 	"\vAuthService\x121\n" +
 	"\bRegister\x12\x11.auth.AuthRequest\x1a\x12.auth.AuthResponse\x12.\n" +
-	"\x05Login\x12\x11.auth.AuthRequest\x1a\x12.auth.AuthResponseB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
+	"\x05Login\x12\x11.auth.AuthRequest\x1a\x12.auth.AuthResponse\x12@\n" +
+	"\vGetUsername\x12\x16.google.protobuf.Empty\x1a\x19.auth.GetUsernameResponseB-Z+github.com/sbilibin2017/gophkeeper/pkg/grpcb\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once
@@ -144,18 +192,22 @@ func file_auth_proto_rawDescGZIP() []byte {
 	return file_auth_proto_rawDescData
 }
 
-var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_auth_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_auth_proto_goTypes = []any{
-	(*AuthRequest)(nil),  // 0: auth.AuthRequest
-	(*AuthResponse)(nil), // 1: auth.AuthResponse
+	(*AuthRequest)(nil),         // 0: auth.AuthRequest
+	(*AuthResponse)(nil),        // 1: auth.AuthResponse
+	(*GetUsernameResponse)(nil), // 2: auth.GetUsernameResponse
+	(*emptypb.Empty)(nil),       // 3: google.protobuf.Empty
 }
 var file_auth_proto_depIdxs = []int32{
 	0, // 0: auth.AuthService.Register:input_type -> auth.AuthRequest
 	0, // 1: auth.AuthService.Login:input_type -> auth.AuthRequest
-	1, // 2: auth.AuthService.Register:output_type -> auth.AuthResponse
-	1, // 3: auth.AuthService.Login:output_type -> auth.AuthResponse
-	2, // [2:4] is the sub-list for method output_type
-	0, // [0:2] is the sub-list for method input_type
+	3, // 2: auth.AuthService.GetUsername:input_type -> google.protobuf.Empty
+	1, // 3: auth.AuthService.Register:output_type -> auth.AuthResponse
+	1, // 4: auth.AuthService.Login:output_type -> auth.AuthResponse
+	2, // 5: auth.AuthService.GetUsername:output_type -> auth.GetUsernameResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -172,7 +224,7 @@ func file_auth_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_proto_rawDesc), len(file_auth_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -20,10 +20,7 @@ import (
 	grpcConn "google.golang.org/grpc"
 )
 
-// RunHTTP initializes and runs the HTTP server with authentication routes.
-// It sets up the database, runs migrations, creates the authentication service,
-// configures routes, and starts listening on the specified address.
-// The server gracefully shuts down when the context is canceled.
+// RunHTTP initializes and runs the HTTP server with auth and secret routes.
 func RunHTTP(
 	ctx context.Context,
 	apiVersion string,
@@ -52,13 +49,15 @@ func RunHTTP(
 	if err := goose.SetDialect("sqlite"); err != nil {
 		return err
 	}
-
 	if err := goose.Up(db.DB, pathToMigrationsDir); err != nil {
 		return err
 	}
 
 	userReadRepo := repositories.NewUserReadRepository(db)
 	userWriteRepo := repositories.NewUserWriteRepository(db)
+
+	secretWriteRepo := repositories.NewSecretWriteRepository(db)
+	secretReadRepo := repositories.NewSecretReadRepository(db)
 
 	hasher := hasher.New()
 	jwtManager := jwt.New(
@@ -68,18 +67,32 @@ func RunHTTP(
 
 	authService := services.NewAuthService(userReadRepo, userWriteRepo, hasher, jwtManager)
 
-	httpHandler := handlers.NewHTTPHandler(
+	// Auth HTTP handlers
+	httpHandler := handlers.NewAuthHTTPHandler(
 		authService,
 		validators.ValidateUsername,
 		validators.ValidatePassword,
 	)
 
+	// Secret HTTP handlers
+	secretWriteHandler := handlers.NewSecretWriteHTTPHandler(secretWriteRepo, jwtManager)
+	secretReadHandler := handlers.NewSecretReadHTTPHandler(secretReadRepo, jwtManager)
+
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Post(apiVersion+"/register", httpHandler.Register)
-	r.Post(apiVersion+"/login", httpHandler.Login)
+	// Group auth routes under /auth
+	r.Route(apiVersion+"/auth", func(r chi.Router) {
+		r.Post("/register", httpHandler.Register)
+		r.Post("/login", httpHandler.Login)
+	})
+
+	// Secret routes
+	r.Route(apiVersion+"/secrets", func(r chi.Router) {
+		r.Post("/", secretWriteHandler.Save)
+		r.Get("/", secretReadHandler.List)
+	})
 
 	srv := &http.Server{
 		Addr:    serverAddr,
@@ -106,10 +119,7 @@ func RunHTTP(
 	return srv.Shutdown(shutdownCtx)
 }
 
-// RunGRPC initializes and runs the gRPC server for authentication services.
-// It sets up the database, runs migrations, creates the authentication service,
-// registers the gRPC handler, and starts listening on the specified address.
-// The server gracefully stops when the context is canceled.
+// RunGRPC initializes and runs the gRPC server for auth and secret services.
 func RunGRPC(
 	ctx context.Context,
 	databaseDriver string,
@@ -138,13 +148,15 @@ func RunGRPC(
 	if err := goose.SetDialect("sqlite"); err != nil {
 		return err
 	}
-
 	if err := goose.Up(db.DB, pathToMigrationsDir); err != nil {
 		return err
 	}
 
 	userReadRepo := repositories.NewUserReadRepository(db)
 	userWriteRepo := repositories.NewUserWriteRepository(db)
+
+	secretWriteRepo := repositories.NewSecretWriteRepository(db)
+	secretReadRepo := repositories.NewSecretReadRepository(db)
 
 	hasher := hasher.New()
 	jwtManager := jwt.New(
@@ -154,15 +166,22 @@ func RunGRPC(
 
 	authService := services.NewAuthService(userReadRepo, userWriteRepo, hasher, jwtManager)
 
-	grpcServer := grpcConn.NewServer(opts...)
-
-	grpcHandler := handlers.NewGRPCHandler(
+	// Auth gRPC handler
+	grpcAuthHandler := handlers.NewAuthGRPCHandler(
 		authService,
 		validators.ValidateUsername,
 		validators.ValidatePassword,
 	)
 
-	pb.RegisterAuthServiceServer(grpcServer, grpcHandler)
+	// Secret gRPC handlers
+	secretWriteGRPCHandler := handlers.NewSecretWriteGRPCHandler(secretWriteRepo, jwtManager)
+	secretReadGRPCHandler := handlers.NewSecretReadGRPCHandler(secretReadRepo, jwtManager)
+
+	grpcServer := grpcConn.NewServer(opts...)
+
+	pb.RegisterAuthServiceServer(grpcServer, grpcAuthHandler)
+	pb.RegisterSecretWriteServiceServer(grpcServer, secretWriteGRPCHandler)
+	pb.RegisterSecretReadServiceServer(grpcServer, secretReadGRPCHandler)
 
 	lis, err := net.Listen("tcp", serverAddr)
 	if err != nil {

@@ -1,0 +1,257 @@
+definitions:
+  handlers.LoginRequest:
+    properties:
+      password:
+        description: |-
+          Password of the user
+          example: secret123
+        example: secret123
+        type: string
+      username:
+        description: |-
+          Username of the user
+          example: johndoe
+        example: johndoe
+        type: string
+    type: object
+  handlers.RegisterRequest:
+    properties:
+      password:
+        description: |-
+          Password for the new user
+          example: secret123
+        example: secret123
+        type: string
+      username:
+        description: |-
+          Username for the new user
+          example: johndoe
+        example: johndoe
+        type: string
+    type: object
+  handlers.SecretListResponse:
+    properties:
+      secrets:
+        items:
+          $ref: '#/definitions/handlers.SecretResponse'
+        type: array
+    type: object
+  handlers.SecretResponse:
+    properties:
+      aes_key_enc:
+        items:
+          type: integer
+        type: array
+      ciphertext:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      secret_name:
+        type: string
+      secret_owner:
+        type: string
+      secret_type:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.SecretSaveRequest:
+    properties:
+      aes_key_enc:
+        description: |-
+          Encrypted AES key
+          required: true
+        items:
+          type: integer
+        type: array
+      ciphertext:
+        description: |-
+          Encrypted secret data
+          required: true
+        items:
+          type: integer
+        type: array
+      name:
+        description: |-
+          Secret name
+          required: true
+        type: string
+      type:
+        description: |-
+          Secret type
+          required: true
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates user and returns JWT token in Authorization header
+      parameters:
+      - description: Login request payload
+        in: body
+        name: loginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token returned in Authorization header
+          schema:
+            type: string
+        "400":
+          description: invalid request body
+          schema:
+            type: string
+        "401":
+          description: invalid username or password
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Authenticate a user (login)
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Registers a user with username and password, returns JWT token
+        in Authorization header
+      parameters:
+      - description: Register request payload
+        in: body
+        name: registerRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JWT token returned in Authorization header
+          schema:
+            type: string
+        "400":
+          description: invalid request body or validation failed
+          schema:
+            type: string
+        "409":
+          description: user already exists
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Register a new user
+      tags:
+      - auth
+  /secrets:
+    get:
+      consumes:
+      - application/json
+      description: Lists all secrets for authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SecretListResponse'
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: List all secrets
+      tags:
+      - secrets
+    post:
+      consumes:
+      - application/json
+      description: Saves a secret for authenticated user
+      parameters:
+      - description: Secret save request payload
+        in: body
+        name: secret
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SecretSaveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: ok
+          schema:
+            type: string
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Save a secret
+      tags:
+      - secrets
+  /secrets/get:
+    get:
+      consumes:
+      - application/json
+      description: Gets a secret by name and type for authenticated user
+      parameters:
+      - description: Secret name
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: Secret type
+        in: query
+        name: type
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.SecretResponse'
+        "400":
+          description: bad request
+          schema:
+            type: string
+        "401":
+          description: unauthorized
+          schema:
+            type: string
+        "404":
+          description: not found
+          schema:
+            type: string
+        "500":
+          description: internal server error
+          schema:
+            type: string
+      summary: Get a secret
+      tags:
+      - secrets
+swagger: "2.0"

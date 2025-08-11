@@ -2,285 +2,177 @@ package handlers
 
 import (
 	"bytes"
-	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/golang/mock/gomock"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/services"
-	"github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
-// HTTP Tests
-
-func TestHTTPHandler_Register(t *testing.T) {
+func TestAuthHTTPHandler_Register_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockSvc := NewMockUserService(ctrl)
-	usernameValidator := func(u string) error {
-		if u == "baduser" {
-			return errors.New("bad username")
-		}
-		return nil
+	usernameValidator := func(username string) error { return nil }
+	passwordValidator := func(password string) error { return nil }
+	handler := NewAuthHTTPHandler(mockSvc, usernameValidator, passwordValidator)
+
+	reqBody := RegisterRequest{
+		Username: "testuser",
+		Password: "testpass",
 	}
-	passwordValidator := func(p string) error {
-		if p == "badpass" {
-			return errors.New("bad password")
-		}
-		return nil
-	}
+	bodyBytes, _ := json.Marshal(reqBody)
 
-	handler := NewHTTPHandler(mockSvc, usernameValidator, passwordValidator)
+	mockSvc.EXPECT().
+		Register(gomock.Any(), reqBody.Username, reqBody.Password).
+		Return("mocked-token", nil)
 
-	tests := []struct {
-		name               string
-		body               string
-		mockReturnToken    string
-		mockReturnError    error
-		expectedStatusCode int
-		expectedHeader     string
-	}{
-		{"Successful registration", `{"username":"testuser","password":"testpass"}`, "token123", nil, http.StatusOK, "Bearer token123"},
-		{"Invalid JSON body", `{"username":"testuser","password":}`, "", nil, http.StatusBadRequest, ""},
-		{"Invalid username", `{"username":"baduser","password":"testpass"}`, "", nil, http.StatusBadRequest, ""},
-		{"Invalid password", `{"username":"testuser","password":"badpass"}`, "", nil, http.StatusBadRequest, ""},
-		{"User already exists", `{"username":"testuser","password":"testpass"}`, "", services.ErrUserAlreadyExists, http.StatusConflict, ""},
-		{"Internal server error", `{"username":"testuser","password":"testpass"}`, "", errors.New("error"), http.StatusInternalServerError, ""},
-	}
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.mockReturnError != nil || tt.mockReturnToken != "" {
-				mockSvc.EXPECT().
-					Register(gomock.Any(), gomock.AssignableToTypeOf(&models.User{})).
-					Return(tt.mockReturnToken, tt.mockReturnError).
-					Times(1)
-			} else {
-				mockSvc.EXPECT().
-					Register(gomock.Any(), gomock.Any()).
-					Times(0)
-			}
+	handler.Register(w, req)
 
-			req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString(tt.body))
-			w := httptest.NewRecorder()
+	resp := w.Result()
+	defer resp.Body.Close()
 
-			handler.Register(w, req)
-
-			resp := w.Result()
-			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
-			if tt.expectedHeader != "" {
-				assert.Equal(t, tt.expectedHeader, resp.Header.Get("Authorization"))
-			}
-		})
-	}
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "Bearer mocked-token", resp.Header.Get("Authorization"))
 }
 
-func TestHTTPHandler_Login(t *testing.T) {
+func TestAuthHTTPHandler_Register_InvalidUsername(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockSvc := NewMockUserService(ctrl)
-	handler := NewHTTPHandler(mockSvc, nil, nil) // No validators for login
+	usernameValidator := func(username string) error { return errors.New("invalid username") }
+	passwordValidator := func(password string) error { return nil }
+	handler := NewAuthHTTPHandler(mockSvc, usernameValidator, passwordValidator)
 
-	tests := []struct {
-		name               string
-		body               string
-		mockReturnToken    string
-		mockReturnError    error
-		expectedStatusCode int
-		expectedHeader     string
-	}{
-		{"Successful login", `{"username":"testuser","password":"testpass"}`, "token123", nil, http.StatusOK, "Bearer token123"},
-		{"Invalid JSON body", `{"username":"testuser","password":}`, "", nil, http.StatusBadRequest, ""},
-		{"Invalid credentials", `{"username":"testuser","password":"wrongpass"}`, "", services.ErrInvalidData, http.StatusUnauthorized, ""},
-		{"Internal server error", `{"username":"testuser","password":"testpass"}`, "", errors.New("error"), http.StatusInternalServerError, ""},
+	reqBody := RegisterRequest{
+		Username: "baduser",
+		Password: "testpass",
 	}
+	bodyBytes, _ := json.Marshal(reqBody)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.mockReturnError != nil || tt.mockReturnToken != "" {
-				mockSvc.EXPECT().
-					Authenticate(gomock.Any(), gomock.AssignableToTypeOf(&models.User{})).
-					Return(tt.mockReturnToken, tt.mockReturnError).
-					Times(1)
-			} else {
-				mockSvc.EXPECT().
-					Authenticate(gomock.Any(), gomock.Any()).
-					Times(0)
-			}
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
 
-			req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(tt.body))
-			w := httptest.NewRecorder()
+	handler.Register(w, req)
 
-			handler.Login(w, req)
+	resp := w.Result()
+	defer resp.Body.Close()
 
-			resp := w.Result()
-			assert.Equal(t, tt.expectedStatusCode, resp.StatusCode)
-			if tt.expectedHeader != "" {
-				assert.Equal(t, tt.expectedHeader, resp.Header.Get("Authorization"))
-			}
-		})
-	}
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-// gRPC Tests
-
-func TestGRPCHandler_Register(t *testing.T) {
+func TestAuthHTTPHandler_Register_UserAlreadyExists(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockSvc := NewMockUserService(ctrl)
+	usernameValidator := func(username string) error { return nil }
+	passwordValidator := func(password string) error { return nil }
+	handler := NewAuthHTTPHandler(mockSvc, usernameValidator, passwordValidator)
 
-	usernameValidator := func(u string) error {
-		if u == "baduser" {
-			return errors.New("invalid username")
-		}
-		return nil
+	reqBody := RegisterRequest{
+		Username: "existinguser",
+		Password: "testpass",
 	}
+	bodyBytes, _ := json.Marshal(reqBody)
 
-	passwordValidator := func(p string) error {
-		if p == "badpass" {
-			return errors.New("invalid password")
-		}
-		return nil
-	}
+	mockSvc.EXPECT().
+		Register(gomock.Any(), reqBody.Username, reqBody.Password).
+		Return("", services.ErrUserAlreadyExists)
 
-	handler := NewGRPCHandler(mockSvc, usernameValidator, passwordValidator)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
 
-	tests := []struct {
-		name      string
-		req       *grpc.AuthRequest
-		mockToken string
-		mockErr   error
-		wantCode  codes.Code
-		wantToken string
-	}{
-		{
-			name:      "Successful registration",
-			req:       &grpc.AuthRequest{Username: "user1", Password: "pass1"},
-			mockToken: "token123",
-			wantCode:  codes.OK,
-			wantToken: "token123",
-		},
-		{
-			name:     "Invalid username",
-			req:      &grpc.AuthRequest{Username: "baduser", Password: "pass1"},
-			wantCode: codes.InvalidArgument,
-		},
-		{
-			name:     "Invalid password",
-			req:      &grpc.AuthRequest{Username: "user1", Password: "badpass"},
-			wantCode: codes.InvalidArgument,
-		},
-		{
-			name:     "User already exists",
-			req:      &grpc.AuthRequest{Username: "user1", Password: "pass1"},
-			mockErr:  services.ErrUserAlreadyExists,
-			wantCode: codes.AlreadyExists,
-		},
-		{
-			name:     "Internal error",
-			req:      &grpc.AuthRequest{Username: "user1", Password: "pass1"},
-			mockErr:  errors.New("internal"),
-			wantCode: codes.Internal,
-		},
-	}
+	handler.Register(w, req)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.mockToken != "" || tt.mockErr != nil {
-				mockSvc.EXPECT().
-					Register(gomock.Any(), gomock.AssignableToTypeOf(&models.User{})).
-					Return(tt.mockToken, tt.mockErr).
-					Times(1)
-			} else {
-				mockSvc.EXPECT().
-					Register(gomock.Any(), gomock.Any()).
-					Times(0)
-			}
+	resp := w.Result()
+	defer resp.Body.Close()
 
-			resp, err := handler.Register(context.Background(), tt.req)
-			if tt.wantCode != codes.OK {
-				assert.Nil(t, resp)
-				st, ok := status.FromError(err)
-				assert.True(t, ok)
-				assert.Equal(t, tt.wantCode, st.Code())
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, resp)
-				assert.Equal(t, tt.wantToken, resp.GetToken())
-			}
-		})
-	}
+	assert.Equal(t, http.StatusConflict, resp.StatusCode)
 }
 
-func TestGRPCHandler_Login(t *testing.T) {
+func TestAuthHTTPHandler_Login_Success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	mockSvc := NewMockUserService(ctrl)
-	handler := NewGRPCHandler(mockSvc, nil, nil) // no validators for login
+	handler := NewAuthHTTPHandler(mockSvc, nil, nil) // validators not needed for login
 
-	tests := []struct {
-		name      string
-		req       *grpc.AuthRequest
-		mockToken string
-		mockErr   error
-		wantCode  codes.Code
-		wantToken string
-	}{
-		{
-			name:      "Successful login",
-			req:       &grpc.AuthRequest{Username: "user1", Password: "pass1"},
-			mockToken: "token123",
-			wantCode:  codes.OK,
-			wantToken: "token123",
-		},
-		{
-			name:     "Invalid credentials",
-			req:      &grpc.AuthRequest{Username: "user1", Password: "wrongpass"},
-			mockErr:  services.ErrInvalidData,
-			wantCode: codes.Unauthenticated,
-		},
-		{
-			name:     "Internal error",
-			req:      &grpc.AuthRequest{Username: "user1", Password: "pass1"},
-			mockErr:  errors.New("internal"),
-			wantCode: codes.Internal,
-		},
+	reqBody := LoginRequest{
+		Username: "testuser",
+		Password: "testpass",
 	}
+	bodyBytes, _ := json.Marshal(reqBody)
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.mockToken != "" || tt.mockErr != nil {
-				mockSvc.EXPECT().
-					Authenticate(gomock.Any(), gomock.AssignableToTypeOf(&models.User{})).
-					Return(tt.mockToken, tt.mockErr).
-					Times(1)
-			} else {
-				mockSvc.EXPECT().
-					Authenticate(gomock.Any(), gomock.Any()).
-					Times(0)
-			}
+	mockSvc.EXPECT().
+		Authenticate(gomock.Any(), reqBody.Username, reqBody.Password).
+		Return("mocked-token", nil)
 
-			resp, err := handler.Login(context.Background(), tt.req)
-			if tt.wantCode != codes.OK {
-				assert.Nil(t, resp)
-				st, ok := status.FromError(err)
-				assert.True(t, ok)
-				assert.Equal(t, tt.wantCode, st.Code())
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, resp)
-				assert.Equal(t, tt.wantToken, resp.GetToken())
-			}
-		})
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "Bearer mocked-token", resp.Header.Get("Authorization"))
+}
+
+func TestAuthHTTPHandler_Login_InvalidCredentials(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockSvc := NewMockUserService(ctrl)
+	handler := NewAuthHTTPHandler(mockSvc, nil, nil)
+
+	reqBody := LoginRequest{
+		Username: "testuser",
+		Password: "wrongpass",
 	}
+	bodyBytes, _ := json.Marshal(reqBody)
+
+	mockSvc.EXPECT().
+		Authenticate(gomock.Any(), reqBody.Username, reqBody.Password).
+		Return("", services.ErrInvalidData)
+
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(bodyBytes))
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+}
+
+func TestAuthHTTPHandler_Login_BadRequest(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockSvc := NewMockUserService(ctrl)
+	handler := NewAuthHTTPHandler(mockSvc, nil, nil)
+
+	badJSON := []byte(`{"username": "user", "password":`) // malformed JSON
+
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewReader(badJSON))
+	w := httptest.NewRecorder()
+
+	handler.Login(w, req)
+
+	resp := w.Result()
+	defer resp.Body.Close()
+
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }

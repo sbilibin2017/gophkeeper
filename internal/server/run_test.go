@@ -111,8 +111,8 @@ func TestRunHTTP_RegisterEndpoint(t *testing.T) {
 	// Wait for server to start accepting connections
 	waitForHTTPServer(t, testServerAddrHTTP, 5*time.Second)
 
-	// Test /register endpoint with empty payload (should return 400 Bad Request)
-	resp, err := http.Post("http://"+testServerAddrHTTP+testApiVersion+"/register", "application/json", nil)
+	// Test /auth/register endpoint with empty payload (should return 400 Bad Request)
+	resp, err := http.Post("http://"+testServerAddrHTTP+testApiVersion+"/auth/register", "application/json", nil)
 	require.NoError(t, err)
 	defer resp.Body.Close()
 

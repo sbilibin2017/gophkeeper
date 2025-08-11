@@ -9,7 +9,7 @@ import (
 
 // UserSaver defines an interface to save user data.
 type UserSaver interface {
-	Save(ctx context.Context, user *models.UserDB) error
+	Save(ctx context.Context, username string, passwordHash string) error
 }
 
 // UserGetter defines an interface to retrieve user data by username.
@@ -64,9 +64,10 @@ func NewAuthService(
 // Returns ErrUserAlreadyExists if the username is taken.
 func (s *AuthService) Register(
 	ctx context.Context,
-	user *models.User,
+	username string,
+	password string,
 ) (string, error) {
-	existingUser, err := s.getter.Get(ctx, user.Username)
+	existingUser, err := s.getter.Get(ctx, username)
 	if err != nil {
 		return "", err
 	}
@@ -74,21 +75,17 @@ func (s *AuthService) Register(
 		return "", ErrUserAlreadyExists
 	}
 
-	hashedPassword, err := s.hasher.Hash([]byte(user.Password))
+	hashedPassword, err := s.hasher.Hash([]byte(password))
 	if err != nil {
 		return "", err
 	}
 
-	row := &models.UserDB{
-		Username:     user.Username,
-		PasswordHash: string(hashedPassword),
-	}
-
-	if err := s.saver.Save(ctx, row); err != nil {
+	// Call Save with username and passwordHash as strings (not *models.UserDB)
+	if err := s.saver.Save(ctx, username, string(hashedPassword)); err != nil {
 		return "", err
 	}
 
-	token, err := s.tokener.Generate(user.Username)
+	token, err := s.tokener.Generate(username)
 	if err != nil {
 		return "", err
 	}
@@ -100,12 +97,10 @@ func (s *AuthService) Register(
 // Returns ErrInvalidData if the username does not exist or password is incorrect.
 func (s *AuthService) Authenticate(
 	ctx context.Context,
-	user *models.User,
+	username string,
+	password string,
 ) (string, error) {
-	if user == nil {
-		return "", ErrInvalidData
-	}
-	row, err := s.getter.Get(ctx, user.Username)
+	row, err := s.getter.Get(ctx, username)
 	if err != nil {
 		return "", err
 	}
@@ -113,11 +108,11 @@ func (s *AuthService) Authenticate(
 		return "", ErrInvalidData
 	}
 
-	if err := s.hasher.Compare([]byte(row.PasswordHash), []byte(user.Password)); err != nil {
+	if err := s.hasher.Compare([]byte(row.PasswordHash), []byte(password)); err != nil {
 		return "", ErrInvalidData
 	}
 
-	token, err := s.tokener.Generate(user.Username)
+	token, err := s.tokener.Generate(username)
 	if err != nil {
 		return "", err
 	}

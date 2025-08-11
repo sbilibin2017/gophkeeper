@@ -83,3 +83,28 @@ func SaveKeyPair(username string, pubPEM, privPEM []byte) error {
 
 	return nil
 }
+
+// GetKeyPair reads the RSA key pair JSON file at ~/.config/{username}.json
+// and returns the public and private keys as byte slices.
+func GetKeyPair(username string) (pubPEM []byte, privPEM []byte, err error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get user home directory: %w", err)
+	}
+
+	filePath := filepath.Join(homeDir, ".config", fmt.Sprintf("%s.json", username))
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to open key pair file: %w", err)
+	}
+	defer file.Close()
+
+	var keyPair RSAKeyPair
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&keyPair); err != nil {
+		return nil, nil, fmt.Errorf("failed to decode key pair JSON: %w", err)
+	}
+
+	return []byte(keyPair.PublicKey), []byte(keyPair.PrivateKey), nil
+}

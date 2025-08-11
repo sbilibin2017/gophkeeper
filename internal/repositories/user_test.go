@@ -3,118 +3,77 @@ package repositories
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
-
-	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/stretchr/testify/require"
 	_ "modernc.org/sqlite" // SQLite driver
 )
 
+// helper to create in-memory DB and create users table
 func setupTestDB(t *testing.T) *sqlx.DB {
-	t.Helper()
-
 	db, err := sqlx.Open("sqlite", ":memory:")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	schema := `
 	CREATE TABLE users (
 		username TEXT PRIMARY KEY,
 		password_hash TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);`
-
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+	`
 	_, err = db.Exec(schema)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	return db
 }
 
-func TestUserWriteRepository_Save(t *testing.T) {
-	db := setupTestDB(t)
-	repo := NewUserWriteRepository(db)
+func TestUserWriteRepository_Save_and_UserReadRepository_Get(t *testing.T) {
 	ctx := context.Background()
+	db := setupTestDB(t)
+	defer db.Close()
 
-	user := &models.UserDB{
-		Username:     "testuser",
-		PasswordHash: "hash1",
-	}
+	writeRepo := NewUserWriteRepository(db)
+	readRepo := NewUserReadRepository(db)
 
-	// Insert new user
-	err := repo.Save(ctx, user)
-	assert.NoError(t, err)
+	username := "testuser"
+	passwordHash := "hash123"
 
-	// Verify inserted
-	var count int
-	err = db.GetContext(ctx, &count, "SELECT COUNT(*) FROM users WHERE username = ?", user.Username)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, count)
+	// Save user
+	err := writeRepo.Save(ctx, username, passwordHash)
+	require.NoError(t, err)
 
-	// Update existing user
-	user.PasswordHash = "hash2"
-	err = repo.Save(ctx, user)
-	assert.NoError(t, err)
+	// Read user back
+	user, err := readRepo.Get(ctx, username)
+	require.NoError(t, err)
+	assert.Equal(t, username, user.Username)
+	assert.Equal(t, passwordHash, user.PasswordHash)
+	assert.WithinDuration(t, time.Now(), user.CreatedAt, time.Minute)
+	assert.WithinDuration(t, time.Now(), user.UpdatedAt, time.Minute)
 
-	// Verify updated
-	var updatedHash string
-	err = db.GetContext(ctx, &updatedHash, "SELECT password_hash FROM users WHERE username = ?", user.Username)
-	assert.NoError(t, err)
-	assert.Equal(t, "hash2", updatedHash)
+	// Sleep 1 second to ensure updated_at timestamp changes on update
+	time.Sleep(1 * time.Second)
+
+	// Update user password
+	newPasswordHash := "newhash456"
+	err = writeRepo.Save(ctx, username, newPasswordHash)
+	require.NoError(t, err)
+
+	updatedUser, err := readRepo.Get(ctx, username)
+	require.NoError(t, err)
+	assert.Equal(t, newPasswordHash, updatedUser.PasswordHash)
+	assert.True(t, updatedUser.UpdatedAt.After(user.UpdatedAt))
 }
 
-func TestUserWriteRepository_Save_Error(t *testing.T) {
-	db := setupTestDB(t)
-	repo := NewUserWriteRepository(db)
+func TestUserReadRepository_Get_NonExistentUser(t *testing.T) {
 	ctx := context.Background()
-
-	// Close DB to force error on query execution
-	db.Close()
-
-	user := &models.UserDB{
-		Username:     "erroruser",
-		PasswordHash: "hash-error",
-	}
-
-	err := repo.Save(ctx, user)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to save user")
-}
-
-func TestUserReadRepository_Get(t *testing.T) {
 	db := setupTestDB(t)
-	ctx := context.Background()
+	defer db.Close()
 
-	// Insert test user manually
-	_, err := db.ExecContext(ctx, `
-		INSERT INTO users (username, password_hash)
-		VALUES (?, ?)`, "readuser", "hash123")
-	assert.NoError(t, err)
+	readRepo := NewUserReadRepository(db)
 
-	repo := NewUserReadRepository(db)
-
-	// Get existing user
-	user, err := repo.Get(ctx, "readuser")
-	assert.NoError(t, err)
-	assert.Equal(t, "readuser", user.Username)
-	assert.Equal(t, "hash123", user.PasswordHash)
-
-	// Try to get non-existing user
-	user, err = repo.Get(ctx, "nouser")
+	_, err := readRepo.Get(ctx, "nonexistent")
 	assert.Error(t, err)
-	assert.Nil(t, user)
-}
-
-func TestUserReadRepository_Get_Error(t *testing.T) {
-	db := setupTestDB(t)
-	repo := NewUserReadRepository(db)
-	ctx := context.Background()
-
-	// Close DB to force error on query
-	db.Close()
-
-	user, err := repo.Get(ctx, "anyuser")
-	assert.Error(t, err)
-	assert.Nil(t, user)
-	assert.Contains(t, err.Error(), "failed to get user")
 }

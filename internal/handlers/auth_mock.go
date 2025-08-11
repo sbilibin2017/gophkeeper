@@ -9,7 +9,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	models "github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 // MockUserService is a mock of UserService interface.
@@ -36,31 +35,31 @@ func (m *MockUserService) EXPECT() *MockUserServiceMockRecorder {
 }
 
 // Authenticate mocks base method.
-func (m *MockUserService) Authenticate(ctx context.Context, user *models.User) (string, error) {
+func (m *MockUserService) Authenticate(ctx context.Context, username, password string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Authenticate", ctx, user)
+	ret := m.ctrl.Call(m, "Authenticate", ctx, username, password)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Authenticate indicates an expected call of Authenticate.
-func (mr *MockUserServiceMockRecorder) Authenticate(ctx, user interface{}) *gomock.Call {
+func (mr *MockUserServiceMockRecorder) Authenticate(ctx, username, password interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockUserService)(nil).Authenticate), ctx, user)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Authenticate", reflect.TypeOf((*MockUserService)(nil).Authenticate), ctx, username, password)
 }
 
 // Register mocks base method.
-func (m *MockUserService) Register(ctx context.Context, user *models.User) (string, error) {
+func (m *MockUserService) Register(ctx context.Context, username, password string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Register", ctx, user)
+	ret := m.ctrl.Call(m, "Register", ctx, username, password)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Register indicates an expected call of Register.
-func (mr *MockUserServiceMockRecorder) Register(ctx, user interface{}) *gomock.Call {
+func (mr *MockUserServiceMockRecorder) Register(ctx, username, password interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockUserService)(nil).Register), ctx, user)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockUserService)(nil).Register), ctx, username, password)
 }

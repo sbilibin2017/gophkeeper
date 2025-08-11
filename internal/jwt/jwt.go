@@ -1,10 +1,14 @@
 package jwt
 
 import (
+	"context"
 	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"google.golang.org/grpc/metadata"
 )
 
 // JWT holds config for signing and verifying tokens.
@@ -79,4 +83,38 @@ func (j *JWT) GetUsername(tokenStr string) (string, error) {
 	}
 
 	return claims.Username, nil
+}
+
+// GetTokenFromHeader extracts the Bearer token string from the Authorization header in the HTTP request.
+func GetTokenFromHeader(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("authorization header missing")
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return "", errors.New("invalid authorization header format")
+	}
+	return parts[1], nil
+}
+
+// GetTokenFromContext extracts the Bearer token string from the gRPC context metadata.
+// Looks for "authorization" metadata with format "Bearer <token>".
+func GetTokenFromContext(ctx context.Context) (string, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return "", errors.New("missing metadata in context")
+	}
+
+	authHeaders := md.Get("authorization")
+	if len(authHeaders) == 0 {
+		return "", errors.New("authorization metadata missing")
+	}
+
+	parts := strings.SplitN(authHeaders[0], " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return "", errors.New("invalid authorization metadata format")
+	}
+
+	return parts[1], nil
 }

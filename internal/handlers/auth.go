@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/sbilibin2017/gophkeeper/internal/services"
 	"github.com/sbilibin2017/gophkeeper/internal/validators"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
@@ -17,9 +16,9 @@ import (
 // UserService defines interface for user service.
 type UserService interface {
 	// Register registers a new user and returns a JWT token or error.
-	Register(ctx context.Context, user *models.User) (string, error)
+	Register(ctx context.Context, username string, password string) (string, error)
 	// Authenticate authenticates a user and returns a JWT token or error.
-	Authenticate(ctx context.Context, user *models.User) (string, error)
+	Authenticate(ctx context.Context, username string, password string) (string, error)
 }
 
 // RegisterRequest represents the expected request body for user registration.
@@ -45,22 +44,23 @@ type LoginRequest struct {
 }
 
 // HTTPHandler handles HTTP requests for authentication.
-type HTTPHandler struct {
+type AuthHTTPHandler struct {
 	svc               UserService
 	usernameValidator func(username string) error
 	passwordValidator func(password string) error
 }
 
 // NewHTTPHandler creates a new HTTPHandler with the given UserService.
-func NewHTTPHandler(
+func NewAuthHTTPHandler(
 	svc UserService,
 	usernameValidator func(username string) error,
 	passwordValidator func(password string) error,
-) *HTTPHandler {
-	return &HTTPHandler{
+) *AuthHTTPHandler {
+	return &AuthHTTPHandler{
 		svc:               svc,
 		usernameValidator: usernameValidator,
-		passwordValidator: passwordValidator}
+		passwordValidator: passwordValidator,
+	}
 }
 
 // Register handles user registration.
@@ -75,29 +75,24 @@ func NewHTTPHandler(
 // @Failure 409 {string} string "user already exists"
 // @Failure 500 {string} string "internal server error"
 // @Router /register [post]
-func (h *HTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// Validate username
 	if err := h.usernameValidator(req.Username); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// Validate password
 	if err := h.passwordValidator(req.Password); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	token, err := h.svc.Register(r.Context(), &models.User{
-		Username: req.Username,
-		Password: req.Password,
-	})
+	token, err := h.svc.Register(r.Context(), req.Username, req.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrUserAlreadyExists):
@@ -124,17 +119,14 @@ func (h *HTTPHandler) Register(w http.ResponseWriter, r *http.Request) {
 // @Failure 401 {string} string "invalid username or password"
 // @Failure 500 {string} string "internal server error"
 // @Router /login [post]
-func (h *HTTPHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHTTPHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	token, err := h.svc.Authenticate(r.Context(), &models.User{
-		Username: req.Username,
-		Password: req.Password,
-	})
+	token, err := h.svc.Authenticate(r.Context(), req.Username, req.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidData):
@@ -149,27 +141,27 @@ func (h *HTTPHandler) Login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// GRPCHandler handles gRPC authentication requests.
-type GRPCHandler struct {
+// AuthGRPCHandler handles gRPC authentication requests.
+type AuthGRPCHandler struct {
 	pb.UnimplementedAuthServiceServer
 	svc               UserService
 	usernameValidator func(string) error
 	passwordValidator func(string) error
 }
 
-// NewGRPCHandler creates a new GRPCHandler with injected validators.
-func NewGRPCHandler(
+// NewAuthGRPCHandler creates a new GRPCHandler with injected validators.
+func NewAuthGRPCHandler(
 	svc UserService,
 	usernameValidator func(string) error,
 	passwordValidator func(string) error,
-) *GRPCHandler {
+) *AuthGRPCHandler {
 	if usernameValidator == nil {
 		usernameValidator = validators.ValidateUsername
 	}
 	if passwordValidator == nil {
 		passwordValidator = validators.ValidatePassword
 	}
-	return &GRPCHandler{
+	return &AuthGRPCHandler{
 		svc:               svc,
 		usernameValidator: usernameValidator,
 		passwordValidator: passwordValidator,
@@ -177,20 +169,18 @@ func NewGRPCHandler(
 }
 
 // Register processes a gRPC user registration request.
-func (h *GRPCHandler) Register(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	user := &models.User{
-		Username: req.GetUsername(),
-		Password: req.GetPassword(),
-	}
+func (h *AuthGRPCHandler) Register(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
+	username := req.GetUsername()
+	password := req.GetPassword()
 
-	if err := h.usernameValidator(user.Username); err != nil {
+	if err := h.usernameValidator(username); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid username")
 	}
-	if err := h.passwordValidator(user.Password); err != nil {
+	if err := h.passwordValidator(password); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "invalid password")
 	}
 
-	token, err := h.svc.Register(ctx, user)
+	token, err := h.svc.Register(ctx, username, password)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrUserAlreadyExists):
@@ -204,13 +194,11 @@ func (h *GRPCHandler) Register(ctx context.Context, req *pb.AuthRequest) (*pb.Au
 }
 
 // Login processes a gRPC user login request.
-func (h *GRPCHandler) Login(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	user := &models.User{
-		Username: req.GetUsername(),
-		Password: req.GetPassword(),
-	}
+func (h *AuthGRPCHandler) Login(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
+	username := req.GetUsername()
+	password := req.GetPassword()
 
-	token, err := h.svc.Authenticate(ctx, user)
+	token, err := h.svc.Authenticate(ctx, username, password)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidData):

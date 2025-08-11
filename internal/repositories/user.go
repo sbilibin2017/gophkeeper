@@ -20,7 +20,8 @@ func NewUserWriteRepository(db *sqlx.DB) *UserWriteRepository {
 // Save inserts or updates a user record.
 func (r *UserWriteRepository) Save(
 	ctx context.Context,
-	user *models.UserDB,
+	username string,
+	passwordHash string,
 ) error {
 	query := `
 		INSERT INTO users (username, password_hash, created_at, updated_at)
@@ -29,7 +30,7 @@ func (r *UserWriteRepository) Save(
 			password_hash = EXCLUDED.password_hash,
 			updated_at = CURRENT_TIMESTAMP;
 	`
-	_, err := r.db.ExecContext(ctx, query, user.Username, user.PasswordHash)
+	_, err := r.db.ExecContext(ctx, query, username, passwordHash)
 	if err != nil {
 		return fmt.Errorf("failed to save user: %w", err)
 	}

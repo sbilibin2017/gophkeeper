@@ -36,17 +36,17 @@ func (m *MockUserSaver) EXPECT() *MockUserSaverMockRecorder {
 }
 
 // Save mocks base method.
-func (m *MockUserSaver) Save(ctx context.Context, user *models.UserDB) error {
+func (m *MockUserSaver) Save(ctx context.Context, username, passwordHash string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", ctx, user)
+	ret := m.ctrl.Call(m, "Save", ctx, username, passwordHash)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Save indicates an expected call of Save.
-func (mr *MockUserSaverMockRecorder) Save(ctx, user interface{}) *gomock.Call {
+func (mr *MockUserSaverMockRecorder) Save(ctx, username, passwordHash interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockUserSaver)(nil).Save), ctx, user)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockUserSaver)(nil).Save), ctx, username, passwordHash)
 }
 
 // MockUserGetter is a mock of UserGetter interface.

@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/sbilibin2017/gophkeeper/internal/address"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/spf13/cobra"
 )
 
@@ -36,25 +35,19 @@ Examples of usage and supported server URL schemes:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			req := &models.AuthRequest{
-				Username: username,
-				Password: password,
-			}
-
 			addr := address.New(serverURL)
-
 			if addr.Address == "" || addr.Scheme == "" {
 				return errors.New("invalid server URL format")
 			}
 
-			var resp *models.AuthResponse
+			var token string
 			var err error
 
 			switch addr.Scheme {
 			case address.SchemeHTTP, address.SchemeHTTPS:
-				resp, err = RunHTTP(ctx, addr.Address, req)
+				token, err = RunHTTP(ctx, addr.Address, username, password)
 			case address.SchemeGRPC:
-				resp, err = RunGRPC(ctx, addr.Address, req)
+				token, err = RunGRPC(ctx, addr.Address, username, password)
 			default:
 				return address.ErrUnsupportedScheme
 			}
@@ -63,7 +56,7 @@ Examples of usage and supported server URL schemes:
 				return err
 			}
 
-			cmd.Println(resp.Token)
+			cmd.Println(token)
 			return nil
 		},
 	}
