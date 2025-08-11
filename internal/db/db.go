@@ -17,7 +17,6 @@ func New(driver string, dsn string, opts ...Opt) (*sqlx.DB, error) {
 		return nil, err
 	}
 
-	// Apply all functional options
 	for _, opt := range opts {
 		opt(db)
 	}

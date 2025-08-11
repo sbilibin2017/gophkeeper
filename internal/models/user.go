@@ -1,11 +1,30 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
-// User represents a user account in the system.
+// AuthRequest represents the request payload for user authentication or registration.
+type AuthRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// AuthResponse represents the response payload from authentication or registration.
+type AuthResponse struct {
+	Token string `json:"token"`
+}
+
+// User represents a domain.
 type User struct {
-	Username     string    `json:"username" db:"username"`           // Username is the unique identifier for the user.
-	PasswordHash string    `json:"password_hash" db:"password_hash"` // PasswordHash is the hashed password.
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`       // CreatedAt is when the user was created.
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`       // UpdatedAt is the last update time.
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// UserDB represents a user record in the database.
+type UserDB struct {
+	Username     string    `json:"username" db:"username"`
+	PasswordHash string    `json:"password_hash" db:"password_hash"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }

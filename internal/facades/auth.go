@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 	"google.golang.org/grpc"
 )
@@ -19,21 +20,10 @@ func NewAuthHTTPFacade(client *resty.Client) *AuthHTTPFacade {
 	return &AuthHTTPFacade{client: client}
 }
 
-// Register sends a registration request over HTTP with username and password,
-// and returns an authentication token or an error.
 func (a *AuthHTTPFacade) Register(
 	ctx context.Context,
-	username string,
-	password string,
-) (*string, error) {
-	req := struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}{
-		Username: username,
-		Password: password,
-	}
-
+	req *models.AuthRequest,
+) (*models.AuthResponse, error) {
 	resp, err := a.client.R().
 		SetContext(ctx).
 		SetBody(req).
@@ -47,34 +37,23 @@ func (a *AuthHTTPFacade) Register(
 
 	authHeader := resp.Header().Get("Authorization")
 	if authHeader == "" {
-		return nil, fmt.Errorf("authorization header missing in register response")
+		return nil, fmt.Errorf("authorization header missing in response")
 	}
 
-	// Expected format: "Bearer <token>"
 	const bearerPrefix = "Bearer "
 	if len(authHeader) <= len(bearerPrefix) || authHeader[:len(bearerPrefix)] != bearerPrefix {
-		return nil, fmt.Errorf("invalid authorization header format")
+		return nil, fmt.Errorf("authorization header format invalid")
 	}
 
 	token := authHeader[len(bearerPrefix):]
-	return &token, nil
+
+	return &models.AuthResponse{Token: token}, nil
 }
 
-// Login sends a login request over HTTP with username and password,
-// and returns an authentication token or an error.
 func (a *AuthHTTPFacade) Login(
 	ctx context.Context,
-	username string,
-	password string,
-) (*string, error) {
-	req := struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}{
-		Username: username,
-		Password: password,
-	}
-
+	req *models.AuthRequest,
+) (*models.AuthResponse, error) {
 	resp, err := a.client.R().
 		SetContext(ctx).
 		SetBody(req).
@@ -88,16 +67,17 @@ func (a *AuthHTTPFacade) Login(
 
 	authHeader := resp.Header().Get("Authorization")
 	if authHeader == "" {
-		return nil, fmt.Errorf("authorization header missing in login response")
+		return nil, fmt.Errorf("authorization header missing in response")
 	}
 
 	const bearerPrefix = "Bearer "
 	if len(authHeader) <= len(bearerPrefix) || authHeader[:len(bearerPrefix)] != bearerPrefix {
-		return nil, fmt.Errorf("invalid authorization header format")
+		return nil, fmt.Errorf("authorization header format invalid")
 	}
 
 	token := authHeader[len(bearerPrefix):]
-	return &token, nil
+
+	return &models.AuthResponse{Token: token}, nil
 }
 
 // AuthGRPCFacade provides gRPC-based authentication methods.
@@ -112,36 +92,32 @@ func NewAuthGRPCFacade(conn *grpc.ClientConn) *AuthGRPCFacade {
 	}
 }
 
-// Register sends a registration request over gRPC with username and password,
-// and returns an authentication token or an error.
+// Register sends a registration request over gRPC and returns an AuthResponse or an error.
 func (a *AuthGRPCFacade) Register(
 	ctx context.Context,
-	username string,
-	password string,
-) (*string, error) {
+	req *models.AuthRequest,
+) (*models.AuthResponse, error) {
 	resp, err := a.client.Register(ctx, &pb.AuthRequest{
-		Username: username,
-		Password: password,
+		Username: req.Username,
+		Password: req.Password,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &resp.Token, nil
+	return &models.AuthResponse{Token: resp.Token}, nil
 }
 
-// Login sends a login request over gRPC with username and password,
-// and returns an authentication token or an error.
+// Login sends a login request over gRPC and returns an AuthResponse or an error.
 func (a *AuthGRPCFacade) Login(
 	ctx context.Context,
-	username string,
-	password string,
-) (*string, error) {
+	req *models.AuthRequest,
+) (*models.AuthResponse, error) {
 	resp, err := a.client.Login(ctx, &pb.AuthRequest{
-		Username: username,
-		Password: password,
+		Username: req.Username,
+		Password: req.Password,
 	})
 	if err != nil {
 		return nil, err
 	}
-	return &resp.Token, nil
+	return &models.AuthResponse{Token: resp.Token}, nil
 }

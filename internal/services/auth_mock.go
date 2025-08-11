@@ -36,17 +36,17 @@ func (m *MockUserSaver) EXPECT() *MockUserSaverMockRecorder {
 }
 
 // Save mocks base method.
-func (m *MockUserSaver) Save(ctx context.Context, username, passwordHash string) error {
+func (m *MockUserSaver) Save(ctx context.Context, user *models.UserDB) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Save", ctx, username, passwordHash)
+	ret := m.ctrl.Call(m, "Save", ctx, user)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Save indicates an expected call of Save.
-func (mr *MockUserSaverMockRecorder) Save(ctx, username, passwordHash interface{}) *gomock.Call {
+func (mr *MockUserSaverMockRecorder) Save(ctx, user interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockUserSaver)(nil).Save), ctx, username, passwordHash)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockUserSaver)(nil).Save), ctx, user)
 }
 
 // MockUserGetter is a mock of UserGetter interface.
@@ -73,10 +73,10 @@ func (m *MockUserGetter) EXPECT() *MockUserGetterMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockUserGetter) Get(ctx context.Context, username string) (*models.User, error) {
+func (m *MockUserGetter) Get(ctx context.Context, username string) (*models.UserDB, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx, username)
-	ret0, _ := ret[0].(*models.User)
+	ret0, _ := ret[0].(*models.UserDB)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -87,31 +87,31 @@ func (mr *MockUserGetterMockRecorder) Get(ctx, username interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockUserGetter)(nil).Get), ctx, username)
 }
 
-// MockJWTGenerator is a mock of JWTGenerator interface.
-type MockJWTGenerator struct {
+// MockTokener is a mock of Tokener interface.
+type MockTokener struct {
 	ctrl     *gomock.Controller
-	recorder *MockJWTGeneratorMockRecorder
+	recorder *MockTokenerMockRecorder
 }
 
-// MockJWTGeneratorMockRecorder is the mock recorder for MockJWTGenerator.
-type MockJWTGeneratorMockRecorder struct {
-	mock *MockJWTGenerator
+// MockTokenerMockRecorder is the mock recorder for MockTokener.
+type MockTokenerMockRecorder struct {
+	mock *MockTokener
 }
 
-// NewMockJWTGenerator creates a new mock instance.
-func NewMockJWTGenerator(ctrl *gomock.Controller) *MockJWTGenerator {
-	mock := &MockJWTGenerator{ctrl: ctrl}
-	mock.recorder = &MockJWTGeneratorMockRecorder{mock}
+// NewMockTokener creates a new mock instance.
+func NewMockTokener(ctrl *gomock.Controller) *MockTokener {
+	mock := &MockTokener{ctrl: ctrl}
+	mock.recorder = &MockTokenerMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockJWTGenerator) EXPECT() *MockJWTGeneratorMockRecorder {
+func (m *MockTokener) EXPECT() *MockTokenerMockRecorder {
 	return m.recorder
 }
 
 // Generate mocks base method.
-func (m *MockJWTGenerator) Generate(username string) (string, error) {
+func (m *MockTokener) Generate(username string) (string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Generate", username)
 	ret0, _ := ret[0].(string)
@@ -120,7 +120,59 @@ func (m *MockJWTGenerator) Generate(username string) (string, error) {
 }
 
 // Generate indicates an expected call of Generate.
-func (mr *MockJWTGeneratorMockRecorder) Generate(username interface{}) *gomock.Call {
+func (mr *MockTokenerMockRecorder) Generate(username interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Generate", reflect.TypeOf((*MockJWTGenerator)(nil).Generate), username)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Generate", reflect.TypeOf((*MockTokener)(nil).Generate), username)
+}
+
+// MockHasher is a mock of Hasher interface.
+type MockHasher struct {
+	ctrl     *gomock.Controller
+	recorder *MockHasherMockRecorder
+}
+
+// MockHasherMockRecorder is the mock recorder for MockHasher.
+type MockHasherMockRecorder struct {
+	mock *MockHasher
+}
+
+// NewMockHasher creates a new mock instance.
+func NewMockHasher(ctrl *gomock.Controller) *MockHasher {
+	mock := &MockHasher{ctrl: ctrl}
+	mock.recorder = &MockHasherMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockHasher) EXPECT() *MockHasherMockRecorder {
+	return m.recorder
+}
+
+// Compare mocks base method.
+func (m *MockHasher) Compare(hashedValue, value []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Compare", hashedValue, value)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Compare indicates an expected call of Compare.
+func (mr *MockHasherMockRecorder) Compare(hashedValue, value interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Compare", reflect.TypeOf((*MockHasher)(nil).Compare), hashedValue, value)
+}
+
+// Hash mocks base method.
+func (m *MockHasher) Hash(value []byte) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Hash", value)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Hash indicates an expected call of Hash.
+func (mr *MockHasherMockRecorder) Hash(value interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Hash", reflect.TypeOf((*MockHasher)(nil).Hash), value)
 }

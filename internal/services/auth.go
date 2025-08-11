@@ -4,73 +4,123 @@ import (
 	"context"
 	"errors"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// Dependencies needed by the service
+// UserSaver defines an interface to save user data.
 type UserSaver interface {
-	Save(ctx context.Context, username, passwordHash string) error
+	Save(ctx context.Context, user *models.UserDB) error
 }
 
+// UserGetter defines an interface to retrieve user data by username.
 type UserGetter interface {
-	Get(ctx context.Context, username string) (*models.User, error)
+	Get(ctx context.Context, username string) (*models.UserDB, error)
 }
 
-type JWTGenerator interface {
+// Tokener defines an interface to generate JWT tokens for a username.
+type Tokener interface {
 	Generate(username string) (string, error)
 }
 
+// Hasher defines an interface for hashing and comparing hashed values.
+type Hasher interface {
+	Hash(value []byte) ([]byte, error)
+	Compare(hashedValue []byte, value []byte) error
+}
+
 var (
+	// ErrUserAlreadyExists is returned when attempting to register a username that already exists.
 	ErrUserAlreadyExists = errors.New("user already exists")
-	ErrInvalidData       = errors.New("invalid username or password")
+
+	// ErrInvalidData is returned when provided credentials are invalid.
+	ErrInvalidData = errors.New("invalid username or password")
 )
 
+// AuthService provides user registration and authentication services.
 type AuthService struct {
-	users UserGetter
-	saver UserSaver
+	getter  UserGetter
+	saver   UserSaver
+	hasher  Hasher
+	tokener Tokener
 }
 
-func NewAuthService(users UserGetter, saver UserSaver) *AuthService {
+// NewAuthService creates a new AuthService with given dependencies.
+func NewAuthService(
+	getter UserGetter,
+	saver UserSaver,
+	hasher Hasher,
+	tokener Tokener,
+) *AuthService {
 	return &AuthService{
-		users: users,
-		saver: saver,
+		getter:  getter,
+		saver:   saver,
+		hasher:  hasher,
+		tokener: tokener,
 	}
 }
 
-// Register a new user and return JWT token
-func (s *AuthService) Register(ctx context.Context, username, password string) error {
-	existingUser, err := s.users.Get(ctx, username)
+// Register creates a new user with the given username and password.
+// It hashes the password before saving the user.
+// Returns ErrUserAlreadyExists if the username is taken.
+func (s *AuthService) Register(
+	ctx context.Context,
+	user *models.User,
+) (string, error) {
+	existingUser, err := s.getter.Get(ctx, user.Username)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if existingUser != nil {
-		return ErrUserAlreadyExists
+		return "", ErrUserAlreadyExists
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hashedPassword, err := s.hasher.Hash([]byte(user.Password))
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if err := s.saver.Save(ctx, username, string(hashedPassword)); err != nil {
-		return err
+	row := &models.UserDB{
+		Username:     user.Username,
+		PasswordHash: string(hashedPassword),
 	}
 
-	return nil
+	if err := s.saver.Save(ctx, row); err != nil {
+		return "", err
+	}
+
+	token, err := s.tokener.Generate(user.Username)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
-// Authenticate verifies credentials and returns JWT token
-func (s *AuthService) Authenticate(ctx context.Context, username, password string) error {
-	user, err := s.users.Get(ctx, username)
-	if err != nil || user == nil {
-		return ErrInvalidData
+// Authenticate verifies user credentials and returns a JWT token upon success.
+// Returns ErrInvalidData if the username does not exist or password is incorrect.
+func (s *AuthService) Authenticate(
+	ctx context.Context,
+	user *models.User,
+) (string, error) {
+	if user == nil {
+		return "", ErrInvalidData
+	}
+	row, err := s.getter.Get(ctx, user.Username)
+	if err != nil {
+		return "", err
+	}
+	if row == nil {
+		return "", ErrInvalidData
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return ErrInvalidData
+	if err := s.hasher.Compare([]byte(row.PasswordHash), []byte(user.Password)); err != nil {
+		return "", ErrInvalidData
 	}
 
-	return nil
+	token, err := s.tokener.Generate(user.Username)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
