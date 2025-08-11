@@ -62,7 +62,7 @@ func (j *JWT) Generate(username string) (string, error) {
 }
 
 // GetUsername extracts the username from a JWT token string.
-func (j *JWT) Parse(tokenStr string) (string, error) {
+func (j *JWT) GetUsername(tokenStr string) (string, error) {
 	parsedToken, err := jwt.ParseWithClaims(tokenStr, &claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -73,9 +73,10 @@ func (j *JWT) Parse(tokenStr string) (string, error) {
 		return "", err
 	}
 
-	if claims, ok := parsedToken.Claims.(*claims); ok && parsedToken.Valid {
-		return claims.Username, nil
+	claims, ok := parsedToken.Claims.(*claims)
+	if !ok || !parsedToken.Valid || claims == nil {
+		return "", errors.New("invalid token")
 	}
 
-	return "", errors.New("invalid token")
+	return claims.Username, nil
 }

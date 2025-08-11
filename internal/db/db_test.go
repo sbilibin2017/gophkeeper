@@ -61,3 +61,24 @@ func TestMultipleOptions(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, conn)
 }
+
+func TestNewDB_Error(t *testing.T) {
+	// Invalid driver should return error
+	db, err := New("invalid-driver", "invalid-dsn")
+	assert.Nil(t, db)
+	assert.Error(t, err)
+}
+
+func TestNewDB_SuccessWithOptions(t *testing.T) {
+	db, err := New("sqlite", ":memory:",
+		WithMaxOpenConns(5),
+		WithMaxIdleConns(3),
+		WithConnMaxLifetime(2*time.Minute),
+	)
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+
+	// Check options applied
+	assert.Equal(t, 5, db.Stats().MaxOpenConnections) // Note: MaxOpenConnections is a read-only field, so this may not reflect directly
+	// Can't assert exactly for idle connections or max lifetime since they don't expose getters
+}
