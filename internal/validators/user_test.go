@@ -8,25 +8,26 @@ import (
 
 func TestValidateUsername(t *testing.T) {
 	tests := []struct {
-		name     string
-		username string
-		wantErr  bool
+		name    string
+		input   string
+		wantErr bool
+		errMsg  string
 	}{
-		{"ValidUsernameLetters", "johnDoe", false},
-		{"ValidUsernameWithSpecials", "john_doe!", false},
-		{"TooShort", "ab", true},
-		{"InvalidCharNonASCII", "юзер", true},
-		{"InvalidCharEmoji", "john🙂", true},
-		{"InvalidCharSpace", "john doe", true},
+		{"too short", "ab", true, "username must be at least 3 characters long"},
+		{"valid letters", "abc", false, ""},
+		{"valid letters and digits", "user123", false, ""},
+		{"valid with specials", "user_!@#", false, ""},
+		{"invalid chars", "user😊", true, "username contains invalid characters"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateUsername(tt.username)
+			err := ValidateUsername(tt.input)
 			if tt.wantErr {
-				assert.Error(t, err, "expected an error")
+				assert.Error(t, err)
+				assert.EqualError(t, err, tt.errMsg)
 			} else {
-				assert.NoError(t, err, "expected no error")
+				assert.NoError(t, err)
 			}
 		})
 	}
@@ -34,26 +35,27 @@ func TestValidateUsername(t *testing.T) {
 
 func TestValidatePassword(t *testing.T) {
 	tests := []struct {
-		name     string
-		password string
-		wantErr  bool
+		name    string
+		input   string
+		wantErr bool
+		errMsg  string
 	}{
-		{"ValidPassword", "Passw0rd!", false},
-		{"MissingUppercase", "password1!", true},
-		{"MissingDigit", "Password!", true},
-		{"MissingSpecial", "Password1", true},
-		{"TooShort", "P1!", true},
-		{"ValidWithManySpecials", "P@ssw0rd!#%", false},
-		{"InvalidCharEmoji", "Passw0rd🙂", true},
+		{"too short", "Ab1!", true, "password must be at least 6 characters long"},
+		{"missing uppercase", "abc123!", true, "password must contain at least one uppercase letter"},
+		{"missing digit", "Abcdef!", true, "password must contain at least one digit"},
+		{"missing special", "Abc1234", true, "password must contain at least one special character"},
+		{"valid password", "Abc123!", false, ""},
+		{"invalid char", "Abc123😊", true, "password contains invalid characters"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidatePassword(tt.password)
+			err := ValidatePassword(tt.input)
 			if tt.wantErr {
-				assert.Error(t, err, "expected an error")
+				assert.Error(t, err)
+				assert.EqualError(t, err, tt.errMsg)
 			} else {
-				assert.NoError(t, err, "expected no error")
+				assert.NoError(t, err)
 			}
 		})
 	}

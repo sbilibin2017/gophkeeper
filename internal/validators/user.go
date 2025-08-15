@@ -5,9 +5,14 @@ import (
 	"unicode"
 )
 
-// ValidateUsername checks username length and allowed characters.
-// It ensures the username is at least 3 characters long and contains
-// only ASCII letters, digits, or allowed special characters.
+// ValidateUsername проверяет корректность имени пользователя.
+//
+// Правила проверки:
+//   - Минимальная длина 3 символа.
+//   - Разрешены латинские буквы, цифры и специальные символы: !@#$%^&*()_+-={}[]:";'<>?,./~|\
+//   - Любые другие символы вызывают ошибку.
+//
+// Возвращает ошибку, если имя пользователя не соответствует правилам.
 func ValidateUsername(username string) error {
 	if len(username) < 3 {
 		return errors.New("username must be at least 3 characters long")
@@ -35,9 +40,15 @@ func ValidateUsername(username string) error {
 	return nil
 }
 
-// ValidatePassword checks password complexity requirements.
-// Password must be at least 6 characters long, contain at least one uppercase
-// letter, one digit, and one special character from the allowed set.
+// ValidatePassword проверяет корректность пароля.
+//
+// Правила проверки:
+//   - Минимальная длина 6 символов.
+//   - Пароль должен содержать хотя бы одну заглавную букву, одну цифру и один специальный символ.
+//   - Разрешены латинские буквы (верхний и нижний регистр), цифры и специальные символы: !@#$%^&*()_+-={}[]:";'<>?,./~|\
+//   - Любые другие символы вызывают ошибку.
+//
+// Возвращает ошибку, если пароль не соответствует правилам.
 func ValidatePassword(password string) error {
 	if len(password) < 6 {
 		return errors.New("password must be at least 6 characters long")
