@@ -1,4 +1,4 @@
-package server
+package apps
 
 import (
 	"context"
@@ -23,7 +23,9 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/validators"
 )
 
-func RunHTTP(
+// RunServerHTTP запускает HTTP-сервер для работы с API, подключается к базе данных,
+// выполняет миграции, инициализирует JWT, сервисы, обработчики и маршрутизатор.
+func RunServerHTTP(
 	ctx context.Context,
 	serverURL string,
 	databaseDSN string,
@@ -31,8 +33,8 @@ func RunHTTP(
 	jwtSecretKey string,
 	jwtExp time.Duration,
 ) error {
-	// 1. Connect to database
-	log.Println("initializing db...")
+	// 1. Подключение к базе данных
+	log.Println("инициализация базы данных...")
 	conn, err := db.New("sqlite", databaseDSN,
 		db.WithMaxOpenConns(10),
 		db.WithMaxIdleConns(5),
@@ -43,8 +45,8 @@ func RunHTTP(
 	}
 	defer conn.Close()
 
-	// 2. Run migrations
-	log.Println("running migrations...")
+	// 2. Выполнение миграций
+	log.Println("выполнение миграций...")
 	goose.SetDialect("sqlite")
 	if databaseMigrationsDir != "" {
 		if err := goose.Up(conn.DB, databaseMigrationsDir); err != nil {
@@ -53,24 +55,24 @@ func RunHTTP(
 	}
 
 	// 3. JWT
-	log.Println("initializing jwt...")
+	log.Println("инициализация JWT...")
 	jwt := jwt.New(
 		jwt.WithSecret(jwtSecretKey),
 		jwt.WithTTL(jwtExp),
 	)
 
-	// 4. Transaction manager
+	// 4. Менеджер транзакций
 	tx := tx.New(conn)
 
-	// 5. Repositories
-	log.Println("initializing repositories...")
+	// 5. Репозитории
+	log.Println("инициализация репозиториев...")
 	userReaderRepository := repositories.NewUserReaderRepository(conn)
 	userWriterRepository := repositories.NewUserWriterRepository(conn)
 	deviceReaderRepository := repositories.NewDeviceReaderRepository(conn)
 	deviceWriterRepository := repositories.NewDeviceWriterRepository(conn)
 
-	// 6. Auth service & handler
-	log.Println("initializing services...")
+	// 6. Сервис аутентификации & handler
+	log.Println("инициализация сервисов...")
 	authService := services.NewAuthService(
 		userReaderRepository,
 		userWriterRepository,
@@ -84,43 +86,43 @@ func RunHTTP(
 		crypto.RSAPrivateKeyToPEM,
 	)
 
-	// 7. Handlers
-	log.Println("initializing handlers...")
+	// 7. Обработчики
+	log.Println("инициализация обработчиков...")
 	authHandler := handlers.NewAuthHTTPHandler(
 		authService,
 		validators.ValidateUsername,
 		validators.ValidatePassword,
 	)
 
-	// 8. Tx middleware
-	log.Println("initializing transaction middleware...")
+	// 8. Middleware для транзакций
+	log.Println("инициализация middleware для транзакций...")
 	txMiddleware := middlewares.NewTxMiddleware(tx)
 
-	// 9. Router
-	log.Println("initializing router...")
+	// 9. Маршрутизатор
+	log.Println("инициализация маршрутизатора...")
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
-	router.Use(txMiddleware) // <--- добавили middleware для транзакций
+	router.Use(txMiddleware) // <--- добавлен middleware для транзакций
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Post("/register", authHandler.Register)
 	})
 
-	// 10. HTTP server
-	log.Println("initializing server...")
+	// 10. HTTP сервер
+	log.Println("инициализация сервера...")
 	srv := &http.Server{
 		Addr:    serverURL,
 		Handler: router,
 	}
 
-	// 11. Handle shutdown signals
+	// 11. Обработка сигналов завершения
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
 	errCh := make(chan error, 1)
 
 	go func() {
-		log.Println("starting HTTP server")
+		log.Println("запуск HTTP сервера")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			errCh <- err
 		}
@@ -128,11 +130,11 @@ func RunHTTP(
 	}()
 
 	<-ctx.Done()
-	log.Println("shutdown signal received")
+	log.Println("получен сигнал завершения")
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	log.Println("shutting down HTTP server...")
+	log.Println("завершение работы HTTP сервера...")
 	err = srv.Shutdown(shutdownCtx)
 	if err != nil {
 		errCh <- err

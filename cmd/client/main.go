@@ -5,6 +5,7 @@ import (
 
 	"github.com/sbilibin2017/gophkeeper/internal/apps"
 	"github.com/sbilibin2017/gophkeeper/internal/commands"
+	"github.com/sbilibin2017/gophkeeper/internal/configs/device"
 )
 
 func main() {
@@ -15,6 +16,12 @@ func main() {
 }
 
 func run() error {
-	cmd := commands.NewServerCommand(apps.RunServerHTTP)
+	cmd := commands.NewRootCommand()
+	cmd.AddCommand(
+		commands.NewRegisterCommand(
+			apps.RunClientRegisterHTTP,
+			device.GetDeviceID,
+		),
+	)
 	return cmd.Execute()
 }

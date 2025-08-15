@@ -2,8 +2,11 @@ package jwt
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -80,4 +83,24 @@ func (j *JWT) GetUsername(tokenStr string) (string, error) {
 	}
 
 	return "", errors.New("invalid token")
+}
+
+// GetTokenFromRestyResponse извлекает JWT токен из заголовка Authorization HTTP-ответа Resty.
+func GetTokenFromRestyResponse(resp *resty.Response) (string, error) {
+	authHeader := resp.Header().Get("Authorization")
+	if authHeader == "" {
+		return "", fmt.Errorf("missing Authorization header")
+	}
+
+	const prefix = "Bearer "
+	if !strings.HasPrefix(authHeader, prefix) {
+		return "", fmt.Errorf("invalid Authorization header format")
+	}
+
+	token := strings.TrimPrefix(authHeader, prefix)
+	if token == "" {
+		return "", fmt.Errorf("empty token in Authorization header")
+	}
+
+	return token, nil
 }

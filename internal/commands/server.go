@@ -1,4 +1,4 @@
-package server
+package commands
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/configs/address"
 )
 
-func NewCommand(
+func NewServerCommand(
 	httpRunner func(
 		ctx context.Context,
 		serverURL string,
@@ -28,11 +28,11 @@ func NewCommand(
 	)
 
 	cmd := &cobra.Command{
-		Use:   "server",
-		Short: "Run GophKeeper HTTP server",
+		Use:     "сервер",
+		Short:   "Запуск HTTP сервера GophKeeper",
+		Example: "gophkeeper-server --address :8080 --database-dsn gophkeeper.db --jwt-secret secret",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			addr, err := address.New(serverAddr)
-
 			if err != nil {
 				return err
 			}
@@ -51,11 +51,11 @@ func NewCommand(
 		},
 	}
 
-	cmd.Flags().StringVarP(&serverAddr, "address", "a", ":8080", "server address (host:port or http://host:port)")
-	cmd.Flags().StringVarP(&databaseDSN, "database-dsn", "d", "gophkeeper.db", "database DSN")
-	cmd.Flags().StringVarP(&databaseMigrationsDir, "migrations-dir", "m", "migrations", "directory with database migrations")
-	cmd.Flags().StringVarP(&jwtSecretKey, "jwt-secret", "s", "secret", "JWT secret key")
-	cmd.Flags().DurationVarP(&jwtExp, "jwt-exp", "e", time.Hour, "JWT expiration duration")
+	cmd.Flags().StringVarP(&serverAddr, "address", "a", ":8080", "адрес сервера (host:port или http://host:port)")
+	cmd.Flags().StringVarP(&databaseDSN, "database-dsn", "d", "gophkeeper.db", "DSN базы данных")
+	cmd.Flags().StringVarP(&databaseMigrationsDir, "migrations-dir", "m", "migrations", "директория с миграциями базы данных")
+	cmd.Flags().StringVarP(&jwtSecretKey, "jwt-secret", "s", "secret", "секретный ключ для JWT")
+	cmd.Flags().DurationVarP(&jwtExp, "jwt-exp", "e", time.Hour, "время жизни JWT")
 
 	return cmd
 }

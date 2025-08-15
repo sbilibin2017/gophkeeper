@@ -1,4 +1,4 @@
-package server
+package apps
 
 import (
 	"context"
@@ -21,7 +21,7 @@ func TestRunHTTP_StartAndShutdown(t *testing.T) {
 
 	// Запускаем сервер в горутине
 	go func() {
-		err := RunHTTP(ctx, serverURL, dsn, migrationsDir, jwtSecret, jwtExp)
+		err := RunServerHTTP(ctx, serverURL, dsn, migrationsDir, jwtSecret, jwtExp)
 		assert.NoError(t, err)
 	}()
 

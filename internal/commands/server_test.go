@@ -1,4 +1,4 @@
-package server
+package commands
 
 import (
 	"context"
@@ -32,7 +32,7 @@ func TestNewCommand_RunE_HTTPRunnerCalled(t *testing.T) {
 		return nil
 	}
 
-	cmd := NewCommand(mockRunner)
+	cmd := NewServerCommand(mockRunner)
 	assert.NotNil(t, cmd)
 
 	err := cmd.Execute()
@@ -62,7 +62,7 @@ func TestNewCommand_RunE_CustomFlags(t *testing.T) {
 		return nil
 	}
 
-	cmd := NewCommand(mockRunner)
+	cmd := NewServerCommand(mockRunner)
 	cmd.SetArgs([]string{
 		"--address", "http://127.0.0.1:9000",
 		"--database-dsn", "custom.db",
@@ -91,7 +91,7 @@ func TestNewCommand_RunE_UnsupportedScheme_Error(t *testing.T) {
 		return nil
 	}
 
-	cmd := NewCommand(mockRunner)
+	cmd := NewServerCommand(mockRunner)
 
 	// Используем явно неподдерживаемую схему
 	cmd.SetArgs([]string{"--address", "unsupported://example.com:1234"})
