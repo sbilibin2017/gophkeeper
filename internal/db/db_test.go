@@ -5,59 +5,65 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	_ "modernc.org/sqlite"
 )
 
 func TestNewDB(t *testing.T) {
-	dsn := ":memory:"
-	driver := "sqlite"
+	tests := []struct {
+		name      string
+		driver    string
+		dsn       string
+		opts      []Opt
+		wantError bool
+	}{
+		{
+			name:      "valid sqlite in-memory",
+			driver:    "sqlite",
+			dsn:       ":memory:",
+			opts:      nil,
+			wantError: false,
+		},
+		{
+			name:      "invalid driver",
+			driver:    "invalid",
+			dsn:       ":memory:",
+			opts:      nil,
+			wantError: true,
+		},
+	}
 
-	conn, err := New(driver, dsn)
-	require.NoError(t, err)
-	require.NotNil(t, conn)
-
-	err = conn.Ping()
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			db, err := New(tt.driver, tt.dsn, tt.opts...)
+			if tt.wantError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, db)
+				_ = db.Close()
+			}
+		})
+	}
 }
 
-func TestWithMaxOpenConns(t *testing.T) {
-	dsn := ":memory:"
-	driver := "sqlite"
-
-	conn, err := New(driver, dsn, WithMaxOpenConns(7))
-	require.NoError(t, err)
-	assert.NotNil(t, conn)
-}
-
-func TestWithMaxIdleConns(t *testing.T) {
-	dsn := ":memory:"
-	driver := "sqlite"
-
-	conn, err := New(driver, dsn, WithMaxIdleConns(4))
-	require.NoError(t, err)
-	assert.NotNil(t, conn)
-}
-
-func TestWithConnMaxLifetime(t *testing.T) {
-	dsn := ":memory:"
-	driver := "sqlite"
-
-	conn, err := New(driver, dsn, WithConnMaxLifetime(30*time.Second))
-	require.NoError(t, err)
-	assert.NotNil(t, conn)
-}
-
-func TestMultipleOptions(t *testing.T) {
-	dsn := ":memory:"
-	driver := "sqlite"
-
-	conn, err := New(driver, dsn,
-		WithMaxOpenConns(20),
-		WithMaxIdleConns(5),
-		WithConnMaxLifetime(1*time.Minute),
+func TestDBOptions(t *testing.T) {
+	db, err := New("sqlite", ":memory:",
+		WithMaxOpenConns(5),
+		WithMaxIdleConns(3),
+		WithConnMaxLifetime(10*time.Second),
 	)
-	require.NoError(t, err)
-	assert.NotNil(t, conn)
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+
+	// Проверяем только MaxOpenConns
+	assert.Equal(t, 5, db.Stats().MaxOpenConnections)
+
+	// ConnMaxLifetime и MaxIdleConns напрямую проверить через Stats() нельзя, поэтому только что установка не паниковала
+	_ = db.Close()
+}
+
+func TestDBOptions_Defaults(t *testing.T) {
+	db, err := New("sqlite", ":memory:")
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+	_ = db.Close()
 }

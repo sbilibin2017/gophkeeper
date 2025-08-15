@@ -1,57 +1,83 @@
 package http
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestNewBasicClient(t *testing.T) {
-	baseURL := "https://example.com"
-	client, err := New(baseURL)
-	require.NoError(t, err)
-	assert.Equal(t, baseURL, client.BaseURL)
+func TestNew_BaseURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		baseURL  string
+		expected string
+	}{
+		{"with http", "http://example.com", "http://example.com"},
+		{"with https", "https://example.com", "https://example.com"},
+		{"without scheme", "example.com", "http://example.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := New(tt.baseURL)
+			assert.Equal(t, tt.expected, client.BaseURL)
+		})
+	}
 }
 
 func TestWithRetryPolicy(t *testing.T) {
-	rp := RetryPolicy{Count: 3, Wait: time.Second, MaxWait: 5 * time.Second}
-	client, err := New("https://example.com", WithRetryPolicy(rp))
-	require.NoError(t, err)
-
-	assert.Equal(t, 3, client.RetryCount)
-	assert.Equal(t, time.Second, client.RetryWaitTime)
-	assert.Equal(t, 5*time.Second, client.RetryMaxWaitTime)
-}
-
-func TestMultipleOpts(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer ts.Close()
-
-	rp := RetryPolicy{Count: 2, Wait: 200 * time.Millisecond}
-	client, err := New(
-		ts.URL,
-		WithRetryPolicy(rp),
-	)
-	require.NoError(t, err)
-
-	resp, err := client.R().Get("/")
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, resp.StatusCode())
-}
-
-func TestOptWithError(t *testing.T) {
-	errOpt := func(c *resty.Client) error {
-		return assert.AnError
+	tests := []struct {
+		name        string
+		policy      RetryPolicy
+		wantCount   int
+		wantWait    time.Duration
+		wantMaxWait time.Duration
+	}{
+		{"all zero", RetryPolicy{}, 0, 0, 0},
+		{"only count", RetryPolicy{Count: 3}, 3, 100 * time.Millisecond, 2 * time.Second}, // Resty дефолтные значения
+		{"count and wait", RetryPolicy{Count: 2, Wait: 100 * time.Millisecond}, 2, 100 * time.Millisecond, 2 * time.Second},
+		{"all set", RetryPolicy{Count: 5, Wait: 50 * time.Millisecond, MaxWait: 500 * time.Millisecond}, 5, 50 * time.Millisecond, 500 * time.Millisecond},
 	}
-	client, err := New("https://example.com", errOpt)
-	assert.Nil(t, client)
-	assert.ErrorIs(t, err, assert.AnError)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := resty.New()
+			opt := WithRetryPolicy(tt.policy)
+			opt(client)
+
+			assert.Equal(t, tt.wantCount, client.RetryCount)
+			assert.Equal(t, tt.wantWait, client.RetryWaitTime)
+			assert.Equal(t, tt.wantMaxWait, client.RetryMaxWaitTime)
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	// Опция для теста
+	testOpt := func(c *resty.Client) {
+		c.SetTimeout(500 * time.Millisecond)
+	}
+
+	tests := []struct {
+		name        string
+		baseURL     string
+		opts        []Opt
+		wantBase    string
+		wantTimeout time.Duration
+	}{
+		{"with http", "http://example.com", nil, "http://example.com", 0},
+		{"with https", "https://example.com", nil, "https://example.com", 0},
+		{"without scheme", "example.com", nil, "http://example.com", 0},
+		{"with option", "example.com", []Opt{testOpt}, "http://example.com", 500 * time.Millisecond},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := New(tt.baseURL, tt.opts...)
+			assert.Equal(t, tt.wantBase, client.BaseURL)
+
+		})
+	}
 }

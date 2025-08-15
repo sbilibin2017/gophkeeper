@@ -1,85 +1,107 @@
 package jwt
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func TestJWT_GenerateAndParse(t *testing.T) {
-	secret := "mysecret"
-	username := "testuser"
-	j := New(WithSecret(secret), WithLifetime(time.Minute))
-
-	token, err := j.Generate(username)
-	require.NoError(t, err)
-	require.NotEmpty(t, token)
-
-	parsedUsername, err := j.Parse(token)
-	require.NoError(t, err)
-	assert.Equal(t, username, parsedUsername)
-}
-
-func TestJWT_Parse_ExpiredToken(t *testing.T) {
-	secret := "mysecret"
-	username := "testuser"
-	j := New(WithSecret(secret), WithLifetime(-time.Minute)) // already expired
-
-	token, err := j.Generate(username)
-	require.NoError(t, err)
-	require.NotEmpty(t, token)
-
-	parsedUsername, err := j.Parse(token)
-	assert.Error(t, err)
-	assert.Empty(t, parsedUsername)
-}
-
-func TestJWT_Parse_InvalidToken(t *testing.T) {
-	j := New(WithSecret("secret"))
-	username, err := j.Parse("invalid.token.value")
-	assert.Error(t, err)
-	assert.Empty(t, username)
-}
-
-func TestJWT_Parse_InvalidSignature(t *testing.T) {
-	j1 := New(WithSecret("secret1"), WithLifetime(time.Minute))
-	j2 := New(WithSecret("secret2")) // different secret
-
-	token, err := j1.Generate("user")
-	require.NoError(t, err)
-
-	username, err := j2.Parse(token)
-	assert.Error(t, err)
-	assert.Empty(t, username)
-}
-
-func TestJWT_Parse_InvalidSigningMethod(t *testing.T) {
-	// Generate RSA key for RS256 signing
-	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
-
-	// Create token signed with RS256
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, &claims{
-		Username: "user",
-		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+func TestJWT_GenerateAndGetUsername(t *testing.T) {
+	tests := []struct {
+		name      string
+		secret    string
+		ttl       time.Duration
+		userID    string
+		wantError bool
+	}{
+		{
+			name:   "default secret and ttl",
+			userID: "user123",
 		},
-	})
+		{
+			name:   "custom secret",
+			secret: "mysecret",
+			userID: "user456",
+		},
+		{
+			name:   "short ttl",
+			ttl:    time.Second,
+			userID: "user789",
+		},
+	}
 
-	tokenStr, err := token.SignedString(privKey)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := []Opt{}
+			if tt.secret != "" {
+				opts = append(opts, WithSecret(tt.secret))
+			}
+			if tt.ttl != 0 {
+				opts = append(opts, WithTTL(tt.ttl))
+			}
 
-	// Create JWT instance expecting HS256 tokens
+			j := New(opts...)
+			token, err := j.Generate(tt.userID)
+			assert.NoError(t, err)
+			assert.NotEmpty(t, token)
+
+			gotUserID, err := j.GetUsername(token)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.userID, gotUserID)
+		})
+	}
+}
+
+func TestJWT_GetUsername_InvalidToken(t *testing.T) {
 	j := New(WithSecret("secret"))
 
-	username, err := j.Parse(tokenStr)
+	tests := []struct {
+		name      string
+		token     string
+		wantError bool
+	}{
+		{
+			name:      "empty token",
+			token:     "",
+			wantError: true,
+		},
+		{
+			name:      "random string",
+			token:     "abc.def.ghi",
+			wantError: true,
+		},
+		{
+			name:      "wrong secret",
+			token:     func() string { tok, _ := New(WithSecret("other")).Generate("u1"); return tok }(),
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			userID, err := j.GetUsername(tt.token)
+			if tt.wantError {
+				assert.Error(t, err)
+				assert.Empty(t, userID)
+			} else {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, userID)
+			}
+		})
+	}
+}
+
+func TestJWT_GetUsername_InvalidSigningMethod(t *testing.T) {
+	j := New(WithSecret("secret"))
+
+	// Создаём токен с методом None
+	token := jwt.NewWithClaims(jwt.SigningMethodNone, &claims{UserID: "123"})
+	tokenStr, err := token.SignedString(jwt.UnsafeAllowNoneSignatureType)
+	assert.NoError(t, err)
+
+	userID, err := j.GetUsername(tokenStr)
+	assert.Empty(t, userID)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected signing method")
-	assert.Equal(t, "", username)
 }

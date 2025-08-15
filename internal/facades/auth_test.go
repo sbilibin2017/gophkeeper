@@ -2,8 +2,7 @@ package facades
 
 import (
 	"context"
-	"encoding/json"
-	"net"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,144 +10,129 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-
-	pb "github.com/sbilibin2017/gophkeeper/pkg/grpc"
 )
 
-// --- HTTP Tests ---
+// GetTokenFromRestyResponse извлекает токен из заголовка Authorization
+func GetTokenFromRestyResponse(resp *resty.Response) (string, error) {
+	authHeader := resp.Header().Get("Authorization")
+	if authHeader == "" {
+		return "", fmt.Errorf("missing Authorization header")
+	}
 
-func TestAuthHTTPFacade_RegisterAndLogin(t *testing.T) {
-	handler := http.NewServeMux()
+	const prefix = "Bearer "
+	if len(authHeader) <= len(prefix) || authHeader[:len(prefix)] != prefix {
+		return "", fmt.Errorf("invalid Authorization header format")
+	}
 
-	handler.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
+	token := authHeader[len(prefix):]
+	if token == "" {
+		return "", fmt.Errorf("invalid Authorization header format")
+	}
+
+	return token, nil
+}
+
+func TestAuthHTTPFacade_Register_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/register" {
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
-		err := json.NewDecoder(r.Body).Decode(&req)
-		require.NoError(t, err)
-
-		w.Header().Set("Authorization", "Bearer register-token-for-"+req.Username)
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Authorization", "Bearer test-token")
 		w.WriteHeader(http.StatusOK)
-	})
-
-	handler.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		var req struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}
-		err := json.NewDecoder(r.Body).Decode(&req)
-		require.NoError(t, err)
-
-		w.Header().Set("Authorization", "Bearer login-token-for-"+req.Username)
-		w.WriteHeader(http.StatusOK)
-	})
-
-	server := httptest.NewServer(handler)
+		w.Write([]byte("mock-priv-key"))
+	}))
 	defer server.Close()
 
-	client := NewAuthHTTPFacade(newRestyClientWithBaseURL(server.URL))
-	ctx := context.Background()
+	client := resty.New().SetBaseURL(server.URL)
+	facade := NewAuthHTTPFacade(client, GetTokenFromRestyResponse)
 
-	// Test Register
-	registerResp, err := client.Register(ctx, "user1", "pass")
+	privKey, token, err := facade.Register(context.Background(), "user1", "pass1", "device1")
 	require.NoError(t, err)
-	require.NotNil(t, registerResp)
-	assert.Equal(t, "register-token-for-user1", *registerResp)
-
-	// Test Login
-	loginResp, err := client.Login(ctx, "user1", "pass")
-	require.NoError(t, err)
-	require.NotNil(t, loginResp)
-	assert.Equal(t, "login-token-for-user1", *loginResp)
+	assert.Equal(t, "mock-priv-key", string(privKey))
+	assert.Equal(t, "test-token", token)
 }
 
-// helper function for resty client with base URL for tests
-func newRestyClientWithBaseURL(baseURL string) *resty.Client {
-	client := resty.New()
-	client.SetBaseURL(baseURL)
-	return client
-}
-
-// --- gRPC Tests ---
-
-// mockAuthServiceServer implements pb.AuthServiceServer for testing
-type mockAuthServiceServer struct {
-	pb.UnimplementedAuthServiceServer
-}
-
-func (m *mockAuthServiceServer) Register(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	return &pb.AuthResponse{Token: "register-token-for-" + req.Username}, nil
-}
-
-func (m *mockAuthServiceServer) Login(ctx context.Context, req *pb.AuthRequest) (*pb.AuthResponse, error) {
-	return &pb.AuthResponse{Token: "login-token-for-" + req.Username}, nil
-}
-
-func TestAuthGRPCFacade_RegisterAndLogin(t *testing.T) {
-	lis, err := net.Listen("tcp", "127.0.0.1:0") // choose random available port
-	require.NoError(t, err)
-
-	grpcServer := grpc.NewServer()
-	pb.RegisterAuthServiceServer(grpcServer, &mockAuthServiceServer{})
-
-	go grpcServer.Serve(lis)
-	defer grpcServer.Stop()
-
-	conn, err := grpc.Dial(lis.Addr().String(), grpc.WithInsecure())
-	require.NoError(t, err)
-	defer conn.Close()
-
-	client := NewAuthGRPCFacade(conn)
-	ctx := context.Background()
-
-	// Test Register
-	registerResp, err := client.Register(ctx, "user1", "pass")
-	require.NoError(t, err)
-	require.NotNil(t, registerResp)
-	assert.Equal(t, "register-token-for-user1", *registerResp)
-
-	// Test Login
-	loginResp, err := client.Login(ctx, "user1", "pass")
-	require.NoError(t, err)
-	require.NotNil(t, loginResp)
-	assert.Equal(t, "login-token-for-user1", *loginResp)
-}
-
-func TestAuthHTTPFacade_ErrorCases(t *testing.T) {
-	// HTTP 500 error simulation
-	handler := http.NewServeMux()
-	handler.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-	})
-	handler.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
-	})
-
-	server := httptest.NewServer(handler)
+func TestAuthHTTPFacade_Register_HTTPError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal error"))
+	}))
 	defer server.Close()
 
-	client := NewAuthHTTPFacade(newRestyClientWithBaseURL(server.URL))
-	ctx := context.Background()
+	client := resty.New().SetBaseURL(server.URL)
+	facade := NewAuthHTTPFacade(client, GetTokenFromRestyResponse)
 
-	// Register HTTP error
-	_, err := client.Register(ctx, "user1", "pass")
+	privKey, token, err := facade.Register(context.Background(), "user1", "pass1", "device1")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "register request returned error")
+	assert.Nil(t, privKey)
+	assert.Empty(t, token)
+	assert.Contains(t, err.Error(), "registration failed with status 500")
+}
 
-	// Login HTTP error
-	_, err = client.Login(ctx, "user1", "pass")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "login request returned error")
+func TestAuthHTTPFacade_Register_NoAuthHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mock-priv-key"))
+	}))
+	defer server.Close()
 
-	// Network error (invalid URL)
-	badClient := NewAuthHTTPFacade(newRestyClientWithBaseURL("http://invalid.localhost"))
-	_, err = badClient.Register(ctx, "user1", "pass")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "register request failed")
+	client := resty.New().SetBaseURL(server.URL)
+	facade := NewAuthHTTPFacade(client, GetTokenFromRestyResponse)
 
-	_, err = badClient.Login(ctx, "user1", "pass")
+	privKey, token, err := facade.Register(context.Background(), "user1", "pass1", "device1")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "login request failed")
+	assert.Contains(t, err.Error(), "missing Authorization")
+	assert.Nil(t, privKey)
+	assert.Empty(t, token)
+}
+
+func TestAuthHTTPFacade_Register_InvalidAuthHeader(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Authorization", "InvalidTokenFormat")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mock-priv-key"))
+	}))
+	defer server.Close()
+
+	client := resty.New().SetBaseURL(server.URL)
+	facade := NewAuthHTTPFacade(client, GetTokenFromRestyResponse)
+
+	privKey, token, err := facade.Register(context.Background(), "user1", "pass1", "device1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid Authorization header format")
+	assert.Nil(t, privKey)
+	assert.Empty(t, token)
+}
+
+func TestAuthHTTPFacade_Register_EmptyToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Authorization", "Bearer ")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("mock-priv-key"))
+	}))
+	defer server.Close()
+
+	client := resty.New().SetBaseURL(server.URL)
+	facade := NewAuthHTTPFacade(client, GetTokenFromRestyResponse)
+
+	privKey, token, err := facade.Register(context.Background(), "user1", "pass1", "device1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid Authorization header format")
+	assert.Nil(t, privKey)
+	assert.Empty(t, token)
+}
+
+func TestAuthHTTPFacade_Register_RequestError(t *testing.T) {
+	// Создаем клиент Resty с невалидным BaseURL, чтобы вызов Post сразу вернул ошибку
+	client := resty.New().SetBaseURL("http://invalid-host")
+
+	facade := NewAuthHTTPFacade(client, GetTokenFromRestyResponse)
+
+	privKey, token, err := facade.Register(context.Background(), "user1", "pass1", "device1")
+	require.Error(t, err)
+
+	assert.Nil(t, privKey)
+	assert.Empty(t, token)
 }
