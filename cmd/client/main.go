@@ -3,9 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/sbilibin2017/gophkeeper/internal/apps"
-	"github.com/sbilibin2017/gophkeeper/internal/commands"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/device"
+	"github.com/sbilibin2017/gophkeeper/cmd/client/app"
 )
 
 func main() {
@@ -16,12 +14,7 @@ func main() {
 }
 
 func run() error {
-	cmd := commands.NewRootCommand()
-	cmd.AddCommand(
-		commands.NewRegisterCommand(
-			apps.RunClientRegisterHTTP,
-			device.GetDeviceID,
-		),
-	)
+	cmd := app.NewRootCommand()
+	cmd.AddCommand(app.NewRegisterCommand())
 	return cmd.Execute()
 }

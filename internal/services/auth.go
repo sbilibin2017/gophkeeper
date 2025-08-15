@@ -2,13 +2,17 @@ package services
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"errors"
 
 	"github.com/google/uuid"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var (
@@ -52,12 +56,6 @@ type AuthService struct {
 	deviceReader   DeviceReader
 	deviceWriter   DeviceWriter
 	tokenGenerator TokenGenerator
-
-	hashPassword    func(string) ([]byte, error)
-	generateRSAKeys func(bits int) (*rsa.PrivateKey, error)
-	generateRandom  func(size int) ([]byte, error)
-	encryptDEK      func(pubKey *rsa.PublicKey, dek []byte) ([]byte, error)
-	encodePrivKey   func(privKey *rsa.PrivateKey) []byte
 }
 
 // NewAuthService создаёт новый экземпляр AuthService.
@@ -67,23 +65,13 @@ func NewAuthService(
 	deviceReader DeviceReader,
 	deviceWriter DeviceWriter,
 	tokenGenerator TokenGenerator,
-	hashPassword func(string) ([]byte, error),
-	generateRSAKeys func(bits int) (*rsa.PrivateKey, error),
-	generateRandom func(size int) ([]byte, error),
-	encryptDEK func(pubKey *rsa.PublicKey, dek []byte) ([]byte, error),
-	encodePrivKey func(privKey *rsa.PrivateKey) []byte,
 ) *AuthService {
 	return &AuthService{
-		userReader:      userReader,
-		userWriter:      userWriter,
-		deviceReader:    deviceReader,
-		deviceWriter:    deviceWriter,
-		tokenGenerator:  tokenGenerator,
-		hashPassword:    hashPassword,
-		generateRSAKeys: generateRSAKeys,
-		generateRandom:  generateRandom,
-		encryptDEK:      encryptDEK,
-		encodePrivKey:   encodePrivKey,
+		userReader:     userReader,
+		userWriter:     userWriter,
+		deviceReader:   deviceReader,
+		deviceWriter:   deviceWriter,
+		tokenGenerator: tokenGenerator,
 	}
 }
 
@@ -100,7 +88,7 @@ func NewAuthService(
 // - ErrUserExists: если пользователь с таким именем уже существует
 // - ErrDeviceExists: если устройство с таким ID уже зарегистрировано
 func (s *AuthService) Register(ctx context.Context, username, password, deviceID string) ([]byte, string, error) {
-	// Проверка существующего пользователя
+	// Проверка пользователя
 	user, err := s.userReader.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, "", err
@@ -109,8 +97,8 @@ func (s *AuthService) Register(ctx context.Context, username, password, deviceID
 		return nil, "", ErrUserExists
 	}
 
-	// Хеширование пароля
-	hash, err := s.hashPassword(password)
+	// Хеш пароля
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, "", err
 	}
@@ -121,7 +109,7 @@ func (s *AuthService) Register(ctx context.Context, username, password, deviceID
 		return nil, "", err
 	}
 
-	// Проверка существующего устройства
+	// Проверка устройства
 	device, err := s.deviceReader.GetByID(ctx, deviceID)
 	if err != nil {
 		return nil, "", err
@@ -130,21 +118,21 @@ func (s *AuthService) Register(ctx context.Context, username, password, deviceID
 		return nil, "", ErrDeviceExists
 	}
 
-	// Генерация RSA ключей
-	privKey, err := s.generateRSAKeys(2048)
+	// Генерация ключей
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, "", err
 	}
 	pubKey := &privKey.PublicKey
 
 	// Генерация DEK
-	dek, err := s.generateRandom(32)
-	if err != nil {
+	dek := make([]byte, 32)
+	if _, err := rand.Read(dek); err != nil {
 		return nil, "", err
 	}
 
 	// Шифрование DEK
-	encryptedDEK, err := s.encryptDEK(pubKey, dek)
+	encryptedDEK, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, dek, nil)
 	if err != nil {
 		return nil, "", err
 	}
@@ -161,7 +149,10 @@ func (s *AuthService) Register(ctx context.Context, username, password, deviceID
 	}
 
 	// Приватный ключ в PEM
-	privBytes := s.encodePrivKey(privKey)
+	privBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privKey),
+	})
 
 	// Генерация токена
 	token, err := s.tokenGenerator.Generate(userID)

@@ -1,4 +1,4 @@
-package apps
+package app
 
 import (
 	"context"
@@ -11,21 +11,64 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
 	"github.com/pressly/goose/v3"
+	"github.com/spf13/cobra"
 
-	"github.com/sbilibin2017/gophkeeper/internal/configs/crypto"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/jwt"
-	"github.com/sbilibin2017/gophkeeper/internal/configs/tx"
+	"github.com/sbilibin2017/gophkeeper/internal/address"
+	"github.com/sbilibin2017/gophkeeper/internal/db"
 	"github.com/sbilibin2017/gophkeeper/internal/handlers"
+	"github.com/sbilibin2017/gophkeeper/internal/jwt"
 	"github.com/sbilibin2017/gophkeeper/internal/middlewares"
 	"github.com/sbilibin2017/gophkeeper/internal/repositories"
 	"github.com/sbilibin2017/gophkeeper/internal/services"
+	"github.com/sbilibin2017/gophkeeper/internal/tx"
 	"github.com/sbilibin2017/gophkeeper/internal/validators"
 )
 
-// RunServerHTTP запускает HTTP-сервер для работы с API, подключается к базе данных,
+func NewCommand() *cobra.Command {
+	var (
+		serverAddr            string
+		databaseDSN           string
+		databaseMigrationsDir string
+		jwtSecretKey          string
+		jwtExp                time.Duration
+	)
+
+	cmd := &cobra.Command{
+		Use:     "сервер",
+		Short:   "Запуск HTTP сервера GophKeeper",
+		Example: "gophkeeper-server --address :8080 --database-dsn gophkeeper.db --jwt-secret secret",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr, err := address.New(serverAddr)
+			if err != nil {
+				return err
+			}
+
+			switch addr.Scheme {
+			default:
+				return runHTTP(
+					cmd.Context(),
+					addr.Address,
+					databaseDSN,
+					databaseMigrationsDir,
+					jwtSecretKey,
+					jwtExp,
+				)
+			}
+		},
+	}
+
+	cmd.Flags().StringVarP(&serverAddr, "address", "a", ":8080", "адрес сервера (host:port или http://host:port)")
+	cmd.Flags().StringVarP(&databaseDSN, "database-dsn", "d", "gophkeeper.db", "DSN базы данных")
+	cmd.Flags().StringVarP(&databaseMigrationsDir, "migrations-dir", "m", "migrations", "директория с миграциями базы данных")
+	cmd.Flags().StringVarP(&jwtSecretKey, "jwt-secret", "s", "secret", "секретный ключ для JWT")
+	cmd.Flags().DurationVarP(&jwtExp, "jwt-exp", "e", time.Hour, "время жизни JWT")
+
+	return cmd
+}
+
+// runHTTP запускает HTTP-сервер для работы с API, подключается к базе данных,
 // выполняет миграции, инициализирует JWT, сервисы, обработчики и маршрутизатор.
-func RunServerHTTP(
+func runHTTP(
 	ctx context.Context,
 	serverURL string,
 	databaseDSN string,
@@ -79,11 +122,6 @@ func RunServerHTTP(
 		deviceReaderRepository,
 		deviceWriterRepository,
 		jwt,
-		crypto.HashPassword,
-		crypto.GenerateRSAKeys,
-		crypto.GenerateDEK,
-		crypto.EncryptDEK,
-		crypto.RSAPrivateKeyToPEM,
 	)
 
 	// 7. Обработчики

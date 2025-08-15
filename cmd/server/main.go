@@ -3,8 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/sbilibin2017/gophkeeper/internal/apps"
-	"github.com/sbilibin2017/gophkeeper/internal/commands"
+	"github.com/sbilibin2017/gophkeeper/cmd/server/app"
 )
 
 func main() {
@@ -15,6 +14,6 @@ func main() {
 }
 
 func run() error {
-	cmd := commands.NewServerCommand(apps.RunServerHTTP)
+	cmd := app.NewCommand()
 	return cmd.Execute()
 }

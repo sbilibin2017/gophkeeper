@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"errors"
 	"testing"
 
@@ -23,25 +21,12 @@ func TestAuthService_Register_SuccessAndExist(t *testing.T) {
 	mockDeviceWriter := NewMockDeviceWriter(ctrl)
 	mockTokenGen := NewMockTokenGenerator(ctrl)
 
-	hashPassword := func(p string) ([]byte, error) { return []byte("hashed_" + p), nil }
-	generateRSAKeys := func(bits int) (*rsa.PrivateKey, error) {
-		return rsa.GenerateKey(rand.Reader, bits)
-	}
-	generateRandom := func(size int) ([]byte, error) { return []byte("randomDEK"), nil }
-	encryptDEK := func(pubKey *rsa.PublicKey, dek []byte) ([]byte, error) { return []byte("encryptedDEK"), nil }
-	encodePrivKey := func(privKey *rsa.PrivateKey) []byte { return []byte("pemKey") }
-
 	auth := NewAuthService(
 		mockUserReader,
 		mockUserWriter,
 		mockDeviceReader,
 		mockDeviceWriter,
 		mockTokenGen,
-		hashPassword,
-		generateRSAKeys,
-		generateRandom,
-		encryptDEK,
-		encodePrivKey,
 	)
 
 	tests := []struct {
@@ -100,7 +85,7 @@ func TestAuthService_Register_SuccessAndExist(t *testing.T) {
 				assert.Empty(t, token)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, []byte("pemKey"), privKey)
+				assert.NotNil(t, privKey)
 				assert.Equal(t, "token123", token)
 			}
 		})
@@ -108,145 +93,109 @@ func TestAuthService_Register_SuccessAndExist(t *testing.T) {
 }
 
 func TestAuthService_Register_ErrorCases(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	mockUserReader := NewMockUserReader(ctrl)
-	mockUserWriter := NewMockUserWriter(ctrl)
-	mockDeviceReader := NewMockDeviceReader(ctrl)
-	mockDeviceWriter := NewMockDeviceWriter(ctrl)
-	mockTokenGen := NewMockTokenGenerator(ctrl)
-
-	hashPassword := func(p string) ([]byte, error) { return []byte("hashed_" + p), nil }
-	generateRSAKeys := func(bits int) (*rsa.PrivateKey, error) {
-		return rsa.GenerateKey(rand.Reader, bits)
-	}
-	generateRandom := func(size int) ([]byte, error) { return []byte("randomDEK"), nil }
-	encryptDEK := func(pubKey *rsa.PublicKey, dek []byte) ([]byte, error) { return []byte("encryptedDEK"), nil }
-	encodePrivKey := func(privKey *rsa.PrivateKey) []byte { return []byte("pemKey") }
-
-	auth := NewAuthService(
-		mockUserReader,
-		mockUserWriter,
-		mockDeviceReader,
-		mockDeviceWriter,
-		mockTokenGen,
-		hashPassword,
-		generateRSAKeys,
-		generateRandom,
-		encryptDEK,
-		encodePrivKey,
-	)
-
 	ctx := context.Background()
-	username := "user1"
-	password := "pass"
-	deviceID := "dev1"
 
-	errorTests := []struct {
-		name          string
-		mockSetup     func()
-		expectedError string
+	tests := []struct {
+		name       string
+		setupMocks func(
+			ur *MockUserReader,
+			uw *MockUserWriter,
+			dr *MockDeviceReader,
+			dw *MockDeviceWriter,
+			tg *MockTokenGenerator,
+		)
+		expectedErr error
 	}{
 		{
-			name: "userReader error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, errors.New("db error"))
+			name: "GetByUsername error",
+			setupMocks: func(ur *MockUserReader, uw *MockUserWriter, dr *MockDeviceReader, dw *MockDeviceWriter, tg *MockTokenGenerator) {
+				ur.EXPECT().GetByUsername(ctx, "user1").Return(nil, errors.New("db error"))
 			},
-			expectedError: "db error",
+			expectedErr: errors.New("db error"),
 		},
 		{
-			name: "hashPassword error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				auth.hashPassword = func(p string) ([]byte, error) { return nil, errors.New("hash failed") }
+			name: "User already exists",
+			setupMocks: func(ur *MockUserReader, uw *MockUserWriter, dr *MockDeviceReader, dw *MockDeviceWriter, tg *MockTokenGenerator) {
+				ur.EXPECT().GetByUsername(ctx, "user1").Return(&models.UserDB{}, nil)
 			},
-			expectedError: "hash failed",
+			expectedErr: ErrUserExists,
 		},
 		{
-			name: "userWriter.Save error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				mockUserWriter.EXPECT().Save(ctx, gomock.Any(), username, gomock.Any()).Return(errors.New("save user failed"))
+			name: "Save user error",
+			setupMocks: func(ur *MockUserReader, uw *MockUserWriter, dr *MockDeviceReader, dw *MockDeviceWriter, tg *MockTokenGenerator) {
+				ur.EXPECT().GetByUsername(ctx, "user1").Return(nil, nil)
+				uw.EXPECT().Save(ctx, gomock.Any(), "user1", gomock.Any()).Return(errors.New("save user error"))
 			},
-			expectedError: "save user failed",
+			expectedErr: errors.New("save user error"),
 		},
 		{
-			name: "deviceReader.GetByID error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				mockUserWriter.EXPECT().Save(ctx, gomock.Any(), username, gomock.Any()).Return(nil)
-				mockDeviceReader.EXPECT().GetByID(ctx, deviceID).Return(nil, errors.New("device read error"))
+			name: "GetByID error",
+			setupMocks: func(ur *MockUserReader, uw *MockUserWriter, dr *MockDeviceReader, dw *MockDeviceWriter, tg *MockTokenGenerator) {
+				ur.EXPECT().GetByUsername(ctx, "user1").Return(nil, nil)
+				uw.EXPECT().Save(ctx, gomock.Any(), "user1", gomock.Any()).Return(nil)
+				dr.EXPECT().GetByID(ctx, "dev1").Return(nil, errors.New("device lookup error"))
 			},
-			expectedError: "device read error",
+			expectedErr: errors.New("device lookup error"),
 		},
 		{
-			name: "generateRSAKeys error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				mockUserWriter.EXPECT().Save(ctx, gomock.Any(), username, gomock.Any()).Return(nil)
-				mockDeviceReader.EXPECT().GetByID(ctx, deviceID).Return(nil, nil)
-				auth.generateRSAKeys = func(bits int) (*rsa.PrivateKey, error) { return nil, errors.New("rsa error") }
+			name: "Device already exists",
+			setupMocks: func(ur *MockUserReader, uw *MockUserWriter, dr *MockDeviceReader, dw *MockDeviceWriter, tg *MockTokenGenerator) {
+				ur.EXPECT().GetByUsername(ctx, "user1").Return(nil, nil)
+				uw.EXPECT().Save(ctx, gomock.Any(), "user1", gomock.Any()).Return(nil)
+				dr.EXPECT().GetByID(ctx, "dev1").Return(&models.DeviceDB{}, nil)
 			},
-			expectedError: "rsa error",
+			expectedErr: ErrDeviceExists,
 		},
 		{
-			name: "generateRandom error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				mockUserWriter.EXPECT().Save(ctx, gomock.Any(), username, gomock.Any()).Return(nil)
-				mockDeviceReader.EXPECT().GetByID(ctx, deviceID).Return(nil, nil)
-				auth.generateRandom = func(size int) ([]byte, error) { return nil, errors.New("random error") }
+			name: "Save device error",
+			setupMocks: func(ur *MockUserReader, uw *MockUserWriter, dr *MockDeviceReader, dw *MockDeviceWriter, tg *MockTokenGenerator) {
+				ur.EXPECT().GetByUsername(ctx, "user1").Return(nil, nil)
+				uw.EXPECT().Save(ctx, gomock.Any(), "user1", gomock.Any()).Return(nil)
+				dr.EXPECT().GetByID(ctx, "dev1").Return(nil, nil)
+				dw.EXPECT().Save(ctx, "dev1", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("save device error"))
 			},
-			expectedError: "random error",
+			expectedErr: errors.New("save device error"),
 		},
 		{
-			name: "encryptDEK error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				mockUserWriter.EXPECT().Save(ctx, gomock.Any(), username, gomock.Any()).Return(nil)
-				mockDeviceReader.EXPECT().GetByID(ctx, deviceID).Return(nil, nil)
-				auth.encryptDEK = func(pubKey *rsa.PublicKey, dek []byte) ([]byte, error) { return nil, errors.New("encrypt error") }
+			name: "Token generation error",
+			setupMocks: func(ur *MockUserReader, uw *MockUserWriter, dr *MockDeviceReader, dw *MockDeviceWriter, tg *MockTokenGenerator) {
+				ur.EXPECT().GetByUsername(ctx, "user1").Return(nil, nil)
+				uw.EXPECT().Save(ctx, gomock.Any(), "user1", gomock.Any()).Return(nil)
+				dr.EXPECT().GetByID(ctx, "dev1").Return(nil, nil)
+				dw.EXPECT().Save(ctx, "dev1", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
+				tg.EXPECT().Generate(gomock.Any()).Return("", errors.New("token error"))
 			},
-			expectedError: "encrypt error",
-		},
-		{
-			name: "deviceWriter.Save error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				mockUserWriter.EXPECT().Save(ctx, gomock.Any(), username, gomock.Any()).Return(nil)
-				mockDeviceReader.EXPECT().GetByID(ctx, deviceID).Return(nil, nil)
-				mockDeviceWriter.EXPECT().Save(ctx, deviceID, gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("save device error"))
-			},
-			expectedError: "save device error",
-		},
-		{
-			name: "tokenGenerator.Generate error",
-			mockSetup: func() {
-				mockUserReader.EXPECT().GetByUsername(ctx, username).Return(nil, nil)
-				mockUserWriter.EXPECT().Save(ctx, gomock.Any(), username, gomock.Any()).Return(nil)
-				mockDeviceReader.EXPECT().GetByID(ctx, deviceID).Return(nil, nil)
-				mockDeviceWriter.EXPECT().Save(ctx, deviceID, gomock.Any(), gomock.Any(), gomock.Any()).Return(nil)
-				mockTokenGen.EXPECT().Generate(gomock.Any()).Return("", errors.New("token error"))
-			},
-			expectedError: "token error",
+			expectedErr: errors.New("token error"),
 		},
 	}
 
-	for _, tt := range errorTests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			auth.hashPassword = hashPassword
-			auth.generateRSAKeys = generateRSAKeys
-			auth.generateRandom = generateRandom
-			auth.encryptDEK = encryptDEK
-			auth.encodePrivKey = encodePrivKey
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-			tt.mockSetup()
+			mockUserReader := NewMockUserReader(ctrl)
+			mockUserWriter := NewMockUserWriter(ctrl)
+			mockDeviceReader := NewMockDeviceReader(ctrl)
+			mockDeviceWriter := NewMockDeviceWriter(ctrl)
+			mockTokenGen := NewMockTokenGenerator(ctrl)
 
-			priv, token, err := auth.Register(ctx, username, password, deviceID)
-			assert.Nil(t, priv)
+			tt.setupMocks(mockUserReader, mockUserWriter, mockDeviceReader, mockDeviceWriter, mockTokenGen)
+
+			service := NewAuthService(
+				mockUserReader,
+				mockUserWriter,
+				mockDeviceReader,
+				mockDeviceWriter,
+				mockTokenGen,
+			)
+
+			privKey, token, err := service.Register(ctx, "user1", "pass", "dev1")
+
+			assert.Error(t, err)
+			assert.EqualError(t, err, tt.expectedErr.Error())
+			assert.Nil(t, privKey)
 			assert.Empty(t, token)
-			assert.EqualError(t, err, tt.expectedError)
 		})
 	}
 }
