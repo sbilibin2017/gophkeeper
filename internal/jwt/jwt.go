@@ -2,105 +2,64 @@ package jwt
 
 import (
 	"errors"
-	"fmt"
-	"strings"
 	"time"
 
-	"github.com/go-resty/resty/v2"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// JWT структура для генерации и валидации токенов
 type JWT struct {
-	secret string
-	ttl    time.Duration
+	secretKey     []byte
+	tokenDuration time.Duration
 }
 
-// claims — приватная структура для JWT токена
 type claims struct {
-	UserID string `json:"user_id"` // UUID пользователя
+	UserID   string `json:"user_id"`
+	DeviceID string `json:"device_id"`
 	jwt.RegisteredClaims
 }
 
-// Opt тип для функциональных опций
-type Opt func(*JWT)
-
-// WithSecret задает секрет для JWT
-func WithSecret(secret string) Opt {
-	return func(j *JWT) {
-		j.secret = secret
+// New создаёт сервис с ключом и временем жизни токена
+func New(secret string, duration time.Duration) *JWT {
+	return &JWT{
+		secretKey:     []byte(secret),
+		tokenDuration: duration,
 	}
 }
 
-// WithTTL задает время жизни токена
-func WithTTL(ttl time.Duration) Opt {
-	return func(j *JWT) {
-		j.ttl = ttl
-	}
-}
-
-// New создает JWT с опциями
-func New(opts ...Opt) *JWT {
-	j := &JWT{
-		secret: "secret",
-		ttl:    time.Hour,
-	}
-
-	for _, opt := range opts {
-		opt(j)
-	}
-
-	return j
-}
-
-// Generate создает JWT токен для заданного userID
-func (j *JWT) Generate(userID string) (string, error) {
-	c := &claims{
-		UserID: userID,
+// Generate создаёт JWT с user_id и device_id
+func (j *JWT) Generate(payload *models.TokenPayload) (string, error) {
+	c := claims{
+		UserID:   payload.UserID,
+		DeviceID: payload.DeviceID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.ttl)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.tokenDuration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, c)
-	return token.SignedString([]byte(j.secret))
+	return token.SignedString(j.secretKey)
 }
 
-// GetUsername извлекает userID из токена
-func (j *JWT) GetUsername(tokenStr string) (string, error) {
-	token, err := jwt.ParseWithClaims(tokenStr, &claims{}, func(token *jwt.Token) (interface{}, error) {
+// Parse извлекает Claims из JWT и возвращает TokenPayload
+func (j *JWT) Parse(tokenString string) (*models.TokenPayload, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		return []byte(j.secret), nil
+		return j.secretKey, nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if c, ok := token.Claims.(*claims); ok && token.Valid {
-		return c.UserID, nil
+		return &models.TokenPayload{
+			UserID:   c.UserID,
+			DeviceID: c.DeviceID,
+		}, nil
 	}
 
-	return "", errors.New("invalid token")
-}
-
-// GetTokenFromRestyResponse извлекает JWT токен из заголовка Authorization HTTP-ответа Resty.
-func GetTokenFromRestyResponse(resp *resty.Response) (string, error) {
-	authHeader := resp.Header().Get("Authorization")
-	if authHeader == "" {
-		return "", fmt.Errorf("missing Authorization header")
-	}
-
-	const prefix = "Bearer "
-	if !strings.HasPrefix(authHeader, prefix) {
-		return "", fmt.Errorf("invalid Authorization header format")
-	}
-
-	token := strings.TrimPrefix(authHeader, prefix)
-	if token == "" {
-		return "", fmt.Errorf("empty token in Authorization header")
-	}
-
-	return token, nil
+	return nil, errors.New("invalid token")
 }

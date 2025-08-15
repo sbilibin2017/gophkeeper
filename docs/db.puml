@@ -1,0 +1,47 @@
+@startuml
+!define TABLE(x) class x << (T,#FFAAAA) >>
+!define PK(x) <b>x</b>
+
+TABLE(users) {
+    PK(user_id) : TEXT
+    email : TEXT
+    password_hash : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+TABLE(devices) {
+    PK(device_id) : TEXT
+    user_id : TEXT
+    name : TEXT
+    public_key : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+TABLE(secrets) {
+    PK(secret_id) : TEXT
+    user_id : TEXT
+    type : TEXT
+    encrypted_data : BLOB
+    meta : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+TABLE(secret_keys) {
+    PK(secret_key_id) : TEXT
+    secret_id : TEXT
+    device_id : TEXT
+    encrypted_key : BLOB
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+' Определяем связи
+users ||--o{ devices : "user_id"
+users ||--o{ secrets : "user_id"
+devices ||--o{ secret_keys : "device_id"
+secrets ||--o{ secret_keys : "secret_id"
+
+@enduml
