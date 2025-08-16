@@ -2,8 +2,10 @@ package jwt
 
 import (
 	"errors"
+	"strings"
 	"time"
 
+	"github.com/go-resty/resty/v2"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -64,4 +66,20 @@ func (j *JWT) Parse(tokenString string) (userID string, deviceID string, err err
 	userID = c.UserID
 	deviceID = c.DeviceID
 	return
+}
+
+// GetFromResponse извлекает JWT-токен из заголовка Authorization в формате Bearer.
+// Возвращает токен или ошибку, если заголовок отсутствует или имеет неправильный формат.
+func (j *JWT) GetFromResponse(resp *resty.Response) (string, error) {
+	authHeader := resp.Header().Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("missing Authorization header in response")
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	return parts[1], nil
 }
