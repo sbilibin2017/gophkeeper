@@ -1,0 +1,65 @@
+@startuml
+' Актор — пользователь GophKeeper CLI
+actor User
+
+' Участники процесса
+participant "GophKeeper CLI" as Client
+participant AES
+participant RSA
+database "Local DB" as LDB
+
+' Пользователь запрашивает список секретов
+User -> Client: Запрос списка секретов (offline)
+
+' Получение зашифрованных секретов из локальной БД
+Client -> LDB: Получить зашифрованные секреты и ключи
+LDB --> Client: Список зашифрованных секретов с nonce, encrypted_aes_key, secret_type и meta
+
+' Расшифровка AES-ключей
+Client -> RSA: Расшифровать AES-ключ каждого секрета
+RSA --> Client: symmetricKey
+
+' Расшифровка payload
+Client -> AES: Расшифровать payload с использованием AES-GCM
+AES --> Client: plaintext
+
+' Преобразование секрета по типу
+Client -> Client: Преобразовать в структуру по secret_type
+Client --> Client: LoginPassword / TextNote / BinaryData / BankCard / Неизвестный тип
+
+' Возврат списка пользователю
+Client --> User: Список секретов (offline)
+@enduml
+
+@startuml
+' Актор — пользователь GophKeeper CLI
+actor User
+
+' Участники процесса
+participant "GophKeeper CLI" as Client
+participant AES
+participant RSA
+participant "API Server" as Server
+
+' Пользователь запрашивает список секретов
+User -> Client: Запрос списка секретов (online)
+
+' Получение зашифрованных секретов с сервера
+Client -> Server: Запрос зашифрованных секретов
+Server --> Client: Список зашифрованных секретов с nonce, encrypted_aes_key, secret_type и meta
+
+' Расшифровка AES-ключей
+Client -> RSA: Расшифровать AES-ключ каждого секрета
+RSA --> Client: symmetricKey
+
+' Расшифровка payload
+Client -> AES: Расшифровать payload с использованием AES-GCM
+AES --> Client: plaintext
+
+' Преобразование секрета по типу
+Client -> Client: Преобразовать в структуру по secret_type
+Client --> Client: LoginPassword / TextNote / BinaryData / BankCard / Неизвестный тип
+
+' Возврат списка пользователю
+Client --> User: Список секретов (online)
+@enduml

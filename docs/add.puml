@@ -1,0 +1,38 @@
+@startuml
+' Актор — пользователь, взаимодействующий с приложением GophKeeper CLI
+actor User
+
+' Участники процесса
+participant "GophKeeper CLI" as Client
+participant AES
+participant RSA
+database "Local DB" as LDB
+
+' Пользователь вводит данные секрета (название, тип, содержимое, метаданные)
+User -> Client: Ввод секрета {name, type, payload, meta}
+
+' Генерация симметричного AES-ключа для шифрования данных
+Client -> AES: Создать AES ключ (256 бит)
+AES --> Client: symmetricKey
+
+' Шифрование содержимого секрета с использованием AES-GCM
+Client -> AES: Encrypt(payload, symmetricKey)
+AES --> Client: encrypted_payload, nonce
+
+' Получение публичного ключа устройства из локальной БД
+Client -> LDB: Получить public_key устройства
+LDB --> Client: public_key
+
+' Шифрование AES-ключа публичным ключом RSA устройства
+Client -> RSA: Encrypt(symmetricKey, public_key)
+RSA --> Client: encrypted_aes_key
+
+' Сохранение зашифрованных данных секрета в таблице secrets
+Client -> LDB: INSERT INTO secrets {secret_id, user_id, name, type, encrypted_payload, nonce, meta}
+
+' Сохранение зашифрованного AES-ключа в таблице secret_keys
+Client -> LDB: INSERT INTO secret_keys {secret_key_id, secret_id, device_id, encrypted_aes_key}
+
+' Уведомление пользователя об успешном сохранении
+Client --> User: Секрет сохранён локально
+@enduml

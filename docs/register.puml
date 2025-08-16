@@ -1,22 +1,40 @@
 @startuml
+' Актор — клиентское приложение (CLI, Desktop, Mobile и т.д.)
 actor Client
+
+' Участники процесса
 participant "API Server" as Server
 participant RSA
 participant JWT
 database "users" as Users
 database "devices" as Devices
 
+' Клиент отправляет запрос на регистрацию нового пользователя
 Client -> Server: POST /register {username, password}
-Server -> Server: Validate username and password
-Server -> Users: Check if user exists
+
+' Сервер проверяет корректность данных
+Server -> Server: Валидация username и password
+
+' Сервер проверяет, что пользователь с таким именем не существует
+Server -> Users: Проверка существования пользователя
+
+' Генерация пары ключей RSA для устройства
 Server -> RSA: GenerateRSAKeyPair()
-RSA --> Server: KeyPair {PrivateKeyPEM, PublicKeyPEM}
-Server -> Users: Create new user
+RSA --> Server: KeyPair {PrivateKey, PublicKey}
+
+' Создание нового пользователя в базе данных
+Server -> Users: Создать нового пользователя
 Users --> Server: user_id
-Server -> Devices: Create new device
+
+' Создание новой записи устройства (привязка к пользователю)
+Server -> Devices: Создать новое устройство
 Devices --> Server: device_id
+
+' Генерация JWT токена с данными пользователя и устройства
 Server -> JWT: GenerateToken({user_id, device_id})
 JWT --> Server: token
-Server --> Client: {user_id, device_id, token, PrivateKeyPEM}
+
+' Сервер отправляет клиенту идентификаторы, токен и приватный ключ устройства
+Server --> Client: {user_id, device_id, token, PrivateKey}
 
 @enduml
