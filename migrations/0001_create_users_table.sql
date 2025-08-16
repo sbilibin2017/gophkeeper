@@ -1,7 +1,7 @@
 -- +goose Up
 CREATE TABLE users (
     user_id TEXT PRIMARY KEY,
-    email TEXT NOT NULL,
+    username TEXT NOT NULL UNIQUE,        -- уникальное имя пользователя
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

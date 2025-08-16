@@ -1,11 +1,11 @@
 -- +goose Up
 CREATE TABLE devices (
     device_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,   
-    public_key TEXT NOT NULL,
+    user_id TEXT NOT NULL,    
+    public_key TEXT NOT NULL,            -- публичный ключ устройства
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+    FOREIGN KEY (user_id) REFERENCES users(user_id)    
 );
 
 -- +goose Down
