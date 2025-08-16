@@ -5,14 +5,15 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
+// JWT предоставляет методы для генерации и парсинга JWT-токенов.
 type JWT struct {
 	secretKey     []byte
 	tokenDuration time.Duration
 }
 
+// приватная структура для хранения claims
 type claims struct {
 	UserID   string `json:"user_id"`
 	DeviceID string `json:"device_id"`
@@ -28,10 +29,10 @@ func New(secret string, duration time.Duration) *JWT {
 }
 
 // Generate создаёт JWT с user_id и device_id
-func (j *JWT) Generate(payload *models.TokenPayload) (string, error) {
+func (j *JWT) Generate(userID string, deviceID string) (tokenString string, err error) {
 	c := claims{
-		UserID:   payload.UserID,
-		DeviceID: payload.DeviceID,
+		UserID:   userID,
+		DeviceID: deviceID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.tokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -42,8 +43,8 @@ func (j *JWT) Generate(payload *models.TokenPayload) (string, error) {
 	return token.SignedString(j.secretKey)
 }
 
-// Parse извлекает Claims из JWT и возвращает TokenPayload
-func (j *JWT) Parse(tokenString string) (*models.TokenPayload, error) {
+// Parse извлекает Claims из JWT и возвращает userID и deviceID
+func (j *JWT) Parse(tokenString string) (userID string, deviceID string, err error) {
 	token, err := jwt.ParseWithClaims(tokenString, &claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -51,15 +52,16 @@ func (j *JWT) Parse(tokenString string) (*models.TokenPayload, error) {
 		return j.secretKey, nil
 	})
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	if c, ok := token.Claims.(*claims); ok && token.Valid {
-		return &models.TokenPayload{
-			UserID:   c.UserID,
-			DeviceID: c.DeviceID,
-		}, nil
+	c, ok := token.Claims.(*claims)
+	if !ok || !token.Valid || c.UserID == "" || c.DeviceID == "" {
+		err = errors.New("invalid token")
+		return
 	}
 
-	return nil, errors.New("invalid token")
+	userID = c.UserID
+	deviceID = c.DeviceID
+	return
 }
