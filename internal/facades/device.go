@@ -21,13 +21,13 @@ func NewDeviceHTTPFacade(client *resty.Client) *DeviceHTTPFacade {
 // Get возвращает информацию о текущем устройстве пользователя.
 func (h *DeviceHTTPFacade) Get(
 	ctx context.Context,
-	token string,
-) (*models.DeviceResponse, error) {
-	var secret models.DeviceResponse
+	userID, deviceID string,
+) (*models.DeviceDB, error) {
+	var secret models.DeviceDB
 
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(token).
+		SetAuthToken(userID).
 		SetResult(&secret).
 		Get("/get")
 	if err != nil {

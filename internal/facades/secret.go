@@ -18,11 +18,26 @@ func NewSecretHTTPFacade(client *resty.Client) *SecretHTTPFacade {
 }
 
 // Save вставляет или обновляет секрет на сервере
-func (h *SecretHTTPFacade) Save(ctx context.Context, token string, req *models.SecretRequest) error {
+func (h *SecretHTTPFacade) Save(
+	ctx context.Context,
+	secretID, userID, secretName, secretType string,
+	encryptedPayload, nonce []byte,
+	meta string,
+) error {
+	body := map[string]any{
+		"secret_id":         secretID,
+		"user_id":           userID,
+		"secret_name":       secretName,
+		"secret_type":       secretType,
+		"encrypted_payload": encryptedPayload,
+		"nonce":             nonce,
+		"meta":              meta,
+	}
+
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(token).
-		SetBody(req).
+		SetAuthToken(userID).
+		SetBody(body).
 		Post("/save")
 	if err != nil {
 		return err
@@ -36,12 +51,15 @@ func (h *SecretHTTPFacade) Save(ctx context.Context, token string, req *models.S
 }
 
 // Get возвращает секрет по secretName
-func (h *SecretHTTPFacade) Get(ctx context.Context, token, secretName string) (*models.SecretResponse, error) {
-	var secret models.SecretResponse
+func (h *SecretHTTPFacade) Get(
+	ctx context.Context,
+	userID, secretName string,
+) (*models.SecretDB, error) {
+	var secret models.SecretDB
 
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(token).
+		SetAuthToken(userID).
 		SetResult(&secret).
 		Get(fmt.Sprintf("/get/%s", secretName))
 	if err != nil {
@@ -55,12 +73,15 @@ func (h *SecretHTTPFacade) Get(ctx context.Context, token, secretName string) (*
 }
 
 // List возвращает все секреты пользователя
-func (h *SecretHTTPFacade) List(ctx context.Context, token string) ([]*models.SecretResponse, error) {
-	var secrets []*models.SecretResponse
+func (h *SecretHTTPFacade) List(
+	ctx context.Context,
+	userID string,
+) ([]*models.SecretDB, error) {
+	var secrets []*models.SecretDB
 
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(token).
+		SetAuthToken(userID).
 		SetResult(&secrets).
 		Get("/list")
 	if err != nil {

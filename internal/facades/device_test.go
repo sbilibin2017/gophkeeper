@@ -13,13 +13,12 @@ import (
 )
 
 func TestDeviceHTTPFacade_Get(t *testing.T) {
-	token := "mocked-token"
+	userID := "user123"
 	deviceID := "device123"
 
-	// Тестовый HTTP сервер
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if auth != "Bearer "+token {
+		if auth != "Bearer "+userID { // используем userID, т.к. SetAuthToken(userID)
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -27,13 +26,13 @@ func TestDeviceHTTPFacade_Get(t *testing.T) {
 		if r.URL.Path == "/get" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, `{
-    "device_id":"device123",
-    "user_id":"user123",
-    "public_key":"pubkey",
-    "created_at":"2025-08-16T12:00:00Z",
-    "updated_at":"2025-08-16T12:00:00Z"
-}`)
+			fmt.Fprintf(w, `{
+				"device_id":"%s",
+				"user_id":"%s",
+				"public_key":"pubkey",
+				"created_at":"2025-08-16T12:00:00Z",
+				"updated_at":"2025-08-16T12:00:00Z"
+			}`, deviceID, userID)
 			return
 		}
 
@@ -45,24 +44,24 @@ func TestDeviceHTTPFacade_Get(t *testing.T) {
 	facade := NewDeviceHTTPFacade(client)
 
 	// Успешный запрос
-	resp, err := facade.Get(context.Background(), token)
+	resp, err := facade.Get(context.Background(), userID, deviceID)
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 	assert.Equal(t, deviceID, resp.DeviceID)
-	assert.Equal(t, "user123", resp.UserID)
+	assert.Equal(t, userID, resp.UserID)
 	assert.Equal(t, "pubkey", resp.PublicKey)
 
 	// Ошибка авторизации
-	resp, err = facade.Get(context.Background(), "wrong-token")
+	resp, err = facade.Get(context.Background(), "wrong-user", deviceID)
 	assert.Error(t, err)
 	assert.Nil(t, resp)
 	assert.Contains(t, err.Error(), "http error: 401 Unauthorized")
 }
 
 func TestDeviceHTTPFacade_Get_RequestError(t *testing.T) {
-	token := "mocked-token"
+	userID := "user123"
+	deviceID := "device123"
 
-	// Создаём клиент resty с кастомным транспортом, который всегда возвращает ошибку
 	client := resty.New()
 	client.SetTransport(roundTripperFunc2(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("network error")
@@ -70,8 +69,7 @@ func TestDeviceHTTPFacade_Get_RequestError(t *testing.T) {
 
 	facade := NewDeviceHTTPFacade(client)
 
-	resp, err := facade.Get(context.Background(), token)
-
+	resp, err := facade.Get(context.Background(), userID, deviceID)
 	assert.Nil(t, resp)
 	assert.Error(t, err)
 }

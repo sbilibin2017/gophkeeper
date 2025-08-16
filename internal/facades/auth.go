@@ -2,10 +2,10 @@ package facades
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 // TokenGetter интерфейс для получения токена из HTTP-ответа.
@@ -34,57 +34,73 @@ func NewAuthHTTPFacade(
 // Register регистрирует нового пользователя на сервере.
 func (h *AuthHTTPFacade) Register(
 	ctx context.Context,
-	req *models.RegisterRequest,
-) (resp *models.RegisterResponse, token string, err error) {
+	username string,
+	password string,
+) (userID, deviceID, privateKey, token string, err error) {
 
-	resp = &models.RegisterResponse{}
+	req := map[string]string{
+		"username": username,
+		"password": password,
+	}
 
 	httpResp, err := h.client.R().
 		SetContext(ctx).
 		SetBody(req).
-		SetResult(resp).
 		Post("/register")
 	if err != nil {
-		return nil, "", err
+		return "", "", "", "", err
 	}
 
 	if httpResp.IsError() {
-		return nil, "", fmt.Errorf("http error: %s", httpResp.Status())
+		return "", "", "", "", fmt.Errorf("http error: %s", httpResp.Status())
 	}
+
+	// Распарсить тело ответа
+	var result map[string]string
+	if err := json.Unmarshal(httpResp.Body(), &result); err != nil {
+		return "", "", "", "", err
+	}
+
+	userID = result["user_id"]
+	deviceID = result["device_id"]
+	privateKey = result["private_key"]
 
 	token, err = h.tokenGetter.GetFromResponse(httpResp)
 	if err != nil {
-		return nil, "", err
+		return "", "", "", "", err
 	}
 
-	return resp, token, nil
+	return userID, deviceID, privateKey, token, nil
 }
 
 // Login выполняет аутентификацию пользователя на сервере.
 func (h *AuthHTTPFacade) Login(
 	ctx context.Context,
-	req *models.LoginRequest,
-) (resp *models.LoginResponse, token string, err error) {
+	username string,
+	password string,
+) (token string, err error) {
 
-	resp = &models.LoginResponse{}
+	req := map[string]string{
+		"username": username,
+		"password": password,
+	}
 
 	httpResp, err := h.client.R().
 		SetContext(ctx).
 		SetBody(req).
-		SetResult(resp).
 		Post("/login")
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	if httpResp.IsError() {
-		return nil, "", fmt.Errorf("http error: %s", httpResp.Status())
+		return "", fmt.Errorf("http error: %s", httpResp.Status())
 	}
 
 	token, err = h.tokenGetter.GetFromResponse(httpResp)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
-	return resp, token, nil
+	return token, nil
 }

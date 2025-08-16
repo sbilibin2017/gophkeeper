@@ -14,22 +14,20 @@ import (
 )
 
 func TestSecretKeyHTTPFacade_Get(t *testing.T) {
-	token := "mocked-token"
+	userToken := "mocked-token"
 	secretKeyID := "key123"
 	secretID := "secret123"
 	deviceID := "device123"
 	encryptedAESKey := "encrypted-key"
 
-	// Тестовый HTTP сервер
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if auth != "Bearer "+token {
+		if auth != "Bearer "+userToken {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
 
-		expectedPath := fmt.Sprintf("/get/%s", secretKeyID)
-		if r.URL.Path == expectedPath {
+		if r.URL.Path == "/get" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, `{
@@ -48,26 +46,39 @@ func TestSecretKeyHTTPFacade_Get(t *testing.T) {
 	client := resty.New().SetBaseURL(ts.URL)
 	facade := NewSecretKeyHTTPFacade(client)
 
-	// Проверка успешного запроса
-	resp, err := facade.Get(context.Background(), token, secretKeyID)
+	// === Успешный запрос ===
+	client.OnBeforeRequest(func(c *resty.Client, r *resty.Request) error {
+		r.SetAuthToken(userToken) // <-- use correct token
+		return nil
+	})
+
+	resp, err := facade.Get(context.Background(), secretKeyID, deviceID)
 	assert.NoError(t, err)
+	assert.NotNil(t, resp)
 	assert.Equal(t, secretKeyID, resp.SecretKeyID)
 	assert.Equal(t, secretID, resp.SecretID)
 	assert.Equal(t, deviceID, resp.DeviceID)
 	assert.Equal(t, encryptedAESKey, resp.EncryptedAESKey)
-	assert.Equal(t, time.Date(2025, 8, 16, 12, 0, 0, 0, time.UTC), resp.UpdatedAt)
 
-	// Проверка ошибки авторизации
-	_, err = facade.Get(context.Background(), "wrong-token", secretKeyID)
+	expectedTime, _ := time.Parse(time.RFC3339, "2025-08-16T12:00:00Z")
+	assert.Equal(t, expectedTime, resp.UpdatedAt)
+
+	// === Ошибка авторизации ===
+	client.OnBeforeRequest(func(c *resty.Client, r *resty.Request) error {
+		r.SetAuthToken("wrong-token")
+		return nil
+	})
+
+	_, err = facade.Get(context.Background(), secretKeyID, deviceID)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "http error: 401 Unauthorized")
 }
 
 func TestSecretKeyHTTPFacade_Get_RequestError(t *testing.T) {
-	token := "mocked-token"
-	secretID := "key123"
 
-	// Создаём клиент resty с кастомным транспортом, который всегда возвращает ошибку
+	secretKeyID := "key123"
+	deviceID := "device123"
+
 	client := resty.New()
 	client.SetTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 		return nil, errors.New("network error")
@@ -75,14 +86,11 @@ func TestSecretKeyHTTPFacade_Get_RequestError(t *testing.T) {
 
 	facade := NewSecretKeyHTTPFacade(client)
 
-	resp, err := facade.Get(context.Background(), token, secretID)
-
+	resp, err := facade.Get(context.Background(), secretKeyID, deviceID)
 	assert.Nil(t, resp)
 	assert.Error(t, err)
-
 }
 
-// Вспомогательная обёртка для реализации http.RoundTripper
 type roundTripperFunc func(req *http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
