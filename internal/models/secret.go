@@ -14,3 +14,31 @@ type SecretDB struct {
 	CreatedAt        time.Time `json:"created_at" db:"created_at"`               // дата создания секрета
 	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`               // дата последнего обновления секрета
 }
+
+// BankcardPayload represents a bank card secret payload.
+type BankcardPayload struct {
+	Number string  `json:"number"`
+	Owner  string  `json:"owner"`
+	Exp    string  `json:"exp"`
+	CVV    string  `json:"cvv"`
+	Meta   *string `json:"meta,omitempty"`
+}
+
+// TextPayload represents a text secret payload.
+type TextPayload struct {
+	Data string  `json:"data"`
+	Meta *string `json:"meta,omitempty"`
+}
+
+// BinaryPayload represents a binary secret payload.
+type BinaryPayload struct {
+	Data []byte  `json:"data"`
+	Meta *string `json:"meta,omitempty"`
+}
+
+// UserPayload represents a user secret payload.
+type UserPayload struct {
+	Username string  `json:"username"`
+	Password string  `json:"password"`
+	Meta     *string `json:"meta,omitempty"`
+}
