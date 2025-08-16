@@ -1,27 +1,22 @@
 @startuml
-' Актор — клиентское приложение (CLI, Desktop, Mobile и т.д.)
 actor Client
-
-' Участники взаимодействия
 participant "API Server" as Server
 participant JWT
-database "users" as Users
-database "devices" as Devices
+participant "UserReadRepository" as UserRead
+participant "DeviceReadRepository" as DeviceRead
 
-' Клиент отправляет запрос на авторизацию, передавая логин, пароль и ID устройства
 Client -> Server: POST /login {username, password, device_id}
 
-' Сервер проверяет существование пользователя и валидирует пароль
-Server -> Users: Проверка пользователя и верификация пароля
+Server -> UserRead: Get(username)
+UserRead --> Server: user_record (hashed_password, user_id)
 
-' Сервер проверяет, зарегистрировано ли устройство у данного пользователя
-Server -> Devices: Проверка устройства по device_id
+Server -> Server: Проверка пароля (сравнение с hashed_password)
 
-' Генерация JWT-токена с данными пользователя и устройства
+Server -> DeviceRead: Get(device_id, user_id)
+DeviceRead --> Server: device_record
+
 Server -> JWT: GenerateToken({user_id, device_id})
-JWT --> Server: Возврат сгенерированного токена
+JWT --> Server: token
 
-' Сервер отправляет токен клиенту
 Server --> Client: {token}
-
 @enduml

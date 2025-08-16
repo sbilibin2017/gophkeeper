@@ -1,36 +1,27 @@
 @startuml
-' Актор — пользователь GophKeeper CLI
 actor User
-
-' Участники процесса
 participant "GophKeeper CLI" as Client
-database "Local DB" as LDB
-participant "API Server" as Server
+participant AESGCM
+participant RSAEncryptor
 
-' Пользователь инициирует синхронизацию
-User -> Client: Запуск синхронизации с указанием режима (server/client/interactive)
+User -> Client: Запуск синхронизации (online)
 
-' Получение локальных секретов
-Client -> LDB: Получить список всех локальных секретов
-LDB --> Client: Список локальных секретов с датой обновления и типом
+Client -> Client: Получение списка серверных секретов
+Client -> Client: Получение ключа для каждого секрета
 
-' Для каждого секрета выполняются шаги:
-Client -> Server: Запрос версии секрета на сервере по secret_id
-Server --> Client: Серверная версия секрета с датой обновления
+Client -> RSAEncryptor: Расшифровка AESKey
+RSAEncryptor --> Client: AESKey
 
-Client -> Client: Сравнение даты обновления локальной и серверной версии
+Client -> AESGCM: Расшифровка EncryptedPayload
+AESGCM --> Client: plaintext
 
-Client -> Client: Если локальная версия новее и режим interactive, запросить выбор пользователя
-User --> Client: Выбор версии (локальная или серверная)
+Client -> Client: Сравнение локальной и серверной версии
+alt interactive режим
+    Client -> User: Выбор версии (локальная/серверная)
+    User --> Client: Выбор пользователя
+else режим server/client
+    Client -> Client: Выбор версии по правилу режима
+end
 
-Client -> Client: Если режим server/client, выбрать версию по правилу режима
-
-Client -> LDB: Обновить или вставить секрет в локальную базу с выбранной версией
-
-Client -> LDB: Повторить процесс для каждого локального секрета
-
-' Очистка локальной БД после завершения синхронизации
-Client -> LDB: Очистить временные локальные секреты
-
-Client --> User: Синхронизация завершена, все конфликты разрешены
+Client --> User: Синхронизация завершена
 @enduml

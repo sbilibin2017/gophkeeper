@@ -1,65 +1,57 @@
 @startuml
-' Актор — пользователь GophKeeper CLI
 actor User
-
-' Участники процесса
 participant "GophKeeper CLI" as Client
-participant AES
-participant RSA
+participant AESGCM
+participant RSAEncryptor
 database "Local DB" as LDB
+participant "LocalSecretKeyRepository" as KeyRepo
 
-' Пользователь запрашивает список секретов
 User -> Client: Запрос списка секретов (offline)
 
-' Получение зашифрованных секретов из локальной БД
-Client -> LDB: Получить зашифрованные секреты и ключи
-LDB --> Client: Список зашифрованных секретов с nonce, encrypted_aes_key, secret_type и meta
+Client -> LDB: SecretReadRepository.List(userID)
+LDB --> Client: []EncryptedSecret {EncryptedPayload, Nonce, SecretType, Meta, SecretID}
 
-' Расшифровка AES-ключей
-Client -> RSA: Расшифровать AES-ключ каждого секрета
-RSA --> Client: symmetricKey
+Client -> KeyRepo: GetSecretKey(secretID, deviceID)
+KeyRepo --> Client: SecretKeyDB {EncryptedAESKey}
 
-' Расшифровка payload
-Client -> AES: Расшифровать payload с использованием AES-GCM
-AES --> Client: plaintext
+Client -> RSAEncryptor: DecryptAESKey(EncryptedAESKey)
+RSAEncryptor --> Client: AESKey
 
-' Преобразование секрета по типу
-Client -> Client: Преобразовать в структуру по secret_type
-Client --> Client: LoginPassword / TextNote / BinaryData / BankCard / Неизвестный тип
+Client -> AESGCM: Decrypt(EncryptedPayload, Nonce, AESKey)
+AESGCM --> Client: plaintext
 
-' Возврат списка пользователю
+Client -> Client: Преобразовать в структуру по SecretType
+Client --> Client: LoginPassword / TextNote / BinaryData / BankCard / Unknown
+
 Client --> User: Список секретов (offline)
 @enduml
 
 @startuml
-' Актор — пользователь GophKeeper CLI
 actor User
-
-' Участники процесса
 participant "GophKeeper CLI" as Client
-participant AES
-participant RSA
+participant AESGCM
+participant RSAEncryptor
 participant "API Server" as Server
+participant "SecretKeyHTTPFacade" as KeyFacade
 
-' Пользователь запрашивает список секретов
 User -> Client: Запрос списка секретов (online)
 
-' Получение зашифрованных секретов с сервера
-Client -> Server: Запрос зашифрованных секретов
-Server --> Client: Список зашифрованных секретов с nonce, encrypted_aes_key, secret_type и meta
+Client -> Server: SecretHTTPFacade.List(ctx, token)
+Server --> Client: []SecretResponse {EncryptedPayload, Nonce, SecretType, Meta, SecretID}
 
-' Расшифровка AES-ключей
-Client -> RSA: Расшифровать AES-ключ каждого секрета
-RSA --> Client: symmetricKey
+Client -> KeyFacade: Get(secretID, deviceID)
+KeyFacade -> Server: GET /secret-keys?secret_id=...&device_id=...
+Server --> KeyFacade: SecretKeyResponse {EncryptedAESKey, DeviceID}
+KeyFacade --> Client: SecretKeyResponse {EncryptedAESKey, DeviceID}
 
-' Расшифровка payload
-Client -> AES: Расшифровать payload с использованием AES-GCM
-AES --> Client: plaintext
+Client -> RSAEncryptor: DecryptAESKey(EncryptedAESKey)
+RSAEncryptor --> Client: AESKey
 
-' Преобразование секрета по типу
-Client -> Client: Преобразовать в структуру по secret_type
-Client --> Client: LoginPassword / TextNote / BinaryData / BankCard / Неизвестный тип
+Client -> AESGCM: Decrypt(EncryptedPayload, Nonce, AESKey)
+AESGCM --> Client: plaintext
 
-' Возврат списка пользователю
+Client -> Client: Преобразовать в структуру по SecretType
+Client --> Client: LoginPassword / TextNote / BinaryData / BankCard / Unknown
+
 Client --> User: Список секретов (online)
 @enduml
