@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
@@ -21,7 +21,7 @@ type SecretKeyTokenDecoder interface {
 type SecretKeyWriter interface {
 	Save(
 		ctx context.Context,
-		secretKeyID, secretID, deviceID string,
+		secretID, deviceID string,
 		encryptedAESKey []byte,
 	) error
 }
@@ -32,35 +32,16 @@ type SecretKeyGetter interface {
 	Get(ctx context.Context, secretID, deviceID string) (*models.SecretKeyDB, error)
 }
 
-// SecretKeyResponse описывает JSON-ответ с данными секретного ключа.
-// swagger:model SecretKeyResponse
-type SecretKeyResponse struct {
-	// Уникальный идентификатор записи секретного ключа
-	SecretKeyID string `json:"secret_key_id"`
-	// Идентификатор секрета
-	SecretID string `json:"secret_id"`
-	// Идентификатор устройства
-	DeviceID string `json:"device_id"`
-	// AES ключ, зашифрованный публичным ключом устройства
-	EncryptedAESKey []byte `json:"encrypted_aes_key"`
-	// Дата создания записи
-	CreatedAt time.Time `json:"created_at"`
-	// Дата последнего обновления записи
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 // @Summary      Сохранение нового секретного ключа
-// @Description  Сохраняет новый секретный ключ пользователя, используя токен авторизации
+// @Description  Сохраняет новый секретный ключ пользователя
 // @Tags         secret-key
 // @Accept       json
 // @Produce      json
-// @Param        Authorization header string true "Bearer токен" default(Bearer <token>)
 // @Param        secretKey body handlers.SecretKeyResponse true "Данные секретного ключа для сохранения"
 // @Success      200 "Секретный ключ успешно сохранен"
 // @Failure      400 "Неверный токен или запрос"
 // @Failure      401 "Неавторизованный доступ"
 // @Failure      500 "Внутренняя ошибка сервера"
-// @Security     BearerAuth
 // @Router       /save-secret-key [post]
 func NewSecretKeySaveHTTPHandler(
 	tokenDecoder SecretKeyTokenDecoder,
@@ -77,21 +58,21 @@ func NewSecretKeySaveHTTPHandler(
 		}
 
 		// Парсим токен для получения secretID и deviceID
-		secretID, deviceID, err := tokenDecoder.Parse(tokenString)
+		_, deviceID, err := tokenDecoder.Parse(tokenString)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		// Декодируем тело запроса в структуру SecretKeyResponse
-		var req SecretKeyResponse
+		var req models.SecretKeyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 		// Сохраняем секретный ключ
-		err = secretKeyWriter.Save(ctx, req.SecretKeyID, secretID, deviceID, req.EncryptedAESKey)
+		err = secretKeyWriter.Save(ctx, req.SecretID, deviceID, req.EncryptedAESKey)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -107,13 +88,11 @@ func NewSecretKeySaveHTTPHandler(
 // @Tags         secret-key
 // @Accept       json
 // @Produce      json
-// @Param        Authorization header string true "Bearer токен" default(Bearer <token>)
 // @Success      200 {object} handlers.SecretKeyResponse "Информация о секретном ключе"
 // @Failure      400 "Неверный токен или запрос"
 // @Failure      401 "Неавторизованный доступ"
 // @Failure      404 "Закодированный ключ секрета не найден"
 // @Failure      500 "Внутренняя ошибка сервера"
-// @Security     BearerAuth
 // @Router       /get-secret-key [get]
 func NewSecretKeyGetHTTPHandler(
 	tokenDecoder SecretKeyTokenDecoder,
@@ -130,9 +109,15 @@ func NewSecretKeyGetHTTPHandler(
 		}
 
 		// Парсим токен
-		secretID, deviceID, err := tokenDecoder.Parse(tokenString)
+		_, deviceID, err := tokenDecoder.Parse(tokenString)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		secretID := chi.URLParam(r, "secret-id")
+		if secretID == "" {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -148,7 +133,7 @@ func NewSecretKeyGetHTTPHandler(
 		}
 
 		// Формируем JSON-ответ
-		resp := SecretKeyResponse{
+		resp := models.SecretKeyResponse{
 			SecretKeyID:     secretKey.SecretKeyID,
 			SecretID:        secretKey.SecretID,
 			DeviceID:        secretKey.DeviceID,

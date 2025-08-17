@@ -15,7 +15,7 @@ type TokenGetter interface {
 }
 
 // AuthHTTPFacade предоставляет методы для взаимодействия с сервером аутентификации через HTTP.
-type AuthHTTPFacade struct {
+type AuthHTTPClient struct {
 	client      *resty.Client
 	tokenGetter TokenGetter
 }
@@ -24,15 +24,15 @@ type AuthHTTPFacade struct {
 func NewAuthHTTPFacade(
 	client *resty.Client,
 	tokenGetter TokenGetter,
-) *AuthHTTPFacade {
-	return &AuthHTTPFacade{
+) *AuthHTTPClient {
+	return &AuthHTTPClient{
 		client:      client,
 		tokenGetter: tokenGetter,
 	}
 }
 
 // Register регистрирует нового пользователя на сервере.
-func (h *AuthHTTPFacade) Register(
+func (h *AuthHTTPClient) Register(
 	ctx context.Context,
 	username string,
 	password string,
@@ -74,7 +74,7 @@ func (h *AuthHTTPFacade) Register(
 }
 
 // Login выполняет аутентификацию пользователя на сервере.
-func (h *AuthHTTPFacade) Login(
+func (h *AuthHTTPClient) Login(
 	ctx context.Context,
 	username string,
 	password string,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
@@ -23,33 +22,16 @@ type DeviceGetter interface {
 	Get(ctx context.Context, userID, deviceID string) (*models.DeviceDB, error)
 }
 
-// DeviceResponse описывает JSON-ответ с данными устройства.
-// swagger:model DeviceResponse
-type DeviceResponse struct {
-	// Уникальный идентификатор устройства
-	DeviceID string `json:"device_id"`
-	// Идентификатор пользователя-владельца устройства
-	UserID string `json:"user_id"`
-	// Публичный ключ устройства
-	PublicKey string `json:"public_key"`
-	// Дата создания устройства
-	CreatedAt time.Time `json:"created_at"`
-	// Дата последнего обновления данных устройства
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 // @Summary      Получение информации об устройстве
-// @Description  Извлекает устройство по токену из запроса, возвращает данные устройства
+// @Description  Извлекает устройство и возвращает данные устройства
 // @Tags         devices
 // @Accept       json
 // @Produce      json
-// @Param        Authorization header string true "Bearer токен" default(Bearer <token>)
 // @Success      200 {object} handlers.DeviceResponse "Информация об устройстве"
 // @Failure      400 "Неверный токен или запрос"
 // @Failure      401 "Неавторизованный доступ"
 // @Failure      404 "Устройство не найдено"
 // @Failure      500 "Внутренняя ошибка сервера"
-// @Security     BearerAuth
 // @Router       /get-device [get]
 func NewDeviceGetHTTPHandler(
 	tokenDecoder TokenDecoder,
@@ -84,7 +66,7 @@ func NewDeviceGetHTTPHandler(
 		}
 
 		// Формируем JSON-ответ
-		resp := DeviceResponse{
+		resp := models.DeviceResponse{
 			DeviceID:  device.DeviceID,
 			UserID:    device.UserID,
 			PublicKey: device.PublicKey,

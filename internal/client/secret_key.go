@@ -23,7 +23,8 @@ func NewSecretKeyHTTPFacade(client *resty.Client) *SecretKeyHTTPFacade {
 // Get возвращает секрет по его ID.
 func (h *SecretKeyHTTPFacade) Get(
 	ctx context.Context,
-	secretID, deviceID string,
+	token string,
+	secretID string,
 ) (*models.SecretKeyDB, error) {
 	var respData struct {
 		SecretKeyID     string    `json:"secret_key_id"`
@@ -36,7 +37,7 @@ func (h *SecretKeyHTTPFacade) Get(
 
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(secretID).
+		SetAuthToken(token).
 		SetResult(&respData).
 		Get("/get")
 	if err != nil {

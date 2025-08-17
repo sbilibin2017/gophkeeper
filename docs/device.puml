@@ -1,0 +1,21 @@
+@startuml
+actor Client
+participant "HTTP Handler" as Handler
+participant TokenDecoder
+participant DeviceGetter
+participant "DeviceDB" as DeviceDB
+
+== Получение устройства ==
+' Клиент делает запрос на устройство
+Client -> Handler: GET /get-device (Authorization: Bearer <token>)
+
+' Извлечение и парсинг токена
+Handler -> TokenDecoder: GetFromRequest(r)
+Handler -> TokenDecoder: Parse(tokenString)
+
+' Получение устройства из базы
+Handler -> DeviceGetter: Get(userID, deviceID)
+
+' Ответ клиенту
+Handler --> Client: DeviceResponse
+@enduml

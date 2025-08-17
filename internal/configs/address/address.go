@@ -5,37 +5,44 @@ import (
 	"strings"
 )
 
-// Supported scheme constants.
+// Поддерживаемые схемы адресов.
 const (
 	SchemeHTTP  = "http"
 	SchemeHTTPS = "https"
 	SchemeGRPC  = "grpc"
 )
 
-// ErrUnsupportedScheme is returned when an address uses an unknown or unsupported scheme.
+// ErrUnsupportedScheme возвращается, если адрес использует неизвестную или неподдерживаемую схему.
 var ErrUnsupportedScheme = errors.New("unsupported address scheme")
 
-// Address holds the scheme and actual network address.
+// Address хранит схему и сам сетевой адрес.
 type Address struct {
-	Scheme  string
-	Address string
+	Scheme  string // Схема адреса (http, https, grpc)
+	Address string // Сетевой адрес (host:port или :port)
 }
 
-// New parses the full input address and returns separated scheme/address.
-// Default scheme is "http" if not specified.
+// New разбирает полный входной адрес и возвращает структуру Address с разделёнными схемой и адресом.
+// Если схема не указана, по умолчанию используется "http".
+// Примеры:
+//
+//	New(":8080")          -> Scheme: "http", Address: ":8080"
+//	New("localhost:8080") -> Scheme: "http", Address: "localhost:8080"
+//	New("https://example.com:443") -> Scheme: "https", Address: "example.com:443"
 func New(input string) Address {
 	scheme := SchemeHTTP
 	addr := input
 
-	if strings.HasPrefix(addr, SchemeHTTP+"://") {
-		scheme = SchemeHTTP
-		addr = strings.TrimPrefix(addr, SchemeHTTP+"://")
-	} else if strings.HasPrefix(addr, SchemeHTTPS+"://") {
-		scheme = SchemeHTTPS
-		addr = strings.TrimPrefix(addr, SchemeHTTPS+"://")
-	} else if strings.HasPrefix(addr, SchemeGRPC+"://") {
-		scheme = SchemeGRPC
-		addr = strings.TrimPrefix(addr, SchemeGRPC+"://")
+	// Проверяем наличие схемы в формате "scheme://"
+	if idx := strings.Index(input, "://"); idx != -1 {
+		prefix := input[:idx]
+		switch prefix {
+		case SchemeHTTP, SchemeHTTPS, SchemeGRPC:
+			scheme = prefix
+		default:
+			// Для неизвестных схем оставляем как есть
+			scheme = prefix
+		}
+		addr = input[idx+3:] // убираем "://"
 	}
 
 	return Address{
@@ -44,7 +51,7 @@ func New(input string) Address {
 	}
 }
 
-// String implements the fmt.Stringer interface, returning the full address.
+// String реализует интерфейс fmt.Stringer и возвращает полный адрес в формате "scheme://address".
 func (a Address) String() string {
 	return a.Scheme + "://" + a.Address
 }

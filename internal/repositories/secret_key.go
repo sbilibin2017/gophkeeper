@@ -17,22 +17,20 @@ func NewSecretKeyWriteRepository(db *sqlx.DB) *SecretKeyWriteRepository {
 	return &SecretKeyWriteRepository{db: db}
 }
 
-// Save вставляет новый AES ключ или обновляет существующий по SecretKeyID
+// Save вставляет новый AES ключ или обновляет существующий по (secret_id, device_id)
 func (r *SecretKeyWriteRepository) Save(
 	ctx context.Context,
-	secretKeyID, secretID, deviceID string,
+	secretID, deviceID string,
 	encryptedAESKey []byte,
 ) error {
 	query := `
-	INSERT INTO secret_keys (secret_key_id, secret_id, device_id, encrypted_aes_key, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-	ON CONFLICT(secret_key_id) DO UPDATE SET
-		secret_id = EXCLUDED.secret_id,
-		device_id = EXCLUDED.device_id,
+	INSERT INTO secret_keys (secret_id, device_id, encrypted_aes_key, created_at, updated_at)
+	VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	ON CONFLICT(secret_id, device_id) DO UPDATE SET
 		encrypted_aes_key = EXCLUDED.encrypted_aes_key,
 		updated_at = CURRENT_TIMESTAMP
 	`
-	_, err := r.db.ExecContext(ctx, query, secretKeyID, secretID, deviceID, encryptedAESKey)
+	_, err := r.db.ExecContext(ctx, query, secretID, deviceID, encryptedAESKey)
 	return err
 }
 
@@ -53,7 +51,7 @@ func (r *SecretKeyReadRepository) Get(
 ) (*models.SecretKeyDB, error) {
 	var secretKey models.SecretKeyDB
 	query := `
-	SELECT secret_key_id, secret_id, device_id, encrypted_aes_key, created_at, updated_at
+	SELECT secret_id, device_id, encrypted_aes_key, created_at, updated_at
 	FROM secret_keys
 	WHERE secret_id = $1 AND device_id = $2
 	`

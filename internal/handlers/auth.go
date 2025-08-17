@@ -2,11 +2,16 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 
 	"github.com/google/uuid"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Tokener генерирует JWT или другие токены.
@@ -31,48 +36,7 @@ type DeviceWriter interface {
 }
 
 type DeviceReader interface {
-	Get(
-		ctx context.Context,
-		userID, deviceID string,
-	) (*models.DeviceDB, error)
-}
-
-// RSAGenerator генерирует пару ключей RSA (приватный и публичный) в формате PEM.
-type RSAGenerator interface {
-	GenerateKeyPair() (privatePEM string, publicPEM string, err error)
-}
-
-type PasswordHasher interface {
-	Hash(password string) ([]byte, error)
-}
-
-type PasswordComparer interface {
-	Compare(hash, password string) error
-}
-
-// RegisterRequest определяет входящий запрос на регистрацию пользователя.
-// swagger:model RegisterRequest
-type RegisterRequest struct {
-	// Имя пользователя
-	// required: true
-	Username string `json:"username"`
-	// Пароль пользователя
-	// required: true
-	Password string `json:"password"`
-}
-
-// RegisterResponse определяет ответ на регистрацию пользователя.
-// swagger:model RegisterResponse
-type RegisterResponse struct {
-	// Уникальный идентификатор пользователя
-	// required: true
-	UserID string `json:"user_id"`
-	// Уникальный идентификатор устройства
-	// required: true
-	DeviceID string `json:"device_id"`
-	// Приватный ключ RSA (PEM кодирование)
-	// required: true
-	PrivateKey string `json:"private_key"`
+	Get(ctx context.Context, userID, deviceID string) (*models.DeviceDB, error)
 }
 
 // @Summary      Регистрация нового пользователя
@@ -91,104 +55,88 @@ func NewRegisterHTTPHandler(
 	userWriter UserWriter,
 	deviceWriter DeviceWriter,
 	tokener Tokener,
-	rsaGenerator RSAGenerator,
-	pwHasher PasswordHasher,
 	validateUsername func(username string) error,
 	validatePassword func(password string) error,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Получаем контекст запроса
 		ctx := r.Context()
 
-		// Декодируем JSON-запрос в структуру RegisterRequest
-		var req RegisterRequest
+		var req models.RegisterRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		// Валидация
-		err := validateUsername(req.Username)
-		if err != nil {
+		if err := validateUsername(req.Username); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if err := validatePassword(req.Password); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		err = validatePassword(req.Password)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		// Проверяем, существует ли пользователь с таким именем
 		if existing, _ := userReader.Get(ctx, req.Username); existing != nil {
-			w.WriteHeader(http.StatusConflict) // Пользователь уже существует
+			w.WriteHeader(http.StatusConflict)
 			return
 		}
 
-		// Генерируем хэш пароля с помощью bcrypt
-		passwordHash, err := pwHasher.Hash(req.Password)
+		// Хэшируем пароль через bcrypt
+		passwordHashBytes, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		passwordHash := string(passwordHashBytes)
 
-		// Генерируем уникальные идентификаторы для пользователя и устройства
 		userID := uuid.New().String()
 		deviceID := uuid.New().String()
 
-		// Генерируем пару ключей RSA в формате PEM
-		privateKeyPEM, publicKeyPEM, err := rsaGenerator.GenerateKeyPair()
+		// Генерация RSA ключей
+		privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Сохраняем нового пользователя в базе
-		if err := userWriter.Save(ctx, userID, req.Username, string(passwordHash)); err != nil {
+		// Кодирование приватного ключа
+		privBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+		privPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: privBytes})
+
+		// Кодирование публичного ключа
+		pubBytes, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		pubPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubBytes})
+
+		if err := userWriter.Save(ctx, userID, req.Username, passwordHash); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Сохраняем устройство с публичным ключом
-		if err := deviceWriter.Save(ctx, userID, deviceID, publicKeyPEM); err != nil {
+		if err := deviceWriter.Save(ctx, userID, deviceID, string(pubPEM)); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Генерируем токен для нового пользователя и устройства
 		token, err := tokener.Generate(userID, deviceID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Устанавливаем токен в заголовок HTTP-ответа
 		tokener.SetHeader(w, token)
 		w.Header().Set("Content-Type", "application/json")
 
-		// Формируем и отправляем JSON-ответ с данными регистрации
-		resp := RegisterResponse{
+		resp := models.RegisterResponse{
 			UserID:     userID,
 			DeviceID:   deviceID,
-			PrivateKey: privateKeyPEM,
+			PrivateKey: string(privPEM),
 		}
 		json.NewEncoder(w).Encode(resp)
 	}
-}
-
-// LoginRequest определяет входящий запрос на аутентификацию пользователя.
-// swagger:model LoginRequest
-type LoginRequest struct {
-	// Имя пользователя
-	// required: true
-	Username string `json:"username"`
-	// Пароль пользователя
-	// required: true
-	Password string `json:"password"`
-	// Уникальный идентификатор устройства
-	// required: true
-	DeviceID string `json:"device_id"`
 }
 
 // @Summary      Аутентификация пользователя
@@ -206,53 +154,44 @@ func NewLoginHTTPHandler(
 	userReader UserReader,
 	deviceReader DeviceReader,
 	tokener Tokener,
-	pwComparer PasswordComparer,
-	deviceWriter DeviceWriter,
-	rsaGenerator RSAGenerator,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		// Декодируем JSON-запрос в структуру LoginRequest
-		var req LoginRequest
+		var req models.LoginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		// Находим пользователя по имени
 		user, err := userReader.Get(ctx, req.Username)
 		if err != nil || user == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		// Проверяем пароль
-		if err := pwComparer.Compare(user.PasswordHash, req.Password); err != nil {
+		// Проверка пароля через bcrypt
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		// Находим устройство
 		device, err := deviceReader.Get(ctx, user.UserID, req.DeviceID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		// Проверяем устройство
 		if device == nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		// Генерируем токен
 		token, err := tokener.Generate(user.UserID, device.DeviceID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Устанавливаем токен в заголовок
 		tokener.SetHeader(w, token)
 	}
 }

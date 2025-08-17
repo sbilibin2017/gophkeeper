@@ -9,25 +9,25 @@ import (
 )
 
 // DeviceHTTPFacade предоставляет методы для работы с устройствами через HTTP API.
-type DeviceHTTPFacade struct {
+type DeviceHTTPClient struct {
 	client *resty.Client
 }
 
 // NewDeviceHTTPFacade создаёт новый экземпляр DeviceHTTPFacade с указанным HTTP клиентом.
-func NewDeviceHTTPFacade(client *resty.Client) *DeviceHTTPFacade {
-	return &DeviceHTTPFacade{client: client}
+func NewDeviceHTTPClient(client *resty.Client) *DeviceHTTPClient {
+	return &DeviceHTTPClient{client: client}
 }
 
 // Get возвращает информацию о текущем устройстве пользователя.
-func (h *DeviceHTTPFacade) Get(
+func (h *DeviceHTTPClient) Get(
 	ctx context.Context,
-	userID, deviceID string,
+	token string,
 ) (*models.DeviceDB, error) {
 	var secret models.DeviceDB
 
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(userID).
+		SetAuthToken(token).
 		SetResult(&secret).
 		Get("/get")
 	if err != nil {

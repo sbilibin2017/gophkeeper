@@ -3,15 +3,14 @@ package main
 import (
 	"log"
 
-	"github.com/sbilibin2017/gophkeeper/internal/apps"
-	"github.com/sbilibin2017/gophkeeper/internal/commands"
+	"github.com/sbilibin2017/gophkeeper/cmd/server/app"
 )
 
 // @title           GophKeeper API
 // @version         1.0
 // @description     API сервер для управления секретами.
 // @host            localhost:8080
-// @BasePath        /
+// @BasePath        /api/v1
 // @schemes         http
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -25,6 +24,6 @@ func main() {
 }
 
 func run() error {
-	cmd := commands.NewServerCommand(apps.RunServerHTTP)
+	cmd := app.NewCommand()
 	return cmd.Execute()
 }

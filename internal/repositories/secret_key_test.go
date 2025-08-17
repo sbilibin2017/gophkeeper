@@ -18,13 +18,12 @@ func setupSecretKeyTestDB(t *testing.T) *sqlx.DB {
 
 	schema := `
 	CREATE TABLE secret_keys (
-		secret_key_id TEXT PRIMARY KEY,
 		secret_id TEXT NOT NULL,
 		device_id TEXT NOT NULL,
 		encrypted_aes_key BLOB NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		UNIQUE(secret_id, device_id)
+		PRIMARY KEY (secret_id, device_id)
 	);
 	`
 	_, err = db.Exec(schema)
@@ -43,26 +42,24 @@ func TestSecretKeyWriteAndReadRepositories(t *testing.T) {
 	writeRepo := NewSecretKeyWriteRepository(db)
 	readRepo := NewSecretKeyReadRepository(db)
 
-	secretKeyID := "key1"
 	secretID := "secret1"
 	deviceID := "device1"
 	encryptedAESKey := []byte("aeskey123")
 
 	// === Save ===
-	err := writeRepo.Save(ctx, secretKeyID, secretID, deviceID, encryptedAESKey)
+	err := writeRepo.Save(ctx, secretID, deviceID, encryptedAESKey)
 	assert.NoError(t, err)
 
 	// === Get ===
 	key, err := readRepo.Get(ctx, secretID, deviceID)
 	assert.NoError(t, err)
-	assert.Equal(t, secretKeyID, key.SecretKeyID)
 	assert.Equal(t, secretID, key.SecretID)
 	assert.Equal(t, deviceID, key.DeviceID)
 	assert.Equal(t, encryptedAESKey, key.EncryptedAESKey)
 
 	// === Update ===
 	newAESKey := []byte("newaeskey")
-	err = writeRepo.Save(ctx, secretKeyID, secretID, deviceID, newAESKey)
+	err = writeRepo.Save(ctx, secretID, deviceID, newAESKey)
 	assert.NoError(t, err)
 
 	keyUpdated, err := readRepo.Get(ctx, secretID, deviceID)

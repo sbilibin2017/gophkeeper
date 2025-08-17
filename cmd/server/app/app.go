@@ -1,4 +1,4 @@
-package apps
+package app
 
 import (
 	"context"
@@ -8,17 +8,70 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/sbilibin2017/gophkeeper/internal/configs/address"
 	"github.com/sbilibin2017/gophkeeper/internal/configs/db"
-	"github.com/sbilibin2017/gophkeeper/internal/crypto/passwordhasher"
-	"github.com/sbilibin2017/gophkeeper/internal/crypto/rsa"
 	"github.com/sbilibin2017/gophkeeper/internal/handlers"
 	"github.com/sbilibin2017/gophkeeper/internal/jwt"
 	"github.com/sbilibin2017/gophkeeper/internal/repositories"
 	"github.com/sbilibin2017/gophkeeper/internal/validators"
+	"github.com/spf13/cobra"
 )
 
-// RunServerHTTP запускает HTTP-сервер приложения с поддержкой graceful shutdown.
-func RunServerHTTP(
+// NewCommand создаёт и возвращает новую команду Cobra для запуска HTTP-сервера GophKeeper.
+func NewCommand() *cobra.Command {
+	var (
+		serverURL               string
+		databaseDriver          string
+		databaseDSN             string
+		databaseMaxOpenConns    int
+		databaseMaxIdleConns    int
+		databaseConnMaxLifetime time.Duration
+		migrationsDir           string
+		jwtSecret               string
+		jwtExp                  time.Duration
+	)
+
+	cmd := &cobra.Command{
+		Use:   "server",
+		Short: "Запускает HTTP сервер GophKeeper",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			addr := address.New(serverURL)
+
+			switch addr.Scheme {
+			case address.SchemeHTTP, address.SchemeHTTPS:
+				return runHTTP(
+					cmd.Context(),
+					addr.String(),
+					databaseDriver,
+					databaseDSN,
+					databaseMaxOpenConns,
+					databaseMaxIdleConns,
+					databaseConnMaxLifetime,
+					migrationsDir,
+					jwtSecret,
+					jwtExp,
+				)
+			}
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&serverURL, "server-url", ":8080", "URL для запуска сервера")
+	cmd.Flags().StringVar(&databaseDriver, "database-driver", "sqlite", "Драйвер базы данных")
+	cmd.Flags().StringVar(&databaseDSN, "database-dsn", "server.db", "DSN для подключения к базе данных")
+	cmd.Flags().IntVar(&databaseMaxOpenConns, "database-max-open-conns", 10, "Максимальное количество открытых соединений к базе")
+	cmd.Flags().IntVar(&databaseMaxIdleConns, "database-max-idle-conns", 5, "Максимальное количество простаивающих соединений")
+	cmd.Flags().DurationVar(&databaseConnMaxLifetime, "database-conn-max-lifetime", time.Hour, "Максимальное время жизни соединения к базе")
+	cmd.Flags().StringVar(&migrationsDir, "migrations-dir", "migrations", "Папка с миграциями базы данных")
+	cmd.Flags().StringVar(&jwtSecret, "jwt-secret", "secret", "Секретный ключ для JWT")
+	cmd.Flags().DurationVar(&jwtExp, "jwt-exp", 24*time.Hour, "Время жизни JWT токена")
+
+	return cmd
+}
+
+// runHTTP запускает HTTP-сервер приложения с поддержкой graceful shutdown.
+func runHTTP(
 	ctx context.Context,
 	serverURL string,
 	databaseDriver string,
@@ -59,12 +112,6 @@ func RunServerHTTP(
 	// Инициализируем JWT
 	jwt := jwt.New(jwtSecret, jwtExp)
 
-	// Инициализируем rsa
-	rsa := rsa.New()
-
-	// Инициализируем hasher
-	pwHasher := passwordhasher.New()
-
 	// Инициализируем роутер
 	router := chi.NewRouter()
 
@@ -74,8 +121,6 @@ func RunServerHTTP(
 		userWriteRepo,
 		deviceWriteRepo,
 		jwt,
-		rsa,
-		pwHasher,
 		validators.ValidateUsername,
 		validators.ValidatePassword,
 	))
@@ -83,9 +128,6 @@ func RunServerHTTP(
 		userReadRepo,
 		deviceReadRepo,
 		jwt,
-		pwHasher,
-		deviceWriteRepo,
-		rsa,
 	))
 
 	// Операции с устройствами
@@ -93,11 +135,11 @@ func RunServerHTTP(
 
 	// Операции с симметричными плючыми
 	router.Post("/save-secret-key", handlers.NewSecretKeySaveHTTPHandler(jwt, secretKeyWriteRepo))
-	router.Get("/get-secret-key", handlers.NewSecretKeyGetHTTPHandler(jwt, secretKeyReadRepo))
+	router.Get("/get-secret-key/{secret-id}", handlers.NewSecretKeyGetHTTPHandler(jwt, secretKeyReadRepo))
 
 	// Операции с секретами
 	router.Post("/save-secret", handlers.NewSecretSaveHTTPHandler(jwt, secretWriteRepo))
-	router.Get("/get-secret", handlers.NewSecretGetHTTPHandler(jwt, secretReadRepo))
+	router.Get("/get-secret/{secret-id}", handlers.NewSecretGetHTTPHandler(jwt, secretReadRepo))
 	router.Get("/list-secrets", handlers.NewSecretListHTTPHandler(jwt, secretReadRepo))
 
 	// Инициализируем HTTP сервер

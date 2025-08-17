@@ -17,12 +17,7 @@ const docTemplate = `{
     "paths": {
         "/get-device": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Извлекает устройство по токену из запроса, возвращает данные устройства",
+                "description": "Извлекает устройство и возвращает данные устройства",
                 "consumes": [
                     "application/json"
                 ],
@@ -33,16 +28,6 @@ const docTemplate = `{
                     "devices"
                 ],
                 "summary": "Получение информации об устройстве",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003ctoken\u003e",
-                        "description": "Bearer токен",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Информация об устройстве",
@@ -67,11 +52,6 @@ const docTemplate = `{
         },
         "/get-secret": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Возвращает данные секрета пользователя по имени секрета",
                 "consumes": [
                     "application/json"
@@ -84,14 +64,6 @@ const docTemplate = `{
                 ],
                 "summary": "Получение секрета по имени",
                 "parameters": [
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003ctoken\u003e",
-                        "description": "Bearer токен",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
                     {
                         "type": "string",
                         "description": "Имя секрета",
@@ -108,7 +80,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Неверный токен или отсутствует имя секрета"
+                        "description": "Неверный запрос или отсутствует имя секрета"
                     },
                     "401": {
                         "description": "Неавторизованный доступ"
@@ -124,11 +96,6 @@ const docTemplate = `{
         },
         "/get-secret-key": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Извлекает секретный ключ по токену из запроса, возвращает данные ключа",
                 "consumes": [
                     "application/json"
@@ -140,16 +107,6 @@ const docTemplate = `{
                     "secret-key"
                 ],
                 "summary": "Получение информации о секретном ключе",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003ctoken\u003e",
-                        "description": "Bearer токен",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Информация о секретном ключе",
@@ -174,11 +131,6 @@ const docTemplate = `{
         },
         "/list-secrets": {
             "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
                 "description": "Возвращает список всех секретов текущего пользователя",
                 "consumes": [
                     "application/json"
@@ -190,16 +142,6 @@ const docTemplate = `{
                     "secrets"
                 ],
                 "summary": "Получение списка всех секретов пользователя",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "default": "Bearer \u003ctoken\u003e",
-                        "description": "Bearer токен",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "Список секретов пользователя",
@@ -211,7 +153,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Неверный токен запроса"
+                        "description": "Неверный запрос"
                     },
                     "401": {
                         "description": "Неавторизованный доступ"
@@ -307,12 +249,7 @@ const docTemplate = `{
         },
         "/save-secret": {
             "post": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Сохраняет новый секрет пользователя, используя токен авторизации",
+                "description": "Сохраняет новый секрет пользователя",
                 "consumes": [
                     "application/json"
                 ],
@@ -325,26 +262,58 @@ const docTemplate = `{
                 "summary": "Сохранение нового секрета",
                 "parameters": [
                     {
-                        "type": "string",
-                        "default": "Bearer \u003ctoken\u003e",
-                        "description": "Bearer токен",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
                         "description": "Данные секрета для сохранения",
                         "name": "secret",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.SecretResponse"
+                            "$ref": "#/definitions/handlers.SecretRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "Секрет успешно сохранен"
+                    },
+                    "400": {
+                        "description": "Неверный запрос"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/save-secret-key": {
+            "post": {
+                "description": "Сохраняет новый секретный ключ пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secret-key"
+                ],
+                "summary": "Сохранение нового секретного ключа",
+                "parameters": [
+                    {
+                        "description": "Данные секретного ключа для сохранения",
+                        "name": "secretKey",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SecretKeyResponse"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Секретный ключ успешно сохранен"
                     },
                     "400": {
                         "description": "Неверный токен или запрос"
@@ -364,23 +333,23 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "Дата создания устройства",
+                    "description": "Дата создания устройства\nexample: 2025-08-17T12:34:56Z\ndefault: 2025-08-17T12:34:56Z",
                     "type": "string"
                 },
                 "device_id": {
-                    "description": "Уникальный идентификатор устройства",
+                    "description": "Уникальный идентификатор устройства\nexample: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"\ndefault: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"",
                     "type": "string"
                 },
                 "public_key": {
-                    "description": "Публичный ключ устройства",
+                    "description": "Публичный ключ устройства\nexample: |\n  -----BEGIN PUBLIC KEY-----\n  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu7pM4h2...\n  -----END PUBLIC KEY-----\ndefault: |\n  -----BEGIN PUBLIC KEY-----\n  MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu7pM4h2...\n  -----END PUBLIC KEY-----",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "Дата последнего обновления данных устройства",
+                    "description": "Дата последнего обновления данных устройства\nexample: 2025-08-17T12:45:00Z\ndefault: 2025-08-17T12:45:00Z",
                     "type": "string"
                 },
                 "user_id": {
-                    "description": "Идентификатор пользователя-владельца устройства",
+                    "description": "Идентификатор пользователя-владельца устройства\nexample: \"c56a4180-65aa-42ec-a945-5fd21dec0538\"\ndefault: \"c56a4180-65aa-42ec-a945-5fd21dec0538\"",
                     "type": "string"
                 }
             }
@@ -389,15 +358,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "device_id": {
-                    "description": "Уникальный идентификатор устройства\nrequired: true",
+                    "description": "Уникальный идентификатор устройства\nrequired: true\nexample: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"",
                     "type": "string"
                 },
                 "password": {
-                    "description": "Пароль пользователя\nrequired: true",
+                    "description": "Пароль пользователя\nrequired: true\nexample: Secret123!",
                     "type": "string"
                 },
                 "username": {
-                    "description": "Имя пользователя\nrequired: true",
+                    "description": "Имя пользователя\nrequired: true\nexample: johndoe",
                     "type": "string"
                 }
             }
@@ -406,11 +375,11 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "password": {
-                    "description": "Пароль пользователя\nrequired: true",
+                    "description": "Пароль пользователя\nrequired: true\nexample: Secret123!\ndefault: Secret123!",
                     "type": "string"
                 },
                 "username": {
-                    "description": "Имя пользователя\nrequired: true",
+                    "description": "Имя пользователя\nrequired: true\nexample: johndoe\ndefault: johndoe",
                     "type": "string"
                 }
             }
@@ -419,15 +388,15 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "device_id": {
-                    "description": "Уникальный идентификатор устройства\nrequired: true",
+                    "description": "Уникальный идентификатор устройства\nrequired: true\nexample: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"\ndefault: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"",
                     "type": "string"
                 },
                 "private_key": {
-                    "description": "Приватный ключ RSA (PEM кодирование)\nrequired: true",
+                    "description": "Приватный ключ RSA (PEM кодирование)\nrequired: true\nexample: |\n  -----BEGIN RSA PRIVATE KEY-----\n  MIIEpAIBAAKCAQEAu7pM4h2...\n  -----END RSA PRIVATE KEY-----\ndefault: |\n  -----BEGIN RSA PRIVATE KEY-----\n  MIIEpAIBAAKCAQEAu7pM4h2...\n  -----END RSA PRIVATE KEY-----",
                     "type": "string"
                 },
                 "user_id": {
-                    "description": "Уникальный идентификатор пользователя\nrequired: true",
+                    "description": "Уникальный идентификатор пользователя\nrequired: true\nexample: \"c56a4180-65aa-42ec-a945-5fd21dec0538\"\ndefault: \"c56a4180-65aa-42ec-a945-5fd21dec0538\"",
                     "type": "string"
                 }
             }
@@ -436,30 +405,65 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "Дата создания записи",
+                    "description": "Дата создания записи\nexample: 2025-08-17T12:34:56Z\ndefault: 2025-08-17T12:34:56Z",
                     "type": "string"
                 },
                 "device_id": {
-                    "description": "Идентификатор устройства",
+                    "description": "Идентификатор устройства\nexample: \"device-67890\"\ndefault: \"device-67890\"",
                     "type": "string"
                 },
                 "encrypted_aes_key": {
-                    "description": "AES ключ, зашифрованный публичным ключом устройства",
+                    "description": "AES ключ, зашифрованный публичным ключом устройства\nexample: \"U2FsdGVkX1+abcd1234efgh5678ijkl90==\"\ndefault: \"U2FsdGVkX1+abcd1234efgh5678ijkl90==\"",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "secret_id": {
-                    "description": "Идентификатор секрета",
+                    "description": "Идентификатор секрета\nexample: \"secret-12345\"\ndefault: \"secret-12345\"",
                     "type": "string"
                 },
                 "secret_key_id": {
-                    "description": "Уникальный идентификатор записи секретного ключа",
+                    "description": "Уникальный идентификатор записи секретного ключа\nexample: \"a1b2c3d4-e5f6-7890-abcd-1234567890ef\"\ndefault: \"a1b2c3d4-e5f6-7890-abcd-1234567890ef\"",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "Дата последнего обновления записи",
+                    "description": "Дата последнего обновления записи\nexample: 2025-08-17T12:45:00Z\ndefault: 2025-08-17T12:45:00Z",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.SecretRequest": {
+            "type": "object",
+            "properties": {
+                "encrypted_payload": {
+                    "description": "Зашифрованное содержимое секрета\nexample: \"SGVsbG8gV29ybGQh\"\ndefault: \"SGVsbG8gV29ybGQh\"",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "meta": {
+                    "description": "Метаданные секрета в формате JSON\nexample: {\"url\":\"https://example.com\"}\ndefault: \"{\\\"url\\\":\\\"https://example.com\\\"}\"",
+                    "type": "string"
+                },
+                "nonce": {
+                    "description": "Nonce для шифрования\nexample: \"MTIzNDU2Nzg5MA==\"\ndefault: \"MTIzNDU2Nzg5MA==\"",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "secret_name": {
+                    "description": "Название секрета\nexample: \"my-password\"\ndefault: \"my-password\"",
+                    "type": "string"
+                },
+                "secret_type": {
+                    "description": "Тип секрета\nexample: \"password\"\ndefault: \"password\"",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "Идентификатор пользователя\nexample: \"user789\"\ndefault: \"user789\"",
                     "type": "string"
                 }
             }
@@ -468,45 +472,45 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "created_at": {
-                    "description": "Дата создания секрета",
+                    "description": "Дата создания секрета\nexample: \"2025-08-17T12:00:00Z\"\ndefault: \"2025-08-17T12:00:00Z\"",
                     "type": "string"
                 },
                 "encrypted_payload": {
-                    "description": "Зашифрованное содержимое секрета",
+                    "description": "Зашифрованное содержимое секрета\nexample: \"U2FsdGVkX1+abc123xyz==\"\ndefault: \"U2FsdGVkX1+abc123xyz==\"",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "meta": {
-                    "description": "Метаданные секрета в формате JSON",
+                    "description": "Метаданные секрета в формате JSON\nexample: \"{\\\"url\\\":\\\"https://example.com\\\",\\\"note\\\":\\\"для личного пользования\\\"}\"\ndefault: \"{\\\"url\\\":\\\"https://example.com\\\",\\\"note\\\":\\\"для личного пользования\\\"}\"",
                     "type": "string"
                 },
                 "nonce": {
-                    "description": "Nonce для шифрования",
+                    "description": "Nonce для шифрования\nexample: \"bXlOb25jZQ==\"\ndefault: \"bXlOb25jZQ==\"",
                     "type": "array",
                     "items": {
                         "type": "integer"
                     }
                 },
                 "secret_id": {
-                    "description": "Уникальный идентификатор секрета",
+                    "description": "Уникальный идентификатор секрета\nexample: \"abc123\"\ndefault: \"abc123\"",
                     "type": "string"
                 },
                 "secret_name": {
-                    "description": "Название секрета",
+                    "description": "Название секрета\nexample: \"MyBankPassword\"\ndefault: \"MyBankPassword\"",
                     "type": "string"
                 },
                 "secret_type": {
-                    "description": "Тип секрета",
+                    "description": "Тип секрета\nexample: \"password\"\ndefault: \"password\"",
                     "type": "string"
                 },
                 "updated_at": {
-                    "description": "Дата последнего обновления секрета",
+                    "description": "Дата последнего обновления секрета\nexample: \"2025-08-17T12:30:00Z\"\ndefault: \"2025-08-17T12:30:00Z\"",
                     "type": "string"
                 },
                 "user_id": {
-                    "description": "Идентификатор пользователя",
+                    "description": "Идентификатор пользователя\nexample: \"user789\"\ndefault: \"user789\"",
                     "type": "string"
                 }
             }

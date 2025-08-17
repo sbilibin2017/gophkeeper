@@ -1,4 +1,4 @@
-package apps
+package app
 
 import (
 	"context"
@@ -10,6 +10,51 @@ import (
 	"github.com/stretchr/testify/assert"
 	_ "modernc.org/sqlite"
 )
+
+func TestNewCommand(t *testing.T) {
+	cmd := NewCommand()
+
+	assert.Equal(t, "server", cmd.Use)
+	assert.Equal(t, "Запускает HTTP сервер GophKeeper", cmd.Short)
+
+	flags := cmd.Flags()
+
+	serverURL, err := flags.GetString("server-url")
+	assert.NoError(t, err)
+	assert.Equal(t, ":8080", serverURL) // исправлено
+
+	dbDriver, err := flags.GetString("database-driver")
+	assert.NoError(t, err)
+	assert.Equal(t, "sqlite", dbDriver) // исправлено
+
+	dbDSN, err := flags.GetString("database-dsn")
+	assert.NoError(t, err)
+	assert.Equal(t, "server.db", dbDSN) // исправлено
+
+	maxOpenConns, err := flags.GetInt("database-max-open-conns")
+	assert.NoError(t, err)
+	assert.Equal(t, 10, maxOpenConns)
+
+	maxIdleConns, err := flags.GetInt("database-max-idle-conns")
+	assert.NoError(t, err)
+	assert.Equal(t, 5, maxIdleConns)
+
+	connMaxLifetime, err := flags.GetDuration("database-conn-max-lifetime")
+	assert.NoError(t, err)
+	assert.Equal(t, time.Hour, connMaxLifetime)
+
+	migrationsDir, err := flags.GetString("migrations-dir")
+	assert.NoError(t, err)
+	assert.Equal(t, "migrations", migrationsDir)
+
+	jwtSecret, err := flags.GetString("jwt-secret")
+	assert.NoError(t, err)
+	assert.Equal(t, "secret", jwtSecret)
+
+	jwtExp, err := flags.GetDuration("jwt-exp")
+	assert.NoError(t, err)
+	assert.Equal(t, 24*time.Hour, jwtExp)
+}
 
 func TestRunServerHTTP_RunOnly(t *testing.T) {
 	// создаём временную директорию для миграций
@@ -45,7 +90,7 @@ DROP TABLE users;
 
 	// запускаем сервер в отдельной горутине
 	go func() {
-		errCh <- RunServerHTTP(
+		errCh <- runHTTP(
 			ctx,
 			serverURL,
 			databaseDriver,

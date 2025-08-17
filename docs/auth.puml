@@ -1,0 +1,59 @@
+@startuml
+actor Client
+participant "API Server" as Server
+participant JWT
+participant "UserReadRepository" as UserRead
+participant "DeviceReadRepository" as DeviceRead
+
+Client -> Server: POST /login {username, password, device_id}
+
+Server -> UserRead: Get(username)
+UserRead --> Server: user_record (hashed_password, user_id)
+
+Server -> Server: Проверка пароля (сравнение с hashed_password)
+
+Server -> DeviceRead: Get(device_id, user_id)
+DeviceRead --> Server: device_record
+
+Server -> JWT: GenerateToken({user_id, device_id})
+JWT --> Server: token
+
+Server --> Client: {token}
+@enduml
+
+@startuml
+actor Client
+participant "API Server" as Server
+participant JWT
+participant "UserReadRepository" as UserRead
+participant "DeviceReadRepository" as DeviceRead
+participant "PasswordComparer" as Comparer
+
+Client -> Server: POST /login {username, password, device_id}
+
+Server -> UserRead: Get(username)
+UserRead --> Server: user_record {hashed_password, user_id}
+
+alt user not found
+    Server --> Client: 401 Unauthorized
+else
+    Server -> Comparer: Compare(password, hashed_password)
+    Comparer --> Server: ok / error
+
+    alt password invalid
+        Server --> Client: 401 Unauthorized
+    else
+        Server -> DeviceRead: Get(user_id, device_id)
+        DeviceRead --> Server: device_record
+
+        alt device not found
+            Server --> Client: 400 Bad Request
+        else
+            Server -> JWT: Generate(user_id, device_id)
+            JWT --> Server: token
+
+            Server --> Client: {token}
+        end
+    end
+end
+@enduml

@@ -20,13 +20,11 @@ func NewSecretHTTPFacade(client *resty.Client) *SecretHTTPFacade {
 // Save вставляет или обновляет секрет на сервере
 func (h *SecretHTTPFacade) Save(
 	ctx context.Context,
-	secretID, userID, secretName, secretType string,
+	token, secretName, secretType string,
 	encryptedPayload, nonce []byte,
 	meta string,
 ) error {
 	body := map[string]any{
-		"secret_id":         secretID,
-		"user_id":           userID,
 		"secret_name":       secretName,
 		"secret_type":       secretType,
 		"encrypted_payload": encryptedPayload,
@@ -36,7 +34,7 @@ func (h *SecretHTTPFacade) Save(
 
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(userID).
+		SetAuthToken(token).
 		SetBody(body).
 		Post("/save")
 	if err != nil {
@@ -53,15 +51,16 @@ func (h *SecretHTTPFacade) Save(
 // Get возвращает секрет по secretName
 func (h *SecretHTTPFacade) Get(
 	ctx context.Context,
-	userID, secretName string,
+	token string,
+	secretID string,
 ) (*models.SecretDB, error) {
 	var secret models.SecretDB
 
 	resp, err := h.client.R().
 		SetContext(ctx).
-		SetAuthToken(userID).
+		SetAuthToken(token).
 		SetResult(&secret).
-		Get(fmt.Sprintf("/get/%s", secretName))
+		Get(fmt.Sprintf("/get-secret/%s", secretID))
 	if err != nil {
 		return nil, err
 	}

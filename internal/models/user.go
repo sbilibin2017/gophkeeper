@@ -2,29 +2,62 @@ package models
 
 import "time"
 
-// RegisterRequest представляет тело запроса на регистрацию пользователя.
+// RegisterRequest определяет входящий запрос на регистрацию пользователя.
+// swagger:model RegisterRequest
 type RegisterRequest struct {
+	// Имя пользователя
+	// required: true
+	// example: johndoe
+	// default: johndoe
 	Username string `json:"username"`
+	// Пароль пользователя
+	// required: true
+	// example: Secret123!
+	// default: Secret123!
 	Password string `json:"password"`
 }
 
-// LoginRequest представляет тело запроса на аутентификацию пользователя.
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-// RegisterResponse представляет тело ответа сервера на регистрацию пользователя.
+// RegisterResponse определяет ответ на регистрацию пользователя.
+// swagger:model RegisterResponse
 type RegisterResponse struct {
-	UserID     string `json:"user_id"`
-	DeviceID   string `json:"device_id"`
+	// Уникальный идентификатор пользователя
+	// required: true
+	// example: "c56a4180-65aa-42ec-a945-5fd21dec0538"
+	// default: "c56a4180-65aa-42ec-a945-5fd21dec0538"
+	UserID string `json:"user_id"`
+	// Уникальный идентификатор устройства
+	// required: true
+	// example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	// default: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	DeviceID string `json:"device_id"`
+	// Приватный ключ RSA (PEM кодирование)
+	// required: true
+	// example: |
+	//   -----BEGIN RSA PRIVATE KEY-----
+	//   MIIEpAIBAAKCAQEAu7pM4h2...
+	//   -----END RSA PRIVATE KEY-----
+	// default: |
+	//   -----BEGIN RSA PRIVATE KEY-----
+	//   MIIEpAIBAAKCAQEAu7pM4h2...
+	//   -----END RSA PRIVATE KEY-----
 	PrivateKey string `json:"private_key"`
-	Token      string `json:"token"` // можно оставить пустым, если токен извлекается через TokenGetter
 }
 
-// LoginResponse представляет тело ответа сервера на вход пользователя.
-type LoginResponse struct {
-	Token string `json:"token"` // токен можно хранить здесь, либо извлекать через TokenGetter
+// LoginRequest определяет входящий запрос на аутентификацию пользователя.
+// swagger:model LoginRequest
+type LoginRequest struct {
+	// Имя пользователя
+	// required: true
+	// example: johndoe
+	Username string `json:"username"`
+	// Пароль пользователя
+	// required: true
+	// example: Secret123!
+	Password string `json:"password"`
+	// Уникальный идентификатор устройства
+	// required: true
+	// example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+	DeviceID string `json:"device_id"`
 }
 
 // UserDB представляет запись пользователя
