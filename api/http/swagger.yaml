@@ -1,0 +1,366 @@
+basePath: /
+definitions:
+  handlers.DeviceResponse:
+    properties:
+      created_at:
+        description: Дата создания устройства
+        type: string
+      device_id:
+        description: Уникальный идентификатор устройства
+        type: string
+      public_key:
+        description: Публичный ключ устройства
+        type: string
+      updated_at:
+        description: Дата последнего обновления данных устройства
+        type: string
+      user_id:
+        description: Идентификатор пользователя-владельца устройства
+        type: string
+    type: object
+  handlers.LoginRequest:
+    properties:
+      device_id:
+        description: |-
+          Уникальный идентификатор устройства
+          required: true
+        type: string
+      password:
+        description: |-
+          Пароль пользователя
+          required: true
+        type: string
+      username:
+        description: |-
+          Имя пользователя
+          required: true
+        type: string
+    type: object
+  handlers.RegisterRequest:
+    properties:
+      password:
+        description: |-
+          Пароль пользователя
+          required: true
+        type: string
+      username:
+        description: |-
+          Имя пользователя
+          required: true
+        type: string
+    type: object
+  handlers.RegisterResponse:
+    properties:
+      device_id:
+        description: |-
+          Уникальный идентификатор устройства
+          required: true
+        type: string
+      private_key:
+        description: |-
+          Приватный ключ RSA (PEM кодирование)
+          required: true
+        type: string
+      user_id:
+        description: |-
+          Уникальный идентификатор пользователя
+          required: true
+        type: string
+    type: object
+  handlers.SecretKeyResponse:
+    properties:
+      created_at:
+        description: Дата создания записи
+        type: string
+      device_id:
+        description: Идентификатор устройства
+        type: string
+      encrypted_aes_key:
+        description: AES ключ, зашифрованный публичным ключом устройства
+        items:
+          type: integer
+        type: array
+      secret_id:
+        description: Идентификатор секрета
+        type: string
+      secret_key_id:
+        description: Уникальный идентификатор записи секретного ключа
+        type: string
+      updated_at:
+        description: Дата последнего обновления записи
+        type: string
+    type: object
+  handlers.SecretResponse:
+    properties:
+      created_at:
+        description: Дата создания секрета
+        type: string
+      encrypted_payload:
+        description: Зашифрованное содержимое секрета
+        items:
+          type: integer
+        type: array
+      meta:
+        description: Метаданные секрета в формате JSON
+        type: string
+      nonce:
+        description: Nonce для шифрования
+        items:
+          type: integer
+        type: array
+      secret_id:
+        description: Уникальный идентификатор секрета
+        type: string
+      secret_name:
+        description: Название секрета
+        type: string
+      secret_type:
+        description: Тип секрета
+        type: string
+      updated_at:
+        description: Дата последнего обновления секрета
+        type: string
+      user_id:
+        description: Идентификатор пользователя
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API сервер для управления секретами.
+  title: GophKeeper API
+  version: "1.0"
+paths:
+  /get-device:
+    get:
+      consumes:
+      - application/json
+      description: Извлекает устройство по токену из запроса, возвращает данные устройства
+      parameters:
+      - default: Bearer <token>
+        description: Bearer токен
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация об устройстве
+          schema:
+            $ref: '#/definitions/handlers.DeviceResponse'
+        "400":
+          description: Неверный токен или запрос
+        "401":
+          description: Неавторизованный доступ
+        "404":
+          description: Устройство не найдено
+        "500":
+          description: Внутренняя ошибка сервера
+      security:
+      - BearerAuth: []
+      summary: Получение информации об устройстве
+      tags:
+      - devices
+  /get-secret:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает данные секрета пользователя по имени секрета
+      parameters:
+      - default: Bearer <token>
+        description: Bearer токен
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Имя секрета
+        in: query
+        name: secret_name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о секрете
+          schema:
+            $ref: '#/definitions/handlers.SecretResponse'
+        "400":
+          description: Неверный токен или отсутствует имя секрета
+        "401":
+          description: Неавторизованный доступ
+        "404":
+          description: Секрет не найден
+        "500":
+          description: Внутренняя ошибка сервера
+      security:
+      - BearerAuth: []
+      summary: Получение секрета по имени
+      tags:
+      - secrets
+  /get-secret-key:
+    get:
+      consumes:
+      - application/json
+      description: Извлекает секретный ключ по токену из запроса, возвращает данные
+        ключа
+      parameters:
+      - default: Bearer <token>
+        description: Bearer токен
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о секретном ключе
+          schema:
+            $ref: '#/definitions/handlers.SecretKeyResponse'
+        "400":
+          description: Неверный токен или запрос
+        "401":
+          description: Неавторизованный доступ
+        "404":
+          description: Закодированный ключ секрета не найден
+        "500":
+          description: Внутренняя ошибка сервера
+      security:
+      - BearerAuth: []
+      summary: Получение информации о секретном ключе
+      tags:
+      - secret-key
+  /list-secrets:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех секретов текущего пользователя
+      parameters:
+      - default: Bearer <token>
+        description: Bearer токен
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список секретов пользователя
+          schema:
+            items:
+              $ref: '#/definitions/handlers.SecretResponse'
+            type: array
+        "400":
+          description: Неверный токен запроса
+        "401":
+          description: Неавторизованный доступ
+        "500":
+          description: Внутренняя ошибка сервера
+      security:
+      - BearerAuth: []
+      summary: Получение списка всех секретов пользователя
+      tags:
+      - secrets
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Проверяет логин и пароль, опционально устройство, генерирует токен
+        и возвращает его в заголовке
+      parameters:
+      - description: Запрос на аутентификацию пользователя
+        in: body
+        name: loginRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная аутентификация, токен в заголовке
+        "400":
+          description: Неверный запрос или устройство не найдено
+        "401":
+          description: Неверный логин или пароль
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Аутентификация пользователя
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      description: Создает новый аккаунт пользователя, генерирует пару ключей RSA
+        и возвращает приватный ключ и ID устройства
+      parameters:
+      - description: Запрос на регистрацию пользователя
+        in: body
+        name: registerRequest
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная регистрация
+          schema:
+            $ref: '#/definitions/handlers.RegisterResponse'
+        "400":
+          description: Неверный запрос
+        "409":
+          description: Пользователь с таким именем уже существует
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Регистрация нового пользователя
+      tags:
+      - auth
+  /save-secret:
+    post:
+      consumes:
+      - application/json
+      description: Сохраняет новый секрет пользователя, используя токен авторизации
+      parameters:
+      - default: Bearer <token>
+        description: Bearer токен
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: Данные секрета для сохранения
+        in: body
+        name: secret
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.SecretResponse'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Секрет успешно сохранен
+        "400":
+          description: Неверный токен или запрос
+        "401":
+          description: Неавторизованный доступ
+        "500":
+          description: Внутренняя ошибка сервера
+      security:
+      - BearerAuth: []
+      summary: Сохранение нового секрета
+      tags:
+      - secrets
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: 'Bearer токен для авторизации в формате: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

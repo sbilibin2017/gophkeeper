@@ -1,0 +1,520 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "API сервер для управления секретами.",
+        "title": "GophKeeper API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/get-device": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Извлекает устройство по токену из запроса, возвращает данные устройства",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "devices"
+                ],
+                "summary": "Получение информации об устройстве",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Информация об устройстве",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.DeviceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный токен или запрос"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ"
+                    },
+                    "404": {
+                        "description": "Устройство не найдено"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/get-secret": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает данные секрета пользователя по имени секрета",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Получение секрета по имени",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Имя секрета",
+                        "name": "secret_name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Информация о секрете",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SecretResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный токен или отсутствует имя секрета"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ"
+                    },
+                    "404": {
+                        "description": "Секрет не найден"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/get-secret-key": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Извлекает секретный ключ по токену из запроса, возвращает данные ключа",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secret-key"
+                ],
+                "summary": "Получение информации о секретном ключе",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Информация о секретном ключе",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SecretKeyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный токен или запрос"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ"
+                    },
+                    "404": {
+                        "description": "Закодированный ключ секрета не найден"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/list-secrets": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Возвращает список всех секретов текущего пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Получение списка всех секретов пользователя",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Список секретов пользователя",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.SecretResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный токен запроса"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/login": {
+            "post": {
+                "description": "Проверяет логин и пароль, опционально устройство, генерирует токен и возвращает его в заголовке",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Аутентификация пользователя",
+                "parameters": [
+                    {
+                        "description": "Запрос на аутентификацию пользователя",
+                        "name": "loginRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешная аутентификация, токен в заголовке"
+                    },
+                    "400": {
+                        "description": "Неверный запрос или устройство не найдено"
+                    },
+                    "401": {
+                        "description": "Неверный логин или пароль"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/register": {
+            "post": {
+                "description": "Создает новый аккаунт пользователя, генерирует пару ключей RSA и возвращает приватный ключ и ID устройства",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Регистрация нового пользователя",
+                "parameters": [
+                    {
+                        "description": "Запрос на регистрацию пользователя",
+                        "name": "registerRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Успешная регистрация",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.RegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос"
+                    },
+                    "409": {
+                        "description": "Пользователь с таким именем уже существует"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        },
+        "/save-secret": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Сохраняет новый секрет пользователя, используя токен авторизации",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secrets"
+                ],
+                "summary": "Сохранение нового секрета",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "default": "Bearer \u003ctoken\u003e",
+                        "description": "Bearer токен",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Данные секрета для сохранения",
+                        "name": "secret",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.SecretResponse"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Секрет успешно сохранен"
+                    },
+                    "400": {
+                        "description": "Неверный токен или запрос"
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ"
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера"
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "handlers.DeviceResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Дата создания устройства",
+                    "type": "string"
+                },
+                "device_id": {
+                    "description": "Уникальный идентификатор устройства",
+                    "type": "string"
+                },
+                "public_key": {
+                    "description": "Публичный ключ устройства",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Дата последнего обновления данных устройства",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "Идентификатор пользователя-владельца устройства",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "description": "Уникальный идентификатор устройства\nrequired: true",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "Пароль пользователя\nrequired: true",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Имя пользователя\nrequired: true",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "description": "Пароль пользователя\nrequired: true",
+                    "type": "string"
+                },
+                "username": {
+                    "description": "Имя пользователя\nrequired: true",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "description": "Уникальный идентификатор устройства\nrequired: true",
+                    "type": "string"
+                },
+                "private_key": {
+                    "description": "Приватный ключ RSA (PEM кодирование)\nrequired: true",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "Уникальный идентификатор пользователя\nrequired: true",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.SecretKeyResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Дата создания записи",
+                    "type": "string"
+                },
+                "device_id": {
+                    "description": "Идентификатор устройства",
+                    "type": "string"
+                },
+                "encrypted_aes_key": {
+                    "description": "AES ключ, зашифрованный публичным ключом устройства",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "secret_id": {
+                    "description": "Идентификатор секрета",
+                    "type": "string"
+                },
+                "secret_key_id": {
+                    "description": "Уникальный идентификатор записи секретного ключа",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Дата последнего обновления записи",
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.SecretResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "description": "Дата создания секрета",
+                    "type": "string"
+                },
+                "encrypted_payload": {
+                    "description": "Зашифрованное содержимое секрета",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "meta": {
+                    "description": "Метаданные секрета в формате JSON",
+                    "type": "string"
+                },
+                "nonce": {
+                    "description": "Nonce для шифрования",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "secret_id": {
+                    "description": "Уникальный идентификатор секрета",
+                    "type": "string"
+                },
+                "secret_name": {
+                    "description": "Название секрета",
+                    "type": "string"
+                },
+                "secret_type": {
+                    "description": "Тип секрета",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "description": "Дата последнего обновления секрета",
+                    "type": "string"
+                },
+                "user_id": {
+                    "description": "Идентификатор пользователя",
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Bearer токен для авторизации в формате: \"Bearer {token}\"",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

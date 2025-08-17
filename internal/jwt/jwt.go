@@ -84,6 +84,22 @@ func (j *JWT) GetFromResponse(resp *http.Response) (string, error) {
 	return parts[1], nil
 }
 
+// GetFromResponse извлекает JWT-токен из заголовка Authorization в формате Bearer.
+// Возвращает токен или ошибку, если заголовок отсутствует или имеет неправильный формат.
+func (j *JWT) GetFromRequest(req *http.Request) (string, error) {
+	authHeader := req.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("missing Authorization header")
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" || parts[1] == "" {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	return parts[1], nil
+}
+
 // SetHeader устанавливает JWT-токен в заголовок Authorization HTTP-ответа
 func (j *JWT) SetHeader(w http.ResponseWriter, token string) {
 	w.Header().Set("Authorization", "Bearer "+token)

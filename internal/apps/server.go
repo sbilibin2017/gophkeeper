@@ -30,7 +30,7 @@ func RunServerHTTP(
 	jwtSecret string,
 	jwtExp time.Duration,
 ) error {
-	// создаём подключение к БД
+	// Инициализируем подключение к БД
 	conn, err := db.New(databaseDriver, databaseDSN,
 		db.WithMaxOpenConns(databaseMaxOpenConns),
 		db.WithMaxIdleConns(databaseMaxIdleConns),
@@ -41,27 +41,35 @@ func RunServerHTTP(
 	}
 	defer conn.Close()
 
-	// выполняем миграции
+	// Выполняем миграции
 	if err := db.RunMigrations(conn, databaseDriver, migrationsDir); err != nil {
 		return err
 	}
 
-	// инициализируем репозитории
+	// Инициализируем репозитории
 	userReadRepo := repositories.NewUserReadRepository(conn)
 	userWriteRepo := repositories.NewUserWriteRepository(conn)
 	deviceWriteRepo := repositories.NewDeviceWriteRepository(conn)
+	deviceReadRepo := repositories.NewDeviceReadRepository(conn)
+	secretKeyWriteRepo := repositories.NewSecretKeyWriteRepository(conn)
+	secretKeyReadRepo := repositories.NewSecretKeyReadRepository(conn)
+	secretWriteRepo := repositories.NewSecretWriteRepository(conn)
+	secretReadRepo := repositories.NewSecretReadRepository(conn)
 
-	// инициализируем JWT
+	// Инициализируем JWT
 	jwt := jwt.New(jwtSecret, jwtExp)
 
-	// инициализируем rsa
+	// Инициализируем rsa
 	rsa := rsa.New()
 
-	// инициализируем hasher
+	// Инициализируем hasher
 	pwHasher := passwordhasher.New()
 
-	// хендлер регистрации
-	registerHTTPHandler := handlers.NewRegisterHTTPHandler(
+	// Инициализируем роутер
+	router := chi.NewRouter()
+
+	// Аутентификация
+	router.Post("/register", handlers.NewRegisterHTTPHandler(
 		userReadRepo,
 		userWriteRepo,
 		deviceWriteRepo,
@@ -70,32 +78,48 @@ func RunServerHTTP(
 		pwHasher,
 		validators.ValidateUsername,
 		validators.ValidatePassword,
-	)
+	))
+	router.Post("/login", handlers.NewLoginHTTPHandler(
+		userReadRepo,
+		deviceReadRepo,
+		jwt,
+		pwHasher,
+		deviceWriteRepo,
+		rsa,
+	))
 
-	// роутер
-	router := chi.NewRouter()
-	router.Post("/register", registerHTTPHandler)
+	// Операции с устройствами
+	router.Get("/get-device", handlers.NewDeviceGetHTTPHandler(jwt, deviceReadRepo))
 
-	// создаём HTTP сервер
+	// Операции с симметричными плючыми
+	router.Post("/save-secret-key", handlers.NewSecretKeySaveHTTPHandler(jwt, secretKeyWriteRepo))
+	router.Get("/get-secret-key", handlers.NewSecretKeyGetHTTPHandler(jwt, secretKeyReadRepo))
+
+	// Операции с секретами
+	router.Post("/save-secret", handlers.NewSecretSaveHTTPHandler(jwt, secretWriteRepo))
+	router.Get("/get-secret", handlers.NewSecretGetHTTPHandler(jwt, secretReadRepo))
+	router.Get("/list-secrets", handlers.NewSecretListHTTPHandler(jwt, secretReadRepo))
+
+	// Инициализируем HTTP сервер
 	srv := &http.Server{
 		Addr:    serverURL,
 		Handler: router,
 	}
 
-	// создаём контекст, который реагирует на сигналы завершения
+	// Инициализируемы контекст, который реагирует на сигналы завершения
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 
-	// запуск сервера в отдельной горутине
+	// Запуск сервера в отдельной горутине
 	errCh := make(chan error, 1)
 	go func() {
 		errCh <- srv.ListenAndServe()
 	}()
 
-	// ждём либо сигнала завершения, либо ошибки сервера
+	// Ждём либо сигнала завершения, либо ошибки сервера
 	select {
 	case <-ctx.Done():
-		// graceful shutdown с таймаутом 5 секунд
+		// Graceful shutdown с таймаутом 5 секунд
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		return srv.Shutdown(shutdownCtx)

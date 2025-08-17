@@ -139,3 +139,34 @@ func TestJWT_SetHeader(t *testing.T) {
 	authHeader := recorder.Header().Get("Authorization")
 	assert.Equal(t, "Bearer "+token, authHeader)
 }
+
+func TestJWT_GetFromRequest(t *testing.T) {
+	j := New("secret", time.Minute)
+
+	req, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer mytoken123")
+
+	token, err := j.GetFromRequest(req)
+	require.NoError(t, err)
+	assert.Equal(t, "mytoken123", token)
+
+	// отсутствие заголовка
+	req2, _ := http.NewRequest(http.MethodGet, "/", nil)
+	_, err = j.GetFromRequest(req2)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "missing Authorization header")
+
+	// неверный формат
+	req3, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req3.Header.Set("Authorization", "Token abcdef")
+	_, err = j.GetFromRequest(req3)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid Authorization header format")
+
+	// пустой токен после Bearer
+	req4, _ := http.NewRequest(http.MethodGet, "/", nil)
+	req4.Header.Set("Authorization", "Bearer ")
+	_, err = j.GetFromRequest(req4)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid Authorization header format")
+}

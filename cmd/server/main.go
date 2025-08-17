@@ -12,6 +12,11 @@ import (
 // @description     API сервер для управления секретами.
 // @host            localhost:8080
 // @BasePath        /
+// @schemes         http
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Bearer токен для авторизации в формате: "Bearer {token}"
 func main() {
 	err := run()
 	if err != nil {

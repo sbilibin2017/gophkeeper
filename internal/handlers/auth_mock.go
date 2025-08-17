@@ -175,6 +175,44 @@ func (mr *MockDeviceWriterMockRecorder) Save(ctx, userID, deviceID, publicKey in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Save", reflect.TypeOf((*MockDeviceWriter)(nil).Save), ctx, userID, deviceID, publicKey)
 }
 
+// MockDeviceReader is a mock of DeviceReader interface.
+type MockDeviceReader struct {
+	ctrl     *gomock.Controller
+	recorder *MockDeviceReaderMockRecorder
+}
+
+// MockDeviceReaderMockRecorder is the mock recorder for MockDeviceReader.
+type MockDeviceReaderMockRecorder struct {
+	mock *MockDeviceReader
+}
+
+// NewMockDeviceReader creates a new mock instance.
+func NewMockDeviceReader(ctrl *gomock.Controller) *MockDeviceReader {
+	mock := &MockDeviceReader{ctrl: ctrl}
+	mock.recorder = &MockDeviceReaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockDeviceReader) EXPECT() *MockDeviceReaderMockRecorder {
+	return m.recorder
+}
+
+// Get mocks base method.
+func (m *MockDeviceReader) Get(ctx context.Context, userID, deviceID string) (*models.DeviceDB, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Get", ctx, userID, deviceID)
+	ret0, _ := ret[0].(*models.DeviceDB)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Get indicates an expected call of Get.
+func (mr *MockDeviceReaderMockRecorder) Get(ctx, userID, deviceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockDeviceReader)(nil).Get), ctx, userID, deviceID)
+}
+
 // MockRSAGenerator is a mock of RSAGenerator interface.
 type MockRSAGenerator struct {
 	ctrl     *gomock.Controller
@@ -250,4 +288,41 @@ func (m *MockPasswordHasher) Hash(password string) ([]byte, error) {
 func (mr *MockPasswordHasherMockRecorder) Hash(password interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Hash", reflect.TypeOf((*MockPasswordHasher)(nil).Hash), password)
+}
+
+// MockPasswordComparer is a mock of PasswordComparer interface.
+type MockPasswordComparer struct {
+	ctrl     *gomock.Controller
+	recorder *MockPasswordComparerMockRecorder
+}
+
+// MockPasswordComparerMockRecorder is the mock recorder for MockPasswordComparer.
+type MockPasswordComparerMockRecorder struct {
+	mock *MockPasswordComparer
+}
+
+// NewMockPasswordComparer creates a new mock instance.
+func NewMockPasswordComparer(ctrl *gomock.Controller) *MockPasswordComparer {
+	mock := &MockPasswordComparer{ctrl: ctrl}
+	mock.recorder = &MockPasswordComparerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPasswordComparer) EXPECT() *MockPasswordComparerMockRecorder {
+	return m.recorder
+}
+
+// Compare mocks base method.
+func (m *MockPasswordComparer) Compare(hash, password string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Compare", hash, password)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Compare indicates an expected call of Compare.
+func (mr *MockPasswordComparerMockRecorder) Compare(hash, password interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Compare", reflect.TypeOf((*MockPasswordComparer)(nil).Compare), hash, password)
 }

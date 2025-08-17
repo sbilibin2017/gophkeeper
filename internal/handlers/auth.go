@@ -30,6 +30,13 @@ type DeviceWriter interface {
 	Save(ctx context.Context, userID, deviceID, publicKey string) error
 }
 
+type DeviceReader interface {
+	Get(
+		ctx context.Context,
+		userID, deviceID string,
+	) (*models.DeviceDB, error)
+}
+
 // RSAGenerator генерирует пару ключей RSA (приватный и публичный) в формате PEM.
 type RSAGenerator interface {
 	GenerateKeyPair() (privatePEM string, publicPEM string, err error)
@@ -37,6 +44,10 @@ type RSAGenerator interface {
 
 type PasswordHasher interface {
 	Hash(password string) ([]byte, error)
+}
+
+type PasswordComparer interface {
+	Compare(hash, password string) error
 }
 
 // RegisterRequest определяет входящий запрос на регистрацию пользователя.
@@ -163,5 +174,85 @@ func NewRegisterHTTPHandler(
 			PrivateKey: privateKeyPEM,
 		}
 		json.NewEncoder(w).Encode(resp)
+	}
+}
+
+// LoginRequest определяет входящий запрос на аутентификацию пользователя.
+// swagger:model LoginRequest
+type LoginRequest struct {
+	// Имя пользователя
+	// required: true
+	Username string `json:"username"`
+	// Пароль пользователя
+	// required: true
+	Password string `json:"password"`
+	// Уникальный идентификатор устройства
+	// required: true
+	DeviceID string `json:"device_id"`
+}
+
+// @Summary      Аутентификация пользователя
+// @Description  Проверяет логин и пароль, опционально устройство, генерирует токен и возвращает его в заголовке
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        loginRequest body handlers.LoginRequest true "Запрос на аутентификацию пользователя"
+// @Success      200 "Успешная аутентификация, токен в заголовке"
+// @Failure      400 "Неверный запрос или устройство не найдено"
+// @Failure      401 "Неверный логин или пароль"
+// @Failure      500 "Внутренняя ошибка сервера"
+// @Router       /login [post]
+func NewLoginHTTPHandler(
+	userReader UserReader,
+	deviceReader DeviceReader,
+	tokener Tokener,
+	pwComparer PasswordComparer,
+	deviceWriter DeviceWriter,
+	rsaGenerator RSAGenerator,
+) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
+		// Декодируем JSON-запрос в структуру LoginRequest
+		var req LoginRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Находим пользователя по имени
+		user, err := userReader.Get(ctx, req.Username)
+		if err != nil || user == nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		// Проверяем пароль
+		if err := pwComparer.Compare(user.PasswordHash, req.Password); err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		// Находим устройство
+		device, err := deviceReader.Get(ctx, user.UserID, req.DeviceID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		// Проверяем устройство
+		if device == nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		// Генерируем токен
+		token, err := tokener.Generate(user.UserID, device.DeviceID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// Устанавливаем токен в заголовок
+		tokener.SetHeader(w, token)
 	}
 }
