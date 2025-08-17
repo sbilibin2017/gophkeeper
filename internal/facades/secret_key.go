@@ -2,7 +2,9 @@ package facades
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
@@ -23,12 +25,19 @@ func (h *SecretKeyHTTPFacade) Get(
 	ctx context.Context,
 	secretID, deviceID string,
 ) (*models.SecretKeyDB, error) {
-	var secretKey models.SecretKeyDB
+	var respData struct {
+		SecretKeyID     string    `json:"secret_key_id"`
+		SecretID        string    `json:"secret_id"`
+		DeviceID        string    `json:"device_id"`
+		EncryptedAESKey string    `json:"encrypted_aes_key"`
+		CreatedAt       time.Time `json:"created_at"`
+		UpdatedAt       time.Time `json:"updated_at"`
+	}
 
 	resp, err := h.client.R().
 		SetContext(ctx).
 		SetAuthToken(secretID).
-		SetResult(&secretKey).
+		SetResult(&respData).
 		Get("/get")
 	if err != nil {
 		return nil, err
@@ -37,5 +46,19 @@ func (h *SecretKeyHTTPFacade) Get(
 		return nil, fmt.Errorf("http error: %s", resp.Status())
 	}
 
-	return &secretKey, nil
+	decodedKey, err := base64.StdEncoding.DecodeString(respData.EncryptedAESKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode AES key: %w", err)
+	}
+
+	secretKey := &models.SecretKeyDB{
+		SecretKeyID:     respData.SecretKeyID,
+		SecretID:        respData.SecretID,
+		DeviceID:        respData.DeviceID,
+		EncryptedAESKey: decodedKey,
+		CreatedAt:       respData.CreatedAt,
+		UpdatedAt:       respData.UpdatedAt,
+	}
+
+	return secretKey, nil
 }

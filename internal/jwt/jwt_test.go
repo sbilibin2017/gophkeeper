@@ -3,6 +3,8 @@ package jwt
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -93,4 +95,47 @@ func TestJWT_Parse_InvalidClaims(t *testing.T) {
 	assert.EqualError(t, err, "invalid token")
 	assert.Empty(t, userID)
 	assert.Empty(t, deviceID)
+}
+
+func TestJWT_GetFromResponse(t *testing.T) {
+	j := New("secret", time.Minute)
+
+	// Создаём http.Response с нужным заголовком
+	resp := &http.Response{
+		Header: make(http.Header),
+	}
+	resp.Header.Set("Authorization", "Bearer mytoken123")
+
+	token, err := j.GetFromResponse(resp)
+	require.NoError(t, err)
+	assert.Equal(t, "mytoken123", token)
+
+	// Проверка ошибки при отсутствии заголовка
+	resp2 := &http.Response{
+		Header: make(http.Header),
+	}
+	_, err = j.GetFromResponse(resp2)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "missing Authorization header in response")
+
+	// Проверка ошибки при неверном формате заголовка
+	resp3 := &http.Response{
+		Header: make(http.Header),
+	}
+	resp3.Header.Set("Authorization", "Token abcdef")
+	_, err = j.GetFromResponse(resp3)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid Authorization header format")
+}
+
+func TestJWT_SetHeader(t *testing.T) {
+	j := New("secret", time.Minute)
+	token := "mytoken123"
+
+	// Используем httptest.ResponseRecorder для тестирования
+	recorder := httptest.NewRecorder()
+	j.SetHeader(recorder, token)
+
+	authHeader := recorder.Header().Get("Authorization")
+	assert.Equal(t, "Bearer "+token, authHeader)
 }

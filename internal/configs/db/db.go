@@ -8,17 +8,17 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// Opt defines a function type that applies a configuration to sqlx.DB.
+// Opt определяет тип функции, которая применяет конфигурацию к sqlx.DB.
 type Opt func(*sqlx.DB)
 
-// NewDB establishes a connection to the database and applies any given options.
+// NewDB устанавливает соединение с базой данных и применяет любые переданные опции.
 func New(driver string, dsn string, opts ...Opt) (*sqlx.DB, error) {
 	db, err := sqlx.Connect(driver, dsn)
 	if err != nil {
 		return nil, err
 	}
 
-	// Apply all functional options
+	// Применяем все функциональные опции
 	for _, opt := range opts {
 		opt(db)
 	}
@@ -26,7 +26,7 @@ func New(driver string, dsn string, opts ...Opt) (*sqlx.DB, error) {
 	return db, nil
 }
 
-// WithMaxOpenConns sets the maximum number of open connections.
+// WithMaxOpenConns устанавливает максимальное количество открытых соединений.
 func WithMaxOpenConns(opts ...int) Opt {
 	return func(db *sqlx.DB) {
 		for _, opt := range opts {
@@ -38,7 +38,7 @@ func WithMaxOpenConns(opts ...int) Opt {
 	}
 }
 
-// WithMaxIdleConns sets the maximum number of idle connections.
+// WithMaxIdleConns устанавливает максимальное количество неиспользуемых соединений.
 func WithMaxIdleConns(opts ...int) Opt {
 	return func(db *sqlx.DB) {
 		for _, opt := range opts {
@@ -50,7 +50,7 @@ func WithMaxIdleConns(opts ...int) Opt {
 	}
 }
 
-// WithConnMaxLifetime sets the maximum connection lifetime.
+// WithConnMaxLifetime устанавливает максимальное время жизни соединения.
 func WithConnMaxLifetime(opts ...time.Duration) Opt {
 	return func(db *sqlx.DB) {
 		for _, opt := range opts {

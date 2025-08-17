@@ -2,7 +2,6 @@ package facades
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,12 +43,6 @@ func TestSecretHTTPFacade_Save(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func decodeBase64(t *testing.T, s string) []byte {
-	data, err := base64.StdEncoding.DecodeString(s)
-	assert.NoError(t, err)
-	return data
-}
-
 func TestSecretHTTPFacade_Get(t *testing.T) {
 	userID := "mocked-user"
 	secretName := "test-secret"
@@ -61,8 +54,8 @@ func TestSecretHTTPFacade_Get(t *testing.T) {
 		UserID:           userID,
 		SecretName:       secretName,
 		SecretType:       "note",
-		EncryptedPayload: base64.StdEncoding.EncodeToString([]byte("payload")),
-		Nonce:            base64.StdEncoding.EncodeToString([]byte("nonce")),
+		EncryptedPayload: []byte("payload"),
+		Nonce:            []byte("nonce"),
 		Meta:             "meta",
 		UpdatedAt:        updatedAt,
 	}
@@ -87,13 +80,10 @@ func TestSecretHTTPFacade_Get(t *testing.T) {
 	secretResp, err := facade.Get(context.Background(), userID, secretName)
 	assert.NoError(t, err)
 
-	payload := decodeBase64(t, secretResp.EncryptedPayload)
-	nonceDecoded := decodeBase64(t, secretResp.Nonce)
-
 	assert.Equal(t, secretName, secretResp.SecretName)
 	assert.Equal(t, "note", secretResp.SecretType)
-	assert.Equal(t, []byte("payload"), payload)
-	assert.Equal(t, []byte("nonce"), nonceDecoded)
+	assert.Equal(t, []byte("payload"), secretResp.EncryptedPayload)
+	assert.Equal(t, []byte("nonce"), secretResp.Nonce)
 	assert.Equal(t, "meta", secretResp.Meta)
 }
 
@@ -108,8 +98,8 @@ func TestSecretHTTPFacade_List(t *testing.T) {
 			UserID:           userID,
 			SecretName:       "test-secret",
 			SecretType:       "note",
-			EncryptedPayload: base64.StdEncoding.EncodeToString([]byte("payload")),
-			Nonce:            base64.StdEncoding.EncodeToString([]byte("nonce")),
+			EncryptedPayload: []byte("payload"),
+			Nonce:            []byte("nonce"),
 			Meta:             "meta",
 			UpdatedAt:        updatedAt,
 		},
@@ -136,13 +126,10 @@ func TestSecretHTTPFacade_List(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, secretsResp, 1)
 
-	payload := decodeBase64(t, secretsResp[0].EncryptedPayload)
-	nonceDecoded := decodeBase64(t, secretsResp[0].Nonce)
-
 	assert.Equal(t, "test-secret", secretsResp[0].SecretName)
 	assert.Equal(t, "note", secretsResp[0].SecretType)
-	assert.Equal(t, []byte("payload"), payload)
-	assert.Equal(t, []byte("nonce"), nonceDecoded)
+	assert.Equal(t, []byte("payload"), secretsResp[0].EncryptedPayload)
+	assert.Equal(t, []byte("nonce"), secretsResp[0].Nonce)
 	assert.Equal(t, "meta", secretsResp[0].Meta)
 }
 

@@ -2,10 +2,10 @@ package jwt
 
 import (
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -70,8 +70,8 @@ func (j *JWT) Parse(tokenString string) (userID string, deviceID string, err err
 
 // GetFromResponse извлекает JWT-токен из заголовка Authorization в формате Bearer.
 // Возвращает токен или ошибку, если заголовок отсутствует или имеет неправильный формат.
-func (j *JWT) GetFromResponse(resp *resty.Response) (string, error) {
-	authHeader := resp.Header().Get("Authorization")
+func (j *JWT) GetFromResponse(resp *http.Response) (string, error) {
+	authHeader := resp.Header.Get("Authorization")
 	if authHeader == "" {
 		return "", errors.New("missing Authorization header in response")
 	}
@@ -82,4 +82,9 @@ func (j *JWT) GetFromResponse(resp *resty.Response) (string, error) {
 	}
 
 	return parts[1], nil
+}
+
+// SetHeader устанавливает JWT-токен в заголовок Authorization HTTP-ответа
+func (j *JWT) SetHeader(w http.ResponseWriter, token string) {
+	w.Header().Set("Authorization", "Bearer "+token)
 }
