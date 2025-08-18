@@ -28,10 +28,9 @@ TABLE(secrets) {
     updated_at : TIMESTAMP
 }
 
-TABLE(secret_keys) {
-    PK(secret_key_id) : TEXT
-    secret_id : TEXT
-    device_id : TEXT
+TABLE(secret_keys) { 
+    PK(secret_id) : TEXT
+    PK(device_id) : TEXT
     symmetric_key_encrypted_with_device_public_key : BLOB
     created_at : TIMESTAMP
     updated_at : TIMESTAMP

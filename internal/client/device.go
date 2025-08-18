@@ -1,4 +1,4 @@
-package facades
+package client
 
 import (
 	"context"
@@ -22,8 +22,8 @@ func NewDeviceHTTPClient(client *resty.Client) *DeviceHTTPClient {
 func (h *DeviceHTTPClient) Get(
 	ctx context.Context,
 	token string,
-) (*models.DeviceDB, error) {
-	var secret models.DeviceDB
+) (*models.DeviceResponse, error) {
+	var secret models.DeviceResponse
 
 	resp, err := h.client.R().
 		SetContext(ctx).

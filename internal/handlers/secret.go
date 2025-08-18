@@ -2,151 +2,111 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 // SecretTokenDecoder интерфейс для декодирования токена из HTTP-запроса.
 type SecretTokenDecoder interface {
-	// GetFromRequest извлекает токен из HTTP-запроса.
-	//
-	// Параметры:
-	//   req - указатель на HTTP-запрос
-	//
-	// Возвращает:
-	//   токен в виде строки и ошибку в случае неудачи
 	GetFromRequest(req *http.Request) (string, error)
-
-	// Parse парсит токен и возвращает идентификаторы секрета и устройства.
-	//
-	// Параметры:
-	//   tokenString - токен в виде строки
-	//
-	// Возвращает:
-	//   secretID - идентификатор секрета
-	//   deviceID - идентификатор устройства
-	//   err - ошибка в случае неудачи
-	Parse(tokenString string) (userID string, deviceID string, err error)
+	Parse(tokenString string) (*models.Claims, error)
 }
 
 // SecretWriter интерфейс для сохранения секрета.
 type SecretWriter interface {
-	// Save сохраняет новый секрет в хранилище.
-	//
-	// Параметры:
-	//   ctx - контекст запроса
-	//   secretID - уникальный идентификатор секрета
-	//   userID - идентификатор пользователя
-	//   secretName - название секрета
-	//   secretType - тип секрета
-	//   encryptedPayload - зашифрованные данные секрета
-	//   nonce - nonce для шифрования
-	//   meta - метаданные секрета
-	//
-	// Возвращает:
-	//   ошибку в случае неудачи
-	Save(
-		ctx context.Context,
-		secretID, userID, secretName, secretType string,
-		encryptedPayload, nonce []byte,
-		meta string,
-	) error
+	Save(ctx context.Context, secret *models.SecretDB) error
 }
 
 // SecretReader интерфейс для чтения секрета.
 type SecretReader interface {
-	// Get возвращает секрет по имени для указанного пользователя.
-	//
-	// Параметры:
-	//   ctx - контекст запроса
-	//   userID - идентификатор пользователя
-	//   secretName - имя секрета
-	//
-	// Возвращает:
-	//   указатель на SecretDB и ошибку в случае неудачи
 	Get(ctx context.Context, userID, secretID string) (*models.SecretDB, error)
-
-	// List возвращает список всех секретов указанного пользователя.
-	//
-	// Параметры:
-	//   ctx - контекст запроса
-	//   userID - идентификатор пользователя
-	//
-	// Возвращает:
-	//   срез указателей на SecretDB и ошибку в случае неудачи
 	List(ctx context.Context, userID string) ([]*models.SecretDB, error)
 }
 
 // @Summary      Сохранение нового секрета
 // @Description  Сохраняет новый секрет пользователя
-// @Tags         secrets
+// @Tags         secret
 // @Accept       json
 // @Produce      json
-// @Param        secret body handlers.SecretRequest true "Данные секрета для сохранения"
-// @Success      200 "Секрет успешно сохранен"
-// @Failure      400 "Неверный запрос"
-// @Failure      401 "Неавторизованный доступ"
-// @Failure      500 "Внутренняя ошибка сервера"
-// @Router       /save-secret [post]
+// @Param        secret body models.SecretRequest true "Данные секрета для сохранения"
+// @Success      200 {string} string "Секрет успешно сохранен"
+// @Failure      400 {string} string "Неверный запрос"
+// @Failure      401 {string} string "Неавторизованный доступ"
+// @Failure      500 {string} string "Внутренняя ошибка сервера"
+// @Router       /secret/save [post]
 func NewSecretSaveHTTPHandler(
 	tokenDecoder SecretTokenDecoder,
 	secretWriter SecretWriter,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context() // Получаем контекст запроса для возможной отмены/таймаута
+		ctx := r.Context()
 
-		// Извлекаем токен из запроса
 		tokenString, err := tokenDecoder.GetFromRequest(r)
 		if err != nil {
-			// Если токен отсутствует или некорректный, возвращаем 400 Bad Request
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		// Парсим токен для получения идентификатора секрета и устройства
-		secretID, _, err := tokenDecoder.Parse(tokenString)
-		if err != nil {
-			// Если токен недействителен, возвращаем 401 Unauthorized
+		claims, err := tokenDecoder.Parse(tokenString)
+		if err != nil || claims == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		// Декодируем тело запроса в структуру SecretResponse
 		var req models.SecretRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			// Если тело запроса невалидное, возвращаем 400 Bad Request
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		// Сохраняем секрет в хранилище
-		err = secretWriter.Save(ctx, secretID, req.UserID, req.SecretName, req.SecretType, req.EncryptedPayload, req.Nonce, req.Meta)
+		encryptedPayload, err := base64.StdEncoding.DecodeString(req.EncryptedPayload)
 		if err != nil {
-			// Если возникла внутренняя ошибка при сохранении, возвращаем 500 Internal Server Error
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		nonce, err := base64.StdEncoding.DecodeString(req.Nonce)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		secret := &models.SecretDB{
+			SecretID:         uuid.New().String(),
+			UserID:           claims.UserID,
+			SecretName:       req.SecretName,
+			SecretType:       req.SecretType,
+			EncryptedPayload: string(encryptedPayload),
+			Nonce:            string(nonce),
+			Meta:             req.Meta,
+		}
+
+		if err := secretWriter.Save(ctx, secret); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Возвращаем успешный ответ
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
-// @Summary      Получение секрета по имени
-// @Description  Возвращает данные секрета пользователя по имени секрета
-// @Tags         secrets
+// @Summary      Получение секрета по ID
+// @Description  Возвращает данные секрета пользователя по ID секрета
+// @Tags         secret
 // @Accept       json
 // @Produce      json
-// @Param        secret_name query string true "Имя секрета"
-// @Success      200 {object} handlers.SecretResponse "Информация о секрете"
-// @Failure      400 "Неверный запрос или отсутствует имя секрета"
-// @Failure      401 "Неавторизованный доступ"
-// @Failure      404 "Секрет не найден"
-// @Failure      500 "Внутренняя ошибка сервера"
-// @Router       /get-secret [get]
+// @Param        secret-id path string true "ID секрета"
+// @Success      200 {object} models.SecretResponse
+// @Failure      400 {string} string "Неверный запрос или отсутствует ID секрета"
+// @Failure      401 {string} string "Неавторизованный доступ"
+// @Failure      404 {string} string "Секрет не найден"
+// @Failure      500 {string} string "Внутренняя ошибка сервера"
+// @Router       /secret/get/{secret-id} [get]
 func NewSecretGetHTTPHandler(
 	tokenDecoder SecretTokenDecoder,
 	secretReader SecretReader,
@@ -160,8 +120,8 @@ func NewSecretGetHTTPHandler(
 			return
 		}
 
-		userID, _, err := tokenDecoder.Parse(tokenString)
-		if err != nil {
+		claims, err := tokenDecoder.Parse(tokenString)
+		if err != nil || claims == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -172,7 +132,7 @@ func NewSecretGetHTTPHandler(
 			return
 		}
 
-		secret, err := secretReader.Get(ctx, userID, secretID)
+		secret, err := secretReader.Get(ctx, claims.UserID, secretID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -187,8 +147,8 @@ func NewSecretGetHTTPHandler(
 			UserID:           secret.UserID,
 			SecretName:       secret.SecretName,
 			SecretType:       secret.SecretType,
-			EncryptedPayload: secret.EncryptedPayload,
-			Nonce:            secret.Nonce,
+			EncryptedPayload: base64.StdEncoding.EncodeToString([]byte(secret.EncryptedPayload)),
+			Nonce:            base64.StdEncoding.EncodeToString([]byte(secret.Nonce)),
 			Meta:             secret.Meta,
 			CreatedAt:        secret.CreatedAt,
 			UpdatedAt:        secret.UpdatedAt,
@@ -201,59 +161,55 @@ func NewSecretGetHTTPHandler(
 
 // @Summary      Получение списка всех секретов пользователя
 // @Description  Возвращает список всех секретов текущего пользователя
-// @Tags         secrets
+// @Tags         secret
 // @Accept       json
 // @Produce      json
-// @Success      200 {array} handlers.SecretResponse "Список секретов пользователя"
-// @Failure      400 "Неверный запрос"
-// @Failure      401 "Неавторизованный доступ"
-// @Failure      500 "Внутренняя ошибка сервера"
-// @Router       /list-secrets [get]
+// @Success      200 {array} models.SecretResponse
+// @Failure      400 {string} string "Неверный запрос"
+// @Failure      401 {string} string "Неавторизованный доступ"
+// @Failure      500 {string} string "Внутренняя ошибка сервера"
+// @Router       /secret/list [get]
 func NewSecretListHTTPHandler(
 	tokenDecoder SecretTokenDecoder,
 	secretReader SecretReader,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context() // Получаем контекст запроса
+		ctx := r.Context()
 
-		// Извлекаем токен из запроса
 		tokenString, err := tokenDecoder.GetFromRequest(r)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		// Парсим токен для получения идентификатора пользователя
-		_, userID, err := tokenDecoder.Parse(tokenString)
-		if err != nil {
+		claims, err := tokenDecoder.Parse(tokenString)
+		if err != nil || claims == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		// Получаем список всех секретов пользователя
-		secrets, err := secretReader.List(ctx, userID)
+		secrets, err := secretReader.List(ctx, claims.UserID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Преобразуем секреты в формат ответа
-		var resp []models.SecretResponse
+		resp := make([]models.SecretResponse, 0, len(secrets))
 		for _, secret := range secrets {
+
 			resp = append(resp, models.SecretResponse{
 				SecretID:         secret.SecretID,
 				UserID:           secret.UserID,
 				SecretName:       secret.SecretName,
 				SecretType:       secret.SecretType,
-				EncryptedPayload: secret.EncryptedPayload,
-				Nonce:            secret.Nonce,
+				EncryptedPayload: base64.StdEncoding.EncodeToString([]byte(secret.EncryptedPayload)),
+				Nonce:            base64.StdEncoding.EncodeToString([]byte(secret.Nonce)),
 				Meta:             secret.Meta,
 				CreatedAt:        secret.CreatedAt,
 				UpdatedAt:        secret.UpdatedAt,
 			})
 		}
 
-		// Устанавливаем заголовок и кодируем ответ в JSON
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	}

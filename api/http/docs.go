@@ -15,158 +15,9 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/get-device": {
-            "get": {
-                "description": "Извлекает устройство и возвращает данные устройства",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "devices"
-                ],
-                "summary": "Получение информации об устройстве",
-                "responses": {
-                    "200": {
-                        "description": "Информация об устройстве",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.DeviceResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Неверный токен или запрос"
-                    },
-                    "401": {
-                        "description": "Неавторизованный доступ"
-                    },
-                    "404": {
-                        "description": "Устройство не найдено"
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера"
-                    }
-                }
-            }
-        },
-        "/get-secret": {
-            "get": {
-                "description": "Возвращает данные секрета пользователя по имени секрета",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "secrets"
-                ],
-                "summary": "Получение секрета по имени",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Имя секрета",
-                        "name": "secret_name",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Информация о секрете",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SecretResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Неверный запрос или отсутствует имя секрета"
-                    },
-                    "401": {
-                        "description": "Неавторизованный доступ"
-                    },
-                    "404": {
-                        "description": "Секрет не найден"
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера"
-                    }
-                }
-            }
-        },
-        "/get-secret-key": {
-            "get": {
-                "description": "Извлекает секретный ключ по токену из запроса, возвращает данные ключа",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "secret-key"
-                ],
-                "summary": "Получение информации о секретном ключе",
-                "responses": {
-                    "200": {
-                        "description": "Информация о секретном ключе",
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SecretKeyResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Неверный токен или запрос"
-                    },
-                    "401": {
-                        "description": "Неавторизованный доступ"
-                    },
-                    "404": {
-                        "description": "Закодированный ключ секрета не найден"
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера"
-                    }
-                }
-            }
-        },
-        "/list-secrets": {
-            "get": {
-                "description": "Возвращает список всех секретов текущего пользователя",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "secrets"
-                ],
-                "summary": "Получение списка всех секретов пользователя",
-                "responses": {
-                    "200": {
-                        "description": "Список секретов пользователя",
-                        "schema": {
-                            "type": "array",
-                            "items": {
-                                "$ref": "#/definitions/handlers.SecretResponse"
-                            }
-                        }
-                    },
-                    "400": {
-                        "description": "Неверный запрос"
-                    },
-                    "401": {
-                        "description": "Неавторизованный доступ"
-                    },
-                    "500": {
-                        "description": "Внутренняя ошибка сервера"
-                    }
-                }
-            }
-        },
-        "/login": {
+        "/auth/login": {
             "post": {
-                "description": "Проверяет логин и пароль, опционально устройство, генерирует токен и возвращает его в заголовке",
+                "description": "Проверяет логин и пароль, а также устройство. Генерирует JWT токен и возвращает его в заголовке Authorization.",
                 "consumes": [
                     "application/json"
                 ],
@@ -180,33 +31,45 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "description": "Запрос на аутентификацию пользователя",
-                        "name": "loginRequest",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.LoginRequest"
+                            "$ref": "#/definitions/models.LoginRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Успешная аутентификация, токен в заголовке"
+                        "description": "Успешная аутентификация, токен в заголовке Authorization",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "400": {
-                        "description": "Неверный запрос или устройство не найдено"
+                        "description": "Неверный запрос или устройство не найдено",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "401": {
-                        "description": "Неверный логин или пароль"
+                        "description": "Неверный логин или пароль",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "500": {
-                        "description": "Внутренняя ошибка сервера"
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
-        "/register": {
+        "/auth/register": {
             "post": {
-                "description": "Создает новый аккаунт пользователя, генерирует пару ключей RSA и возвращает приватный ключ и ID устройства",
+                "description": "Создает новый аккаунт пользователя, генерирует пару ключей RSA, возвращает приватный ключ и ID устройства. Токен JWT возвращается в заголовке.",
                 "consumes": [
                     "application/json"
                 ],
@@ -220,11 +83,11 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "description": "Запрос на регистрацию пользователя",
-                        "name": "registerRequest",
+                        "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.RegisterRequest"
+                            "$ref": "#/definitions/models.RegisterRequest"
                         }
                     }
                 ],
@@ -232,24 +95,33 @@ const docTemplate = `{
                     "200": {
                         "description": "Успешная регистрация",
                         "schema": {
-                            "$ref": "#/definitions/handlers.RegisterResponse"
+                            "$ref": "#/definitions/models.RegisterResponse"
                         }
                     },
                     "400": {
-                        "description": "Неверный запрос"
+                        "description": "Неверный запрос или невалидные данные",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "409": {
-                        "description": "Пользователь с таким именем уже существует"
+                        "description": "Пользователь с таким именем уже существует",
+                        "schema": {
+                            "type": "string"
+                        }
                     },
                     "500": {
-                        "description": "Внутренняя ошибка сервера"
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 }
             }
         },
-        "/save-secret": {
-            "post": {
-                "description": "Сохраняет новый секрет пользователя",
+        "/device/get": {
+            "get": {
+                "description": "Извлекает информацию о текущем устройстве по JWT токену из запроса",
                 "consumes": [
                     "application/json"
                 ],
@@ -257,29 +129,80 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "secrets"
+                    "device"
                 ],
-                "summary": "Сохранение нового секрета",
+                "summary": "Получение информации об устройстве",
+                "responses": {
+                    "200": {
+                        "description": "Информация об устройстве",
+                        "schema": {
+                            "$ref": "#/definitions/models.DeviceResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный токен или некорректный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ, неверный токен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Устройство не найдено",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/secret-key/get/{secret-id}": {
+            "get": {
+                "description": "Извлекает секретный ключ по secret-id из URL и возвращает данные ключа",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secret-key"
+                ],
+                "summary": "Получение информации о секретном ключе",
                 "parameters": [
                     {
-                        "description": "Данные секрета для сохранения",
-                        "name": "secret",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/handlers.SecretRequest"
-                        }
+                        "type": "string",
+                        "description": "ID секрета",
+                        "name": "secret-id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Секрет успешно сохранен"
+                        "description": "Информация о секретном ключе",
+                        "schema": {
+                            "$ref": "#/definitions/models.SecretKeyResponse"
+                        }
                     },
                     "400": {
-                        "description": "Неверный запрос"
+                        "description": "Неверный токен или некорректный запрос"
                     },
                     "401": {
                         "description": "Неавторизованный доступ"
+                    },
+                    "404": {
+                        "description": "Секретный ключ не найден"
                     },
                     "500": {
                         "description": "Внутренняя ошибка сервера"
@@ -287,7 +210,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/save-secret-key": {
+        "/secret-key/save": {
             "post": {
                 "description": "Сохраняет новый секретный ключ пользователя",
                 "consumes": [
@@ -307,7 +230,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/handlers.SecretKeyResponse"
+                            "$ref": "#/definitions/models.SecretKeyRequest"
                         }
                     }
                 ],
@@ -316,7 +239,7 @@ const docTemplate = `{
                         "description": "Секретный ключ успешно сохранен"
                     },
                     "400": {
-                        "description": "Неверный токен или запрос"
+                        "description": "Неверный токен или некорректный запрос"
                     },
                     "401": {
                         "description": "Неавторизованный доступ"
@@ -326,10 +249,162 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/secret/get/{secret-id}": {
+            "get": {
+                "description": "Возвращает данные секрета пользователя по ID секрета",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secret"
+                ],
+                "summary": "Получение секрета по ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ID секрета",
+                        "name": "secret-id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SecretResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос или отсутствует ID секрета",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Секрет не найден",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/secret/list": {
+            "get": {
+                "description": "Возвращает список всех секретов текущего пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secret"
+                ],
+                "summary": "Получение списка всех секретов пользователя",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.SecretResponse"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/secret/save": {
+            "post": {
+                "description": "Сохраняет новый секрет пользователя",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "secret"
+                ],
+                "summary": "Сохранение нового секрета",
+                "parameters": [
+                    {
+                        "description": "Данные секрета для сохранения",
+                        "name": "secret",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SecretRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Секрет успешно сохранен",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Неверный запрос",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизованный доступ",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Внутренняя ошибка сервера",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
-        "handlers.DeviceResponse": {
+        "models.DeviceResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -354,7 +429,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.LoginRequest": {
+        "models.LoginRequest": {
             "type": "object",
             "properties": {
                 "device_id": {
@@ -371,37 +446,58 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.RegisterRequest": {
+        "models.RegisterRequest": {
             "type": "object",
             "properties": {
                 "password": {
-                    "description": "Пароль пользователя\nrequired: true\nexample: Secret123!\ndefault: Secret123!",
+                    "description": "Пароль пользователя\nrequired: true\nexample: Secret123!",
                     "type": "string"
                 },
                 "username": {
-                    "description": "Имя пользователя\nrequired: true\nexample: johndoe\ndefault: johndoe",
+                    "description": "Имя пользователя\nrequired: true\nexample: johndoe",
                     "type": "string"
                 }
             }
         },
-        "handlers.RegisterResponse": {
+        "models.RegisterResponse": {
             "type": "object",
             "properties": {
                 "device_id": {
-                    "description": "Уникальный идентификатор устройства\nrequired: true\nexample: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"\ndefault: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"",
+                    "description": "Уникальный идентификатор устройства\nrequired: true\nexample: \"f47ac10b-58cc-4372-a567-0e02b2c3d479\"",
                     "type": "string"
                 },
                 "private_key": {
-                    "description": "Приватный ключ RSA (PEM кодирование)\nrequired: true\nexample: |\n  -----BEGIN RSA PRIVATE KEY-----\n  MIIEpAIBAAKCAQEAu7pM4h2...\n  -----END RSA PRIVATE KEY-----\ndefault: |\n  -----BEGIN RSA PRIVATE KEY-----\n  MIIEpAIBAAKCAQEAu7pM4h2...\n  -----END RSA PRIVATE KEY-----",
+                    "description": "Приватный ключ RSA (PEM кодирование)\nrequired: true\nexample: |\n  -----BEGIN RSA PRIVATE KEY-----\n  MIIEpAIBAAKCAQEAu7pM4h2...\n  -----END RSA PRIVATE KEY-----",
+                    "type": "string"
+                },
+                "token": {
+                    "description": "JWT токен пользователя\nrequired: true\nexample: \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"",
                     "type": "string"
                 },
                 "user_id": {
-                    "description": "Уникальный идентификатор пользователя\nrequired: true\nexample: \"c56a4180-65aa-42ec-a945-5fd21dec0538\"\ndefault: \"c56a4180-65aa-42ec-a945-5fd21dec0538\"",
+                    "description": "Уникальный идентификатор пользователя\nrequired: true\nexample: \"c56a4180-65aa-42ec-a945-5fd21dec0538\"",
                     "type": "string"
                 }
             }
         },
-        "handlers.SecretKeyResponse": {
+        "models.SecretKeyRequest": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "description": "Идентификатор устройства\nexample: \"device-67890\"\ndefault: \"device-67890\"",
+                    "type": "string"
+                },
+                "encrypted_aes_key": {
+                    "description": "AES ключ, зашифрованный публичным ключом устройства\nexample: \"U2FsdGVkX1+abcd1234efgh5678ijkl90==\"\ndefault: \"U2FsdGVkX1+abcd1234efgh5678ijkl90==\"",
+                    "type": "string"
+                },
+                "secret_id": {
+                    "description": "Идентификатор секрета\nexample: \"secret-12345\"\ndefault: \"secret-12345\"",
+                    "type": "string"
+                }
+            }
+        },
+        "models.SecretKeyResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -414,10 +510,7 @@ const docTemplate = `{
                 },
                 "encrypted_aes_key": {
                     "description": "AES ключ, зашифрованный публичным ключом устройства\nexample: \"U2FsdGVkX1+abcd1234efgh5678ijkl90==\"\ndefault: \"U2FsdGVkX1+abcd1234efgh5678ijkl90==\"",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "string"
                 },
                 "secret_id": {
                     "description": "Идентификатор секрета\nexample: \"secret-12345\"\ndefault: \"secret-12345\"",
@@ -433,15 +526,12 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.SecretRequest": {
+        "models.SecretRequest": {
             "type": "object",
             "properties": {
                 "encrypted_payload": {
                     "description": "Зашифрованное содержимое секрета\nexample: \"SGVsbG8gV29ybGQh\"\ndefault: \"SGVsbG8gV29ybGQh\"",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "string"
                 },
                 "meta": {
                     "description": "Метаданные секрета в формате JSON\nexample: {\"url\":\"https://example.com\"}\ndefault: \"{\\\"url\\\":\\\"https://example.com\\\"}\"",
@@ -449,10 +539,7 @@ const docTemplate = `{
                 },
                 "nonce": {
                     "description": "Nonce для шифрования\nexample: \"MTIzNDU2Nzg5MA==\"\ndefault: \"MTIzNDU2Nzg5MA==\"",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "string"
                 },
                 "secret_name": {
                     "description": "Название секрета\nexample: \"my-password\"\ndefault: \"my-password\"",
@@ -468,7 +555,7 @@ const docTemplate = `{
                 }
             }
         },
-        "handlers.SecretResponse": {
+        "models.SecretResponse": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -477,10 +564,7 @@ const docTemplate = `{
                 },
                 "encrypted_payload": {
                     "description": "Зашифрованное содержимое секрета\nexample: \"U2FsdGVkX1+abc123xyz==\"\ndefault: \"U2FsdGVkX1+abc123xyz==\"",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "string"
                 },
                 "meta": {
                     "description": "Метаданные секрета в формате JSON\nexample: \"{\\\"url\\\":\\\"https://example.com\\\",\\\"note\\\":\\\"для личного пользования\\\"}\"\ndefault: \"{\\\"url\\\":\\\"https://example.com\\\",\\\"note\\\":\\\"для личного пользования\\\"}\"",
@@ -488,10 +572,7 @@ const docTemplate = `{
                 },
                 "nonce": {
                     "description": "Nonce для шифрования\nexample: \"bXlOb25jZQ==\"\ndefault: \"bXlOb25jZQ==\"",
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "string"
                 },
                 "secret_id": {
                     "description": "Уникальный идентификатор секрета\nexample: \"abc123\"\ndefault: \"abc123\"",
@@ -530,7 +611,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
-	BasePath:         "/",
+	BasePath:         "/api/v1",
 	Schemes:          []string{"http"},
 	Title:            "GophKeeper API",
 	Description:      "API сервер для управления секретами.",

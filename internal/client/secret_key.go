@@ -1,62 +1,50 @@
-package facades
+package client
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// SecretKeyHTTPFacade предоставляет методы для работы с секретами пользователя через HTTP API.
-type SecretKeyHTTPFacade struct {
+// SecretKeyHTTPClient предоставляет методы для работы с секретами пользователя через HTTP API.
+type SecretKeyHTTPClient struct {
 	client *resty.Client
 }
 
-// NewSecretKeyHTTPFacade создаёт новый экземпляр SecretKeyHTTPFacade с указанным HTTP клиентом.
-func NewSecretKeyHTTPFacade(client *resty.Client) *SecretKeyHTTPFacade {
-	return &SecretKeyHTTPFacade{client: client}
+// NewSecretKeyHTTPClient создаёт новый экземпляр SecretKeyHTTPClient с указанным HTTP клиентом.
+func NewSecretKeyHTTPClient(client *resty.Client) *SecretKeyHTTPClient {
+	return &SecretKeyHTTPClient{client: client}
 }
 
 // Get возвращает секрет по его ID.
-func (h *SecretKeyHTTPFacade) Get(
+func (h *SecretKeyHTTPClient) Get(
 	ctx context.Context,
 	token string,
 	secretID string,
-) (*models.SecretKeyDB, error) {
-	var respData struct {
-		SecretKeyID     string    `json:"secret_key_id"`
-		SecretID        string    `json:"secret_id"`
-		DeviceID        string    `json:"device_id"`
-		EncryptedAESKey string    `json:"encrypted_aes_key"`
-		CreatedAt       time.Time `json:"created_at"`
-		UpdatedAt       time.Time `json:"updated_at"`
-	}
+) (*models.SecretKeyResponse, error) {
+	var respData models.SecretKeyResponse
 
-	resp, err := h.client.R().
+	httpResp, err := h.client.R().
 		SetContext(ctx).
 		SetAuthToken(token).
 		SetResult(&respData).
-		Get("/get")
+		Get(fmt.Sprintf("/get/%s", secretID))
 	if err != nil {
 		return nil, err
 	}
-	if resp.IsError() {
-		return nil, fmt.Errorf("http error: %s", resp.Status())
+
+	if httpResp.IsError() {
+		return nil, fmt.Errorf("http error: %s", httpResp.Status())
 	}
 
-	decodedKey, err := base64.StdEncoding.DecodeString(respData.EncryptedAESKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode AES key: %w", err)
-	}
-
-	secretKey := &models.SecretKeyDB{
+	// Возвращаем новый объект с декодированным ключом
+	secretKey := &models.SecretKeyResponse{
 		SecretKeyID:     respData.SecretKeyID,
 		SecretID:        respData.SecretID,
 		DeviceID:        respData.DeviceID,
-		EncryptedAESKey: decodedKey,
+		EncryptedAESKey: respData.EncryptedAESKey,
 		CreatedAt:       respData.CreatedAt,
 		UpdatedAt:       respData.UpdatedAt,
 	}

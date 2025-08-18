@@ -1,0 +1,20 @@
+@startuml
+actor Client
+participant "API Server" as Server
+participant TokenDecoder
+participant DeviceGetter
+participant models
+
+Client -> Server: GET /device/get
+Server -> TokenDecoder: GetFromRequest(req)
+TokenDecoder --> Server: tokenString
+
+Server -> TokenDecoder: Parse(tokenString)
+TokenDecoder --> Server: claims
+
+Server -> DeviceGetter: Get(ctx, claims.UserID, claims.DeviceID)
+DeviceGetter --> Server: device
+
+Server -> Server: Build DeviceResponse JSON
+Server --> Client: DeviceResponse
+@enduml

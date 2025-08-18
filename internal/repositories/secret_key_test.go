@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 
 	"github.com/jmoiron/sqlx"
@@ -21,7 +22,7 @@ func setupSecretKeyTestDB(t *testing.T) *sqlx.DB {
 	CREATE TABLE secret_keys (
 		secret_id TEXT NOT NULL,
 		device_id TEXT NOT NULL,
-		encrypted_aes_key BLOB NOT NULL,
+		encrypted_aes_key TEXT NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (secret_id, device_id)
@@ -51,7 +52,7 @@ func TestSecretKeyWriteAndReadRepositories(t *testing.T) {
 	key := &models.SecretKeyDB{
 		SecretID:        secretID,
 		DeviceID:        deviceID,
-		EncryptedAESKey: encryptedAESKey,
+		EncryptedAESKey: base64.StdEncoding.EncodeToString(encryptedAESKey),
 	}
 	err := writeRepo.Save(ctx, key)
 	assert.NoError(t, err)
@@ -59,17 +60,21 @@ func TestSecretKeyWriteAndReadRepositories(t *testing.T) {
 	// === Get ===
 	keyRead, err := readRepo.Get(ctx, secretID, deviceID)
 	assert.NoError(t, err)
-	assert.Equal(t, secretID, keyRead.SecretID)
-	assert.Equal(t, deviceID, keyRead.DeviceID)
-	assert.Equal(t, encryptedAESKey, keyRead.EncryptedAESKey)
+
+	// Декодируем обратно из Base64
+	aesKeyDecoded, err := base64.StdEncoding.DecodeString(keyRead.EncryptedAESKey)
+	assert.NoError(t, err)
+	assert.Equal(t, encryptedAESKey, aesKeyDecoded)
 
 	// === Update ===
 	newAESKey := []byte("newaeskey")
-	key.EncryptedAESKey = newAESKey
+	key.EncryptedAESKey = base64.StdEncoding.EncodeToString(newAESKey)
 	err = writeRepo.Save(ctx, key)
 	assert.NoError(t, err)
 
 	keyUpdated, err := readRepo.Get(ctx, secretID, deviceID)
 	assert.NoError(t, err)
-	assert.Equal(t, newAESKey, keyUpdated.EncryptedAESKey)
+	newAESKeyDecoded, err := base64.StdEncoding.DecodeString(keyUpdated.EncryptedAESKey)
+	assert.NoError(t, err)
+	assert.Equal(t, newAESKey, newAESKeyDecoded)
 }

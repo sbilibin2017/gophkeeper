@@ -16,7 +16,7 @@ type SecretKeyRequest struct {
 	// AES ключ, зашифрованный публичным ключом устройства
 	// example: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
 	// default: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
-	EncryptedAESKey []byte `json:"encrypted_aes_key"`
+	EncryptedAESKey string `json:"encrypted_aes_key"`
 }
 
 // SecretKeyResponse описывает JSON-ответ с данными секретного ключа.
@@ -53,7 +53,7 @@ type SecretKeyDB struct {
 	SecretKeyID     string    `json:"secret_key_id" db:"secret_key_id"`         // уникальный идентификатор записи
 	SecretID        string    `json:"secret_id" db:"secret_id"`                 // идентификатор секрета
 	DeviceID        string    `json:"device_id" db:"device_id"`                 // идентификатор устройства
-	EncryptedAESKey []byte    `json:"encrypted_aes_key" db:"encrypted_aes_key"` // AES ключ, зашифрованный публичным ключом устройства
+	EncryptedAESKey string    `json:"encrypted_aes_key" db:"encrypted_aes_key"` // AES ключ, зашифрованный публичным ключом устройства
 	CreatedAt       time.Time `json:"created_at" db:"created_at"`               // дата создания записи
 	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`               // дата последнего обновления записи
 }

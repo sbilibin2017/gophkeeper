@@ -1,4 +1,4 @@
-package facades
+package client
 
 import (
 	"context"
@@ -8,34 +8,25 @@ import (
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// SecretHTTPFacade предоставляет методы для работы с секретами пользователя через HTTP API.
-type SecretHTTPFacade struct {
+// SecretHTTPClient предоставляет методы для работы с секретами пользователя через HTTP API.
+type SecretHTTPClient struct {
 	client *resty.Client
 }
 
-func NewSecretHTTPFacade(client *resty.Client) *SecretHTTPFacade {
-	return &SecretHTTPFacade{client: client}
+func NewSecretHTTPClient(client *resty.Client) *SecretHTTPClient {
+	return &SecretHTTPClient{client: client}
 }
 
 // Save вставляет или обновляет секрет на сервере
-func (h *SecretHTTPFacade) Save(
+func (h *SecretHTTPClient) Save(
 	ctx context.Context,
-	token, secretName, secretType string,
-	encryptedPayload, nonce []byte,
-	meta string,
+	token string,
+	req *models.SecretRequest,
 ) error {
-	body := map[string]any{
-		"secret_name":       secretName,
-		"secret_type":       secretType,
-		"encrypted_payload": encryptedPayload,
-		"nonce":             nonce,
-		"meta":              meta,
-	}
-
 	resp, err := h.client.R().
 		SetContext(ctx).
 		SetAuthToken(token).
-		SetBody(body).
+		SetBody(req).
 		Post("/save")
 	if err != nil {
 		return err
@@ -49,12 +40,12 @@ func (h *SecretHTTPFacade) Save(
 }
 
 // Get возвращает секрет по secretName
-func (h *SecretHTTPFacade) Get(
+func (h *SecretHTTPClient) Get(
 	ctx context.Context,
 	token string,
 	secretID string,
-) (*models.SecretDB, error) {
-	var secret models.SecretDB
+) (*models.SecretResponse, error) {
+	var secret models.SecretResponse
 
 	resp, err := h.client.R().
 		SetContext(ctx).
@@ -72,11 +63,11 @@ func (h *SecretHTTPFacade) Get(
 }
 
 // List возвращает все секреты пользователя
-func (h *SecretHTTPFacade) List(
+func (h *SecretHTTPClient) List(
 	ctx context.Context,
 	userID string,
-) ([]*models.SecretDB, error) {
-	var secrets []*models.SecretDB
+) ([]*models.SecretResponse, error) {
+	var secrets []*models.SecretResponse
 
 	resp, err := h.client.R().
 		SetContext(ctx).

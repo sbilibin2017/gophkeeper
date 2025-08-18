@@ -33,6 +33,10 @@ type RegisterResponse struct {
 	//   MIIEpAIBAAKCAQEAu7pM4h2...
 	//   -----END RSA PRIVATE KEY-----
 	PrivateKey string `json:"private_key"`
+	// JWT токен пользователя
+	// required: true
+	// example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+	Token string `json:"token"`
 }
 
 // LoginRequest определяет входящий запрос на аутентификацию пользователя.
@@ -50,6 +54,15 @@ type LoginRequest struct {
 	// required: true
 	// example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
 	DeviceID string `json:"device_id"`
+}
+
+// LoginResponse определяет ответ на аутентификацию пользователя.
+// swagger:model LoginResponse
+type LoginResponse struct {
+	// JWT токен пользователя
+	// required: true
+	// example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+	Token string `json:"token"`
 }
 
 // User представляет запись пользователя

@@ -1,0 +1,14 @@
+@startuml
+actor Client
+participant "API Server" as Server
+participant "UserReader" as UserRead
+participant "DeviceReader" as DeviceRead
+participant JWT
+
+Client -> Server: Login {username, password, device_id}
+Server -> UserRead: Get user by username
+Server -> Server: Compare password with stored hash
+Server -> DeviceRead: Get device by user_id and device_id
+Server -> JWT: Generate token
+Server --> Client: Return token
+@enduml

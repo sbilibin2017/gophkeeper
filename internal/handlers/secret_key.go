@@ -11,24 +11,17 @@ import (
 
 // SecretKeyTokenDecoder интерфейс для декодирования токена из HTTP-запроса.
 type SecretKeyTokenDecoder interface {
-	// GetFromRequest извлекает токен из запроса
 	GetFromRequest(req *http.Request) (string, error)
-	// Parse парсит токен и возвращает secretID и deviceID
-	Parse(tokenString string) (secretID string, deviceID string, err error)
+	Parse(tokenString string) (*models.Claims, error)
 }
 
-// SecretKeyGetter интерфейс для получения секретного ключа из хранилища.
+// SecretKeyWriter интерфейс для сохранения секретного ключа.
 type SecretKeyWriter interface {
-	Save(
-		ctx context.Context,
-		secretID, deviceID string,
-		encryptedAESKey []byte,
-	) error
+	Save(ctx context.Context, secretKey *models.SecretKeyDB) error
 }
 
-// SecretKeyGetter интерфейс для получения секретного ключа из хранилища.
+// SecretKeyGetter интерфейс для получения секретного ключа.
 type SecretKeyGetter interface {
-	// Get возвращает секретный ключ по secretID и deviceID
 	Get(ctx context.Context, secretID, deviceID string) (*models.SecretKeyDB, error)
 }
 
@@ -37,18 +30,18 @@ type SecretKeyGetter interface {
 // @Tags         secret-key
 // @Accept       json
 // @Produce      json
-// @Param        secretKey body handlers.SecretKeyResponse true "Данные секретного ключа для сохранения"
+// @Param        secretKey body models.SecretKeyRequest true "Данные секретного ключа для сохранения"
 // @Success      200 "Секретный ключ успешно сохранен"
-// @Failure      400 "Неверный токен или запрос"
+// @Failure      400 "Неверный токен или некорректный запрос"
 // @Failure      401 "Неавторизованный доступ"
 // @Failure      500 "Внутренняя ошибка сервера"
-// @Router       /save-secret-key [post]
+// @Router       /secret-key/save [post]
 func NewSecretKeySaveHTTPHandler(
 	tokenDecoder SecretKeyTokenDecoder,
 	secretKeyWriter SecretKeyWriter,
 ) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context() // Контекст запроса
+		ctx := r.Context()
 
 		// Извлекаем токен из запроса
 		tokenString, err := tokenDecoder.GetFromRequest(r)
@@ -57,43 +50,46 @@ func NewSecretKeySaveHTTPHandler(
 			return
 		}
 
-		// Парсим токен для получения secretID и deviceID
-		_, deviceID, err := tokenDecoder.Parse(tokenString)
-		if err != nil {
+		// Парсим токен и получаем claims
+		claims, err := tokenDecoder.Parse(tokenString)
+		if err != nil || claims == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		// Декодируем тело запроса в структуру SecretKeyResponse
 		var req models.SecretKeyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		// Сохраняем секретный ключ
-		err = secretKeyWriter.Save(ctx, req.SecretID, deviceID, req.EncryptedAESKey)
-		if err != nil {
+		secretKey := &models.SecretKeyDB{
+			SecretID:        req.SecretID,
+			DeviceID:        claims.DeviceID,
+			EncryptedAESKey: req.EncryptedAESKey,
+		}
+
+		if err := secretKeyWriter.Save(ctx, secretKey); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
-		// Возвращаем успешный ответ
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
 // @Summary      Получение информации о секретном ключе
-// @Description  Извлекает секретный ключ по токену из запроса, возвращает данные ключа
+// @Description  Извлекает секретный ключ по secret-id из URL и возвращает данные ключа
 // @Tags         secret-key
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} handlers.SecretKeyResponse "Информация о секретном ключе"
-// @Failure      400 "Неверный токен или запрос"
+// @Param        secret-id path string true "ID секрета"
+// @Success      200 {object} models.SecretKeyResponse "Информация о секретном ключе"
+// @Failure      400 "Неверный токен или некорректный запрос"
 // @Failure      401 "Неавторизованный доступ"
-// @Failure      404 "Закодированный ключ секрета не найден"
+// @Failure      404 "Секретный ключ не найден"
 // @Failure      500 "Внутренняя ошибка сервера"
-// @Router       /get-secret-key [get]
+// @Router       /secret-key/get/{secret-id} [get]
 func NewSecretKeyGetHTTPHandler(
 	tokenDecoder SecretKeyTokenDecoder,
 	secretKeyGetter SecretKeyGetter,
@@ -108,9 +104,9 @@ func NewSecretKeyGetHTTPHandler(
 			return
 		}
 
-		// Парсим токен
-		_, deviceID, err := tokenDecoder.Parse(tokenString)
-		if err != nil {
+		// Парсим токен и получаем claims
+		claims, err := tokenDecoder.Parse(tokenString)
+		if err != nil || claims == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -121,8 +117,7 @@ func NewSecretKeyGetHTTPHandler(
 			return
 		}
 
-		// Получаем закодирвоанный ключ секрета
-		secretKey, err := secretKeyGetter.Get(ctx, secretID, deviceID)
+		secretKey, err := secretKeyGetter.Get(ctx, secretID, claims.DeviceID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -132,7 +127,6 @@ func NewSecretKeyGetHTTPHandler(
 			return
 		}
 
-		// Формируем JSON-ответ
 		resp := models.SecretKeyResponse{
 			SecretKeyID:     secretKey.SecretKeyID,
 			SecretID:        secretKey.SecretID,

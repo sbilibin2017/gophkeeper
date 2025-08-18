@@ -38,4 +38,4 @@ build-server:
 # use cmd/server/main.go as entry point for swag init,
 # output to api/http folder
 gen-swag:
-	swag init -d internal/handlers -g ../../cmd/server/main.go -o api/http
+	swag init -d internal/handlers,internal/models -g ../../cmd/server/main.go -o api/http

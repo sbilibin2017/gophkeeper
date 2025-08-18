@@ -13,7 +13,7 @@ type TokenDecoder interface {
 	// GetFromRequest извлекает токен из запроса
 	GetFromRequest(req *http.Request) (string, error)
 	// Parse парсит токен и возвращает userID и deviceID
-	Parse(tokenString string) (userID string, deviceID string, err error)
+	Parse(tokenString string) (*models.Claims, error)
 }
 
 // DeviceGetter интерфейс для получения устройства из хранилища.
@@ -23,16 +23,16 @@ type DeviceGetter interface {
 }
 
 // @Summary      Получение информации об устройстве
-// @Description  Извлекает устройство и возвращает данные устройства
-// @Tags         devices
+// @Description  Извлекает информацию о текущем устройстве по JWT токену из запроса
+// @Tags         device
 // @Accept       json
 // @Produce      json
-// @Success      200 {object} handlers.DeviceResponse "Информация об устройстве"
-// @Failure      400 "Неверный токен или запрос"
-// @Failure      401 "Неавторизованный доступ"
-// @Failure      404 "Устройство не найдено"
-// @Failure      500 "Внутренняя ошибка сервера"
-// @Router       /get-device [get]
+// @Success      200 {object} models.DeviceResponse "Информация об устройстве"
+// @Failure      400 {string} string "Неверный токен или некорректный запрос"
+// @Failure      401 {string} string "Неавторизованный доступ, неверный токен"
+// @Failure      404 {string} string "Устройство не найдено"
+// @Failure      500 {string} string "Внутренняя ошибка сервера"
+// @Router       /device/get [get]
 func NewDeviceGetHTTPHandler(
 	tokenDecoder TokenDecoder,
 	deviceGetter DeviceGetter,
@@ -47,15 +47,15 @@ func NewDeviceGetHTTPHandler(
 			return
 		}
 
-		// Парсим токен
-		userID, deviceID, err := tokenDecoder.Parse(tokenString)
-		if err != nil {
+		// Парсим токен и получаем claims
+		claims, err := tokenDecoder.Parse(tokenString)
+		if err != nil || claims == nil {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		// Получаем устройство
-		device, err := deviceGetter.Get(ctx, userID, deviceID)
+		device, err := deviceGetter.Get(ctx, claims.UserID, claims.DeviceID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return

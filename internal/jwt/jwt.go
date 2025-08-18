@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
 // JWT предоставляет методы для генерации и парсинга JWT-токенов.
@@ -15,14 +16,6 @@ type JWT struct {
 	tokenDuration time.Duration
 }
 
-// приватная структура для хранения claims
-type claims struct {
-	UserID   string `json:"user_id"`
-	DeviceID string `json:"device_id"`
-	jwt.RegisteredClaims
-}
-
-// New создаёт сервис с ключом и временем жизни токена
 func New(secret string, duration time.Duration) *JWT {
 	return &JWT{
 		secretKey:     []byte(secret),
@@ -30,11 +23,11 @@ func New(secret string, duration time.Duration) *JWT {
 	}
 }
 
-// Generate создаёт JWT с user_id и device_id
-func (j *JWT) Generate(userID string, deviceID string) (tokenString string, err error) {
-	c := claims{
-		UserID:   userID,
-		DeviceID: deviceID,
+// Generate создаёт JWT на основе TokenRequest
+func (j *JWT) Generate(payload *models.TokenPayload) (string, error) {
+	c := models.Claims{
+		UserID:   payload.UserID,
+		DeviceID: payload.DeviceID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.tokenDuration)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -45,47 +38,27 @@ func (j *JWT) Generate(userID string, deviceID string) (tokenString string, err 
 	return token.SignedString(j.secretKey)
 }
 
-// Parse извлекает Claims из JWT и возвращает userID и deviceID
-func (j *JWT) Parse(tokenString string) (userID string, deviceID string, err error) {
-	token, err := jwt.ParseWithClaims(tokenString, &claims{}, func(token *jwt.Token) (interface{}, error) {
+// Parse извлекает Claims из JWT и возвращает *models.Claims
+func (j *JWT) Parse(tokenString string) (*models.Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &models.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
 		return j.secretKey, nil
 	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	c, ok := token.Claims.(*claims)
+	c, ok := token.Claims.(*models.Claims)
 	if !ok || !token.Valid || c.UserID == "" || c.DeviceID == "" {
-		err = errors.New("invalid token")
-		return
+		return nil, errors.New("invalid token")
 	}
 
-	userID = c.UserID
-	deviceID = c.DeviceID
-	return
+	return c, nil
 }
 
-// GetFromResponse извлекает JWT-токен из заголовка Authorization в формате Bearer.
-// Возвращает токен или ошибку, если заголовок отсутствует или имеет неправильный формат.
-func (j *JWT) GetFromResponse(resp *http.Response) (string, error) {
-	authHeader := resp.Header.Get("Authorization")
-	if authHeader == "" {
-		return "", errors.New("missing Authorization header in response")
-	}
-
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-		return "", errors.New("invalid Authorization header format")
-	}
-
-	return parts[1], nil
-}
-
-// GetFromResponse извлекает JWT-токен из заголовка Authorization в формате Bearer.
-// Возвращает токен или ошибку, если заголовок отсутствует или имеет неправильный формат.
+// GetFromRequest извлекает JWT-токен из заголовка Authorization
 func (j *JWT) GetFromRequest(req *http.Request) (string, error) {
 	authHeader := req.Header.Get("Authorization")
 	if authHeader == "" {
@@ -94,6 +67,21 @@ func (j *JWT) GetFromRequest(req *http.Request) (string, error) {
 
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" || parts[1] == "" {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	return parts[1], nil
+}
+
+// GetFromResponse извлекает JWT-токен из заголовка Authorization
+func (j *JWT) GetFromResponse(resp *http.Response) (string, error) {
+	authHeader := resp.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("missing Authorization header in response")
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 		return "", errors.New("invalid Authorization header format")
 	}
 

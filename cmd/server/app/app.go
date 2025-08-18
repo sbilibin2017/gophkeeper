@@ -102,10 +102,13 @@ func runHTTP(
 	// Инициализируем репозитории
 	userReadRepo := repositories.NewUserReadRepository(conn)
 	userWriteRepo := repositories.NewUserWriteRepository(conn)
+
 	deviceWriteRepo := repositories.NewDeviceWriteRepository(conn)
 	deviceReadRepo := repositories.NewDeviceReadRepository(conn)
+
 	secretKeyWriteRepo := repositories.NewSecretKeyWriteRepository(conn)
 	secretKeyReadRepo := repositories.NewSecretKeyReadRepository(conn)
+
 	secretWriteRepo := repositories.NewSecretWriteRepository(conn)
 	secretReadRepo := repositories.NewSecretReadRepository(conn)
 
@@ -131,16 +134,16 @@ func runHTTP(
 	))
 
 	// Операции с устройствами
-	router.Get("/get-device", handlers.NewDeviceGetHTTPHandler(jwt, deviceReadRepo))
+	router.Get("/get", handlers.NewDeviceGetHTTPHandler(jwt, deviceReadRepo))
 
 	// Операции с симметричными плючыми
-	router.Post("/save-secret-key", handlers.NewSecretKeySaveHTTPHandler(jwt, secretKeyWriteRepo))
-	router.Get("/get-secret-key/{secret-id}", handlers.NewSecretKeyGetHTTPHandler(jwt, secretKeyReadRepo))
+	router.Post("/save", handlers.NewSecretKeySaveHTTPHandler(jwt, secretKeyWriteRepo))
+	router.Get("/get/{secret-id}", handlers.NewSecretKeyGetHTTPHandler(jwt, secretKeyReadRepo))
 
 	// Операции с секретами
-	router.Post("/save-secret", handlers.NewSecretSaveHTTPHandler(jwt, secretWriteRepo))
-	router.Get("/get-secret/{secret-id}", handlers.NewSecretGetHTTPHandler(jwt, secretReadRepo))
-	router.Get("/list-secrets", handlers.NewSecretListHTTPHandler(jwt, secretReadRepo))
+	router.Post("/save", handlers.NewSecretSaveHTTPHandler(jwt, secretWriteRepo))
+	router.Get("/get/{secret-id}", handlers.NewSecretGetHTTPHandler(jwt, secretReadRepo))
+	router.Get("/list", handlers.NewSecretListHTTPHandler(jwt, secretReadRepo))
 
 	// Инициализируем HTTP сервер
 	srv := &http.Server{

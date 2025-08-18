@@ -1,0 +1,19 @@
+@startuml
+actor Client
+participant "API Server" as Server
+participant "UserReader" as UserRead
+participant "UserWriter" as UserWrite
+participant "DeviceWriter" as DeviceWrite
+participant JWT
+
+Client -> Server: Register {username, password}
+Server -> UserRead: Check if user exists
+Server -> Server: Validate username & password
+Server -> Server: Generate password hash
+Server -> Server: Generate userID, deviceID
+Server -> Server: Generate RSA key pair
+Server -> UserWrite: Save user
+Server -> DeviceWrite: Save device
+Server -> JWT: Generate token
+Server --> Client: Return userID, deviceID, privateKey, token
+@enduml

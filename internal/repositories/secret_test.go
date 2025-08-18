@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 	"time"
 
@@ -62,8 +63,8 @@ func TestSecretWriteAndReadRepositories(t *testing.T) {
 		UserID:           userID,
 		SecretName:       secretName,
 		SecretType:       secretType,
-		EncryptedPayload: payload,
-		Nonce:            nonce,
+		EncryptedPayload: base64.StdEncoding.EncodeToString(payload),
+		Nonce:            base64.StdEncoding.EncodeToString(nonce),
 		Meta:             meta,
 		CreatedAt:        time.Now(),
 		UpdatedAt:        time.Now(),
@@ -74,18 +75,22 @@ func TestSecretWriteAndReadRepositories(t *testing.T) {
 	// === Get ===
 	secretFromDB, err := readRepo.Get(ctx, userID, secretName)
 	assert.NoError(t, err)
+
+	payloadFromDB, _ := base64.StdEncoding.DecodeString(secretFromDB.EncryptedPayload)
+	nonceFromDB, _ := base64.StdEncoding.DecodeString(secretFromDB.Nonce)
+
 	assert.Equal(t, secretID, secretFromDB.SecretID)
 	assert.Equal(t, userID, secretFromDB.UserID)
 	assert.Equal(t, secretName, secretFromDB.SecretName)
 	assert.Equal(t, secretType, secretFromDB.SecretType)
-	assert.Equal(t, payload, secretFromDB.EncryptedPayload)
-	assert.Equal(t, nonce, secretFromDB.Nonce)
+	assert.Equal(t, payload, payloadFromDB)
+	assert.Equal(t, nonce, nonceFromDB)
 	assert.Equal(t, meta, secretFromDB.Meta)
 
 	// === Update ===
 	newPayload := []byte("newdata")
 	newMeta := `{"note":"updated"}`
-	secret.EncryptedPayload = newPayload
+	secret.EncryptedPayload = base64.StdEncoding.EncodeToString(newPayload)
 	secret.Meta = newMeta
 	secret.UpdatedAt = time.Now()
 
@@ -93,8 +98,9 @@ func TestSecretWriteAndReadRepositories(t *testing.T) {
 	assert.NoError(t, err)
 
 	secretUpdated, err := readRepo.Get(ctx, userID, secretName)
+	updatedPayload, _ := base64.StdEncoding.DecodeString(secretUpdated.EncryptedPayload)
 	assert.NoError(t, err)
-	assert.Equal(t, newPayload, secretUpdated.EncryptedPayload)
+	assert.Equal(t, newPayload, updatedPayload)
 	assert.Equal(t, newMeta, secretUpdated.Meta)
 
 	// === List ===
