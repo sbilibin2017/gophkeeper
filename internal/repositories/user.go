@@ -20,17 +20,25 @@ func NewUserWriteRepository(db *sqlx.DB) *UserWriteRepository {
 // Save вставляет нового пользователя или обновляет существующего по user_id
 func (r *UserWriteRepository) Save(
 	ctx context.Context,
-	userID, username, passwordHash string,
+	user *models.UserDB,
 ) error {
 	query := `
 	INSERT INTO users (user_id, username, password_hash, created_at, updated_at)
-	VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	VALUES ($1, $2, $3, $4, $5)
 	ON CONFLICT(user_id) DO UPDATE SET
 		username = EXCLUDED.username,
 		password_hash = EXCLUDED.password_hash,
-		updated_at = CURRENT_TIMESTAMP
+		updated_at = EXCLUDED.updated_at
 	`
-	_, err := r.db.ExecContext(ctx, query, userID, username, passwordHash)
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		user.UserID,
+		user.Username,
+		user.PasswordHash,
+		user.CreatedAt,
+		user.UpdatedAt,
+	)
 	return err
 }
 

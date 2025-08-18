@@ -3,8 +3,10 @@ package repositories
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
 
 	_ "modernc.org/sqlite"
@@ -46,19 +48,29 @@ func TestDeviceWriteAndReadRepositories(t *testing.T) {
 	publicKey := "pubkey123"
 
 	// === Save ===
-	err := writeRepo.Save(ctx, userID, deviceID, publicKey)
+	device := &models.DeviceDB{
+		DeviceID:  deviceID,
+		UserID:    userID,
+		PublicKey: publicKey,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	err := writeRepo.Save(ctx, device)
 	assert.NoError(t, err)
 
 	// === Get ===
-	device, err := readRepo.Get(ctx, userID, deviceID)
+	deviceRead, err := readRepo.Get(ctx, userID, deviceID)
 	assert.NoError(t, err)
-	assert.Equal(t, deviceID, device.DeviceID)
-	assert.Equal(t, userID, device.UserID)
-	assert.Equal(t, publicKey, device.PublicKey)
+	assert.Equal(t, deviceID, deviceRead.DeviceID)
+	assert.Equal(t, userID, deviceRead.UserID)
+	assert.Equal(t, publicKey, deviceRead.PublicKey)
 
 	// === Update ===
 	newPublicKey := "pubkey456"
-	err = writeRepo.Save(ctx, userID, deviceID, newPublicKey)
+	device.PublicKey = newPublicKey
+	device.UpdatedAt = time.Now()
+
+	err = writeRepo.Save(ctx, device)
 	assert.NoError(t, err)
 
 	deviceUpdated, err := readRepo.Get(ctx, userID, deviceID)

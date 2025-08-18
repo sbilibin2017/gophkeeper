@@ -3,8 +3,10 @@ package repositories
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
 
 	_ "modernc.org/sqlite"
@@ -46,20 +48,31 @@ func TestUserWriteAndReadRepositories(t *testing.T) {
 	passwordHash := "hash123"
 
 	// === Save ===
-	err := writeRepo.Save(ctx, userID, username, passwordHash)
+	user := &models.UserDB{
+		UserID:       userID,
+		Username:     username,
+		PasswordHash: passwordHash,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	err := writeRepo.Save(ctx, user)
 	assert.NoError(t, err)
 
 	// === Get ===
-	user, err := readRepo.Get(ctx, username)
+	userFromDB, err := readRepo.Get(ctx, username)
 	assert.NoError(t, err)
-	assert.Equal(t, userID, user.UserID)
-	assert.Equal(t, username, user.Username)
-	assert.Equal(t, passwordHash, user.PasswordHash)
+	assert.Equal(t, userID, userFromDB.UserID)
+	assert.Equal(t, username, userFromDB.Username)
+	assert.Equal(t, passwordHash, userFromDB.PasswordHash)
 
 	// === Update ===
 	newUsername := "alice2"
 	newPasswordHash := "hash456"
-	err = writeRepo.Save(ctx, userID, newUsername, newPasswordHash)
+	user.Username = newUsername
+	user.PasswordHash = newPasswordHash
+	user.UpdatedAt = time.Now()
+
+	err = writeRepo.Save(ctx, user)
 	assert.NoError(t, err)
 
 	userUpdated, err := readRepo.Get(ctx, newUsername)

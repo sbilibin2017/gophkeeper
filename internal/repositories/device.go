@@ -20,17 +20,25 @@ func NewDeviceWriteRepository(db *sqlx.DB) *DeviceWriteRepository {
 // Save вставляет новое устройство или обновляет существующее по device_id
 func (r *DeviceWriteRepository) Save(
 	ctx context.Context,
-	userID, deviceID, publicKey string,
+	device *models.DeviceDB,
 ) error {
 	query := `
 	INSERT INTO devices (device_id, user_id, public_key, created_at, updated_at)
-	VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	VALUES ($1, $2, $3, $4, $5)
 	ON CONFLICT(device_id) DO UPDATE SET
 		user_id = EXCLUDED.user_id,
 		public_key = EXCLUDED.public_key,
-		updated_at = CURRENT_TIMESTAMP
+		updated_at = EXCLUDED.updated_at
 	`
-	_, err := r.db.ExecContext(ctx, query, deviceID, userID, publicKey)
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		device.DeviceID,
+		device.UserID,
+		device.PublicKey,
+		device.CreatedAt,
+		device.UpdatedAt,
+	)
 	return err
 }
 

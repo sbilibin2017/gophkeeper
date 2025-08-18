@@ -3,8 +3,10 @@ package repositories
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
 
 	_ "modernc.org/sqlite"
@@ -55,24 +57,39 @@ func TestSecretWriteAndReadRepositories(t *testing.T) {
 	meta := `{"note":"my secret"}`
 
 	// === Save ===
-	err := writeRepo.Save(ctx, secretID, userID, secretName, secretType, payload, nonce, meta)
+	secret := &models.SecretDB{
+		SecretID:         secretID,
+		UserID:           userID,
+		SecretName:       secretName,
+		SecretType:       secretType,
+		EncryptedPayload: payload,
+		Nonce:            nonce,
+		Meta:             meta,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
+	}
+	err := writeRepo.Save(ctx, secret)
 	assert.NoError(t, err)
 
 	// === Get ===
-	secret, err := readRepo.Get(ctx, userID, secretName)
+	secretFromDB, err := readRepo.Get(ctx, userID, secretName)
 	assert.NoError(t, err)
-	assert.Equal(t, secretID, secret.SecretID)
-	assert.Equal(t, userID, secret.UserID)
-	assert.Equal(t, secretName, secret.SecretName)
-	assert.Equal(t, secretType, secret.SecretType)
-	assert.Equal(t, payload, secret.EncryptedPayload)
-	assert.Equal(t, nonce, secret.Nonce)
-	assert.Equal(t, meta, secret.Meta)
+	assert.Equal(t, secretID, secretFromDB.SecretID)
+	assert.Equal(t, userID, secretFromDB.UserID)
+	assert.Equal(t, secretName, secretFromDB.SecretName)
+	assert.Equal(t, secretType, secretFromDB.SecretType)
+	assert.Equal(t, payload, secretFromDB.EncryptedPayload)
+	assert.Equal(t, nonce, secretFromDB.Nonce)
+	assert.Equal(t, meta, secretFromDB.Meta)
 
 	// === Update ===
 	newPayload := []byte("newdata")
 	newMeta := `{"note":"updated"}`
-	err = writeRepo.Save(ctx, secretID, userID, secretName, secretType, newPayload, nonce, newMeta)
+	secret.EncryptedPayload = newPayload
+	secret.Meta = newMeta
+	secret.UpdatedAt = time.Now()
+
+	err = writeRepo.Save(ctx, secret)
 	assert.NoError(t, err)
 
 	secretUpdated, err := readRepo.Get(ctx, userID, secretName)

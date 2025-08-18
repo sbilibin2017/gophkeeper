@@ -20,17 +20,24 @@ func NewSecretKeyWriteRepository(db *sqlx.DB) *SecretKeyWriteRepository {
 // Save вставляет новый AES ключ или обновляет существующий по (secret_id, device_id)
 func (r *SecretKeyWriteRepository) Save(
 	ctx context.Context,
-	secretID, deviceID string,
-	encryptedAESKey []byte,
+	secretKey *models.SecretKeyDB,
 ) error {
 	query := `
 	INSERT INTO secret_keys (secret_id, device_id, encrypted_aes_key, created_at, updated_at)
-	VALUES ($1, $2, $3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	VALUES ($1, $2, $3, $4, $5)
 	ON CONFLICT(secret_id, device_id) DO UPDATE SET
 		encrypted_aes_key = EXCLUDED.encrypted_aes_key,
-		updated_at = CURRENT_TIMESTAMP
+		updated_at = EXCLUDED.updated_at
 	`
-	_, err := r.db.ExecContext(ctx, query, secretID, deviceID, encryptedAESKey)
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		secretKey.SecretID,
+		secretKey.DeviceID,
+		secretKey.EncryptedAESKey,
+		secretKey.CreatedAt,
+		secretKey.UpdatedAt,
+	)
 	return err
 }
 

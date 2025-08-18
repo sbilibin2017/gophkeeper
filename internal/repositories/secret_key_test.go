@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
 
 	_ "modernc.org/sqlite"
@@ -47,19 +48,25 @@ func TestSecretKeyWriteAndReadRepositories(t *testing.T) {
 	encryptedAESKey := []byte("aeskey123")
 
 	// === Save ===
-	err := writeRepo.Save(ctx, secretID, deviceID, encryptedAESKey)
+	key := &models.SecretKeyDB{
+		SecretID:        secretID,
+		DeviceID:        deviceID,
+		EncryptedAESKey: encryptedAESKey,
+	}
+	err := writeRepo.Save(ctx, key)
 	assert.NoError(t, err)
 
 	// === Get ===
-	key, err := readRepo.Get(ctx, secretID, deviceID)
+	keyRead, err := readRepo.Get(ctx, secretID, deviceID)
 	assert.NoError(t, err)
-	assert.Equal(t, secretID, key.SecretID)
-	assert.Equal(t, deviceID, key.DeviceID)
-	assert.Equal(t, encryptedAESKey, key.EncryptedAESKey)
+	assert.Equal(t, secretID, keyRead.SecretID)
+	assert.Equal(t, deviceID, keyRead.DeviceID)
+	assert.Equal(t, encryptedAESKey, keyRead.EncryptedAESKey)
 
 	// === Update ===
 	newAESKey := []byte("newaeskey")
-	err = writeRepo.Save(ctx, secretID, deviceID, newAESKey)
+	key.EncryptedAESKey = newAESKey
+	err = writeRepo.Save(ctx, key)
 	assert.NoError(t, err)
 
 	keyUpdated, err := readRepo.Get(ctx, secretID, deviceID)

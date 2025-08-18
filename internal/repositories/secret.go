@@ -20,13 +20,11 @@ func NewSecretWriteRepository(db *sqlx.DB) *SecretWriteRepository {
 // Save вставляет новый секрет или обновляет существующий по secret_id
 func (r *SecretWriteRepository) Save(
 	ctx context.Context,
-	secretID, userID, secretName, secretType string,
-	encryptedPayload, nonce []byte,
-	meta string,
+	secret *models.SecretDB,
 ) error {
 	query := `
 	INSERT INTO secrets (secret_id, user_id, secret_name, secret_type, encrypted_payload, nonce, meta, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	ON CONFLICT(secret_id) DO UPDATE SET
 		user_id = EXCLUDED.user_id,
 		secret_name = EXCLUDED.secret_name,
@@ -34,9 +32,21 @@ func (r *SecretWriteRepository) Save(
 		encrypted_payload = EXCLUDED.encrypted_payload,
 		nonce = EXCLUDED.nonce,
 		meta = EXCLUDED.meta,
-		updated_at = CURRENT_TIMESTAMP
+		updated_at = EXCLUDED.updated_at
 	`
-	_, err := r.db.ExecContext(ctx, query, secretID, userID, secretName, secretType, encryptedPayload, nonce, meta)
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		secret.SecretID,
+		secret.UserID,
+		secret.SecretName,
+		secret.SecretType,
+		secret.EncryptedPayload,
+		secret.Nonce,
+		secret.Meta,
+		secret.CreatedAt,
+		secret.UpdatedAt,
+	)
 	return err
 }
 
