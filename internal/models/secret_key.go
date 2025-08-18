@@ -37,7 +37,7 @@ type SecretKeyResponse struct {
 	// AES ключ, зашифрованный публичным ключом устройства
 	// example: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
 	// default: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
-	EncryptedAESKey []byte `json:"encrypted_aes_key"`
+	EncryptedAESKey string `json:"encrypted_aes_key"`
 	// Дата создания записи
 	// example: 2025-08-17T12:34:56Z
 	// default: 2025-08-17T12:34:56Z

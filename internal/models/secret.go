@@ -20,11 +20,11 @@ type SecretRequest struct {
 	// Зашифрованное содержимое секрета
 	// example: "SGVsbG8gV29ybGQh"
 	// default: "SGVsbG8gV29ybGQh"
-	EncryptedPayload []byte `json:"encrypted_payload"`
+	EncryptedPayload string `json:"encrypted_payload"`
 	// Nonce для шифрования
 	// example: "MTIzNDU2Nzg5MA=="
 	// default: "MTIzNDU2Nzg5MA=="
-	Nonce []byte `json:"nonce"`
+	Nonce string `json:"nonce"`
 	// Метаданные секрета в формате JSON
 	// example: {"url":"https://example.com"}
 	// default: "{\"url\":\"https://example.com\"}"
@@ -53,11 +53,11 @@ type SecretResponse struct {
 	// Зашифрованное содержимое секрета
 	// example: "U2FsdGVkX1+abc123xyz=="
 	// default: "U2FsdGVkX1+abc123xyz=="
-	EncryptedPayload []byte `json:"encrypted_payload"`
+	EncryptedPayload string `json:"encrypted_payload"`
 	// Nonce для шифрования
 	// example: "bXlOb25jZQ=="
 	// default: "bXlOb25jZQ=="
-	Nonce []byte `json:"nonce"`
+	Nonce string `json:"nonce"`
 	// Метаданные секрета в формате JSON
 	// example: "{\"url\":\"https://example.com\",\"note\":\"для личного пользования\"}"
 	// default: "{\"url\":\"https://example.com\",\"note\":\"для личного пользования\"}"
