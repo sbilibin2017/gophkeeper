@@ -1,0 +1,44 @@
+@startuml
+!define TABLE(x) class x << (T,#FFAAAA) >>
+!define PK(x) <b>x</b>
+
+TABLE(users) {
+    PK(user_id) : TEXT
+    email : TEXT
+    password_hash : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+TABLE(devices) {
+    PK(device_id) : TEXT
+    user_id : TEXT
+    public_key : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+TABLE(secrets) {
+    PK(secret_id) : TEXT
+    user_id : TEXT
+    type : TEXT
+    payload_encrypted_with_symmetric_key : BLOB
+    meta : TEXT
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+TABLE(secret_keys) { 
+    PK(secret_id) : TEXT
+    PK(device_id) : TEXT
+    symmetric_key_encrypted_with_device_public_key : BLOB
+    created_at : TIMESTAMP
+    updated_at : TIMESTAMP
+}
+
+users ||--o{ devices : "user_id"
+users ||--o{ secrets : "user_id"
+devices ||--o{ secret_keys : "device_id"
+secrets ||--o{ secret_keys : "secret_id"
+
+@enduml

@@ -2,80 +2,93 @@ package jwt
 
 import (
 	"errors"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// JWT holds config for signing and verifying tokens.
+// JWT предоставляет методы для генерации и парсинга JWT-токенов.
 type JWT struct {
-	secret   string
-	lifetime time.Duration
+	secretKey     []byte
+	tokenDuration time.Duration
 }
 
-// Opt defines a functional option for JWT configuration.
-type Opt func(*JWT)
-
-// WithSecret sets the signing secret.
-func WithSecret(secret string) Opt {
-	return func(j *JWT) {
-		j.secret = secret
+func New(secret string, duration time.Duration) *JWT {
+	return &JWT{
+		secretKey:     []byte(secret),
+		tokenDuration: duration,
 	}
 }
 
-// WithLifetime sets the token lifetime.
-func WithLifetime(duration time.Duration) Opt {
-	return func(j *JWT) {
-		j.lifetime = duration
-	}
-}
-
-// New constructs a JWT instance with given options.
-func New(opts ...Opt) *JWT {
-	j := &JWT{}
-	for _, opt := range opts {
-		opt(j)
-	}
-	return j
-}
-
-// claims defines the JWT claims with Username and standard fields.
-type claims struct {
-	Username string `json:"username"`
-	jwt.RegisteredClaims
-}
-
-// Generate creates a signed JWT token string including username.
-func (j *JWT) Generate(username string) (string, error) {
-	now := time.Now()
-
-	claims := claims{
-		Username: username,
+// Generate создаёт JWT на основе TokenRequest
+func (j *JWT) Generate(payload *models.TokenPayload) (string, error) {
+	c := models.Claims{
+		UserID:   payload.UserID,
+		DeviceID: payload.DeviceID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(j.lifetime)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(j.tokenDuration)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(j.secret))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, c)
+	return token.SignedString(j.secretKey)
 }
 
-// GetUsername extracts the username from a JWT token string.
-func (j *JWT) Parse(tokenStr string) (string, error) {
-	parsedToken, err := jwt.ParseWithClaims(tokenStr, &claims{}, func(token *jwt.Token) (interface{}, error) {
+// Parse извлекает Claims из JWT и возвращает *models.Claims
+func (j *JWT) Parse(tokenString string) (*models.Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &models.Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
 		}
-		return []byte(j.secret), nil
+		return j.secretKey, nil
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	if claims, ok := parsedToken.Claims.(*claims); ok && parsedToken.Valid {
-		return claims.Username, nil
+	c, ok := token.Claims.(*models.Claims)
+	if !ok || !token.Valid || c.UserID == "" || c.DeviceID == "" {
+		return nil, errors.New("invalid token")
 	}
 
-	return "", errors.New("invalid token")
+	return c, nil
+}
+
+// GetFromRequest извлекает JWT-токен из заголовка Authorization
+func (j *JWT) GetFromRequest(req *http.Request) (string, error) {
+	authHeader := req.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("missing Authorization header")
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" || parts[1] == "" {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	return parts[1], nil
+}
+
+// GetFromResponse извлекает JWT-токен из заголовка Authorization
+func (j *JWT) GetFromResponse(resp *http.Response) (string, error) {
+	authHeader := resp.Header.Get("Authorization")
+	if authHeader == "" {
+		return "", errors.New("missing Authorization header in response")
+	}
+
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+		return "", errors.New("invalid Authorization header format")
+	}
+
+	return parts[1], nil
+}
+
+// SetHeader устанавливает JWT-токен в заголовок Authorization HTTP-ответа
+func (j *JWT) SetHeader(w http.ResponseWriter, token string) {
+	w.Header().Set("Authorization", "Bearer "+token)
 }

@@ -1,0 +1,11 @@
+@startuml
+actor User
+participant "CLI App (Cobra)" as CLI
+participant "API Server" as Server
+
+User -> CLI: Run register command
+CLI -> Server: Register {username, password}
+Server --> CLI: Return userID, deviceID, privateKey, token
+CLI -> CLI: Save token and private key
+CLI -> User: Show "Registration successful"
+@enduml

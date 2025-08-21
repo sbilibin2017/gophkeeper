@@ -2,57 +2,65 @@ package repositories
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// UserWriteRepository handles write operations for users.
+// UserWriteRepository управляет записью пользователей
 type UserWriteRepository struct {
 	db *sqlx.DB
 }
 
+// NewUserWriteRepository создаёт новый репозиторий записи пользователей
 func NewUserWriteRepository(db *sqlx.DB) *UserWriteRepository {
 	return &UserWriteRepository{db: db}
 }
 
-// Save inserts or updates a user record.
-func (r *UserWriteRepository) Save(ctx context.Context, username, passwordHash string) error {
+// Save вставляет нового пользователя или обновляет существующего по user_id
+func (r *UserWriteRepository) Save(
+	ctx context.Context,
+	user *models.UserDB,
+) error {
 	query := `
-		INSERT INTO users (username, password_hash, created_at, updated_at)
-		VALUES ($1, $2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT(username) DO UPDATE SET
-			password_hash = EXCLUDED.password_hash,
-			updated_at = CURRENT_TIMESTAMP;
+	INSERT INTO users (user_id, username, password_hash, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5)
+	ON CONFLICT(user_id) DO UPDATE SET
+		username = EXCLUDED.username,
+		password_hash = EXCLUDED.password_hash,
+		updated_at = EXCLUDED.updated_at
 	`
-	_, err := r.db.ExecContext(ctx, query, username, passwordHash)
-	if err != nil {
-		return fmt.Errorf("failed to save user: %w", err)
-	}
-	return nil
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		user.UserID,
+		user.Username,
+		user.PasswordHash,
+		user.CreatedAt,
+		user.UpdatedAt,
+	)
+	return err
 }
 
-// UserReadRepository handles read operations for users.
+// UserReadRepository управляет чтением пользователей
 type UserReadRepository struct {
 	db *sqlx.DB
 }
 
+// NewUserReadRepository создаёт новый репозиторий чтения пользователей
 func NewUserReadRepository(db *sqlx.DB) *UserReadRepository {
 	return &UserReadRepository{db: db}
 }
 
-// Get fetches a user by username.
-func (r *UserReadRepository) Get(ctx context.Context, username string) (*models.User, error) {
-	query := `
-		SELECT username, password_hash, created_at, updated_at
-		FROM users
-		WHERE username = $1;
-	`
-	var user models.User
-	err := r.db.GetContext(ctx, &user, query, username)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user: %w", err)
+// Get возвращает пользователя по username
+func (r *UserReadRepository) Get(
+	ctx context.Context,
+	username string,
+) (*models.UserDB, error) {
+	var user models.UserDB
+	query := `SELECT user_id, username, password_hash, created_at, updated_at FROM users WHERE username = $1`
+	if err := r.db.GetContext(ctx, &user, query, username); err != nil {
+		return nil, err
 	}
 	return &user, nil
 }

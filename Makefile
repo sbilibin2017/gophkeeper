@@ -22,32 +22,7 @@ gen-mock:
 
 # Run tests and generate coverage profile, filtered for internal packages only
 test:
-	go test ./... -coverprofile=coverage.out
-
-	@echo "Generating Markdown coverage table file from coverage.out..."
-	@echo "### TEST COVERAGE" > coverage.md
-	@echo "" >> coverage.md
-	@echo "| PACKAGE                                           | COVERAGE |" >> coverage.md
-	@echo "|-------------------------------------------------|----------|" >> coverage.md
-	@go tool cover -func=coverage.out | \
-		grep -v "^total:" | \
-		grep "^github.com/sbilibin2017/gophkeeper/internal/" | \
-		grep -v "_test.go" | \
-		grep -v "_mock.go" | \
-		awk '{ \
-			pkg=$$1; \
-			sub(/:[0-9]+:$$/, "", pkg); \
-			cov=substr($$NF, 1, length($$NF)-1); \
-			gsub(",", ".", cov); \
-			if(cov > max[pkg]) { max[pkg]=cov; } \
-		} \
-		END { \
-			for (p in max) { \
-				printf "| %-47s | %8.1f%% |\n", p, max[p]; \
-			} \
-		}' | sort >> coverage.md
-
-	rm coverage.out
+	go test ./... -cover
 
 # Build client binaries for major OS/ARCH combos
 build-clients:
@@ -63,4 +38,4 @@ build-server:
 # use cmd/server/main.go as entry point for swag init,
 # output to api/http folder
 gen-swag:
-	swag init -d internal/handlers -g ../../cmd/server/main.go -o api/http
+	swag init -d internal/handlers,internal/models -g ../../cmd/server/main.go -o api/http

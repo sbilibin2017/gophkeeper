@@ -1,158 +1,472 @@
+basePath: /api/v1
 definitions:
-  handlers.LoginRequest:
+  models.DeviceResponse:
     properties:
+      created_at:
+        description: |-
+          Дата создания устройства
+          example: 2025-08-17T12:34:56Z
+          default: 2025-08-17T12:34:56Z
+        type: string
+      device_id:
+        description: |-
+          Уникальный идентификатор устройства
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+          default: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        type: string
+      public_key:
+        description: |-
+          Публичный ключ устройства
+          example: |
+            -----BEGIN PUBLIC KEY-----
+            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu7pM4h2...
+            -----END PUBLIC KEY-----
+          default: |
+            -----BEGIN PUBLIC KEY-----
+            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu7pM4h2...
+            -----END PUBLIC KEY-----
+        type: string
+      updated_at:
+        description: |-
+          Дата последнего обновления данных устройства
+          example: 2025-08-17T12:45:00Z
+          default: 2025-08-17T12:45:00Z
+        type: string
+      user_id:
+        description: |-
+          Идентификатор пользователя-владельца устройства
+          example: "c56a4180-65aa-42ec-a945-5fd21dec0538"
+          default: "c56a4180-65aa-42ec-a945-5fd21dec0538"
+        type: string
+    type: object
+  models.LoginRequest:
+    properties:
+      device_id:
+        description: |-
+          Уникальный идентификатор устройства
+          required: true
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        type: string
       password:
         description: |-
-          Password of the user
-          example: secret123
+          Пароль пользователя
+          required: true
+          example: Secret123!
         type: string
       username:
         description: |-
-          Username of the user
+          Имя пользователя
+          required: true
           example: johndoe
         type: string
     type: object
-  handlers.RegisterRequest:
+  models.RegisterRequest:
     properties:
       password:
         description: |-
-          Password for the new user
-          example: secret123
+          Пароль пользователя
+          required: true
+          example: Secret123!
         type: string
       username:
         description: |-
-          Username for the new user
+          Имя пользователя
+          required: true
           example: johndoe
         type: string
     type: object
-  handlers.SecretResponse:
+  models.RegisterResponse:
     properties:
-      aes_key_enc:
-        description: AESKeyEnc is the encrypted AES key, base64 encoded.
-        items:
-          type: integer
-        type: array
-      ciphertext:
-        description: Ciphertext is the encrypted secret data, base64 encoded.
-        items:
-          type: integer
-        type: array
-      secret_name:
-        description: SecretName is the unique name of the secret.
+      device_id:
+        description: |-
+          Уникальный идентификатор устройства
+          required: true
+          example: "f47ac10b-58cc-4372-a567-0e02b2c3d479"
         type: string
-      secret_type:
-        description: SecretType represents the type/category of the secret.
+      private_key:
+        description: |-
+          Приватный ключ RSA (PEM кодирование)
+          required: true
+          example: |
+            -----BEGIN RSA PRIVATE KEY-----
+            MIIEpAIBAAKCAQEAu7pM4h2...
+            -----END RSA PRIVATE KEY-----
+        type: string
+      token:
+        description: |-
+          JWT токен пользователя
+          required: true
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        type: string
+      user_id:
+        description: |-
+          Уникальный идентификатор пользователя
+          required: true
+          example: "c56a4180-65aa-42ec-a945-5fd21dec0538"
         type: string
     type: object
-  handlers.SecretSaveRequest:
+  models.SecretKeyRequest:
     properties:
-      aes_key_enc:
+      device_id:
         description: |-
-          AESKeyEnc is the encrypted AES key, base64 encoded.
-          example: U29tZUVuY3J5cHRlZEtleQ==
-        items:
-          type: integer
-        type: array
-      ciphertext:
+          Идентификатор устройства
+          example: "device-67890"
+          default: "device-67890"
+        type: string
+      encrypted_aes_key:
         description: |-
-          Ciphertext is the encrypted secret data, base64 encoded.
-          example: SGVsbG8sIHNlY3JldCE=
-        items:
-          type: integer
-        type: array
+          AES ключ, зашифрованный публичным ключом устройства
+          example: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
+          default: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
+        type: string
+      secret_id:
+        description: |-
+          Идентификатор секрета
+          example: "secret-12345"
+          default: "secret-12345"
+        type: string
+    type: object
+  models.SecretKeyResponse:
+    properties:
+      created_at:
+        description: |-
+          Дата создания записи
+          example: 2025-08-17T12:34:56Z
+          default: 2025-08-17T12:34:56Z
+        type: string
+      device_id:
+        description: |-
+          Идентификатор устройства
+          example: "device-67890"
+          default: "device-67890"
+        type: string
+      encrypted_aes_key:
+        description: |-
+          AES ключ, зашифрованный публичным ключом устройства
+          example: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
+          default: "U2FsdGVkX1+abcd1234efgh5678ijkl90=="
+        type: string
+      secret_id:
+        description: |-
+          Идентификатор секрета
+          example: "secret-12345"
+          default: "secret-12345"
+        type: string
+      secret_key_id:
+        description: |-
+          Уникальный идентификатор записи секретного ключа
+          example: "a1b2c3d4-e5f6-7890-abcd-1234567890ef"
+          default: "a1b2c3d4-e5f6-7890-abcd-1234567890ef"
+        type: string
+      updated_at:
+        description: |-
+          Дата последнего обновления записи
+          example: 2025-08-17T12:45:00Z
+          default: 2025-08-17T12:45:00Z
+        type: string
+    type: object
+  models.SecretRequest:
+    properties:
+      encrypted_payload:
+        description: |-
+          Зашифрованное содержимое секрета
+          example: "SGVsbG8gV29ybGQh"
+          default: "SGVsbG8gV29ybGQh"
+        type: string
+      meta:
+        description: |-
+          Метаданные секрета в формате JSON
+          example: {"url":"https://example.com"}
+          default: "{\"url\":\"https://example.com\"}"
+        type: string
+      nonce:
+        description: |-
+          Nonce для шифрования
+          example: "MTIzNDU2Nzg5MA=="
+          default: "MTIzNDU2Nzg5MA=="
+        type: string
       secret_name:
         description: |-
-          SecretName is the unique name of the secret.
-          example: my-bank-password
+          Название секрета
+          example: "my-password"
+          default: "my-password"
         type: string
       secret_type:
         description: |-
-          SecretType represents the type/category of the secret.
-          example: password
+          Тип секрета
+          example: "password"
+          default: "password"
+        type: string
+      user_id:
+        description: |-
+          Идентификатор пользователя
+          example: "user789"
+          default: "user789"
         type: string
     type: object
+  models.SecretResponse:
+    properties:
+      created_at:
+        description: |-
+          Дата создания секрета
+          example: "2025-08-17T12:00:00Z"
+          default: "2025-08-17T12:00:00Z"
+        type: string
+      encrypted_payload:
+        description: |-
+          Зашифрованное содержимое секрета
+          example: "U2FsdGVkX1+abc123xyz=="
+          default: "U2FsdGVkX1+abc123xyz=="
+        type: string
+      meta:
+        description: |-
+          Метаданные секрета в формате JSON
+          example: "{\"url\":\"https://example.com\",\"note\":\"для личного пользования\"}"
+          default: "{\"url\":\"https://example.com\",\"note\":\"для личного пользования\"}"
+        type: string
+      nonce:
+        description: |-
+          Nonce для шифрования
+          example: "bXlOb25jZQ=="
+          default: "bXlOb25jZQ=="
+        type: string
+      secret_id:
+        description: |-
+          Уникальный идентификатор секрета
+          example: "abc123"
+          default: "abc123"
+        type: string
+      secret_name:
+        description: |-
+          Название секрета
+          example: "MyBankPassword"
+          default: "MyBankPassword"
+        type: string
+      secret_type:
+        description: |-
+          Тип секрета
+          example: "password"
+          default: "password"
+        type: string
+      updated_at:
+        description: |-
+          Дата последнего обновления секрета
+          example: "2025-08-17T12:30:00Z"
+          default: "2025-08-17T12:30:00Z"
+        type: string
+      user_id:
+        description: |-
+          Идентификатор пользователя
+          example: "user789"
+          default: "user789"
+        type: string
+    type: object
+host: localhost:8080
 info:
   contact: {}
+  description: API сервер для управления секретами.
+  title: GophKeeper API
+  version: "1.0"
 paths:
-  /login:
+  /auth/login:
     post:
       consumes:
       - application/json
-      description: Authenticates user and returns JWT token
+      description: Проверяет логин и пароль, а также устройство. Генерирует JWT токен
+        и возвращает его в заголовке Authorization.
       parameters:
-      - description: Login request payload
+      - description: Запрос на аутентификацию пользователя
         in: body
-        name: loginRequest
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.LoginRequest'
+          $ref: '#/definitions/models.LoginRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: JWT token returned in Authorization header
+          description: Успешная аутентификация, токен в заголовке Authorization
           schema:
             type: string
         "400":
-          description: invalid request body
+          description: Неверный запрос или устройство не найдено
           schema:
             type: string
         "401":
-          description: invalid username or password
+          description: Неверный логин или пароль
           schema:
             type: string
         "500":
-          description: internal server error
+          description: Внутренняя ошибка сервера
           schema:
             type: string
-      summary: Authenticate a user (login)
+      summary: Аутентификация пользователя
       tags:
       - auth
-  /register:
+  /auth/register:
     post:
       consumes:
       - application/json
-      description: Registers a user with username and password, returns JWT token
+      description: Создает новый аккаунт пользователя, генерирует пару ключей RSA,
+        возвращает приватный ключ и ID устройства. Токен JWT возвращается в заголовке.
       parameters:
-      - description: Register request payload
+      - description: Запрос на регистрацию пользователя
         in: body
-        name: registerRequest
+        name: request
         required: true
         schema:
-          $ref: '#/definitions/handlers.RegisterRequest'
+          $ref: '#/definitions/models.RegisterRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: JWT token returned in Authorization header
+          description: Успешная регистрация
           schema:
-            type: string
+            $ref: '#/definitions/models.RegisterResponse'
         "400":
-          description: invalid request body
+          description: Неверный запрос или невалидные данные
           schema:
             type: string
         "409":
-          description: user already exists
+          description: Пользователь с таким именем уже существует
           schema:
             type: string
         "500":
-          description: internal server error
+          description: Внутренняя ошибка сервера
           schema:
             type: string
-      summary: Register a new user
+      summary: Регистрация нового пользователя
       tags:
       - auth
-  /secrets:
+  /device/get:
     get:
       consumes:
       - application/json
-      description: Returns all secrets belonging to the authenticated user.
+      description: Извлекает информацию о текущем устройстве по JWT токену из запроса
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация об устройстве
+          schema:
+            $ref: '#/definitions/models.DeviceResponse'
+        "400":
+          description: Неверный токен или некорректный запрос
+          schema:
+            type: string
+        "401":
+          description: Неавторизованный доступ, неверный токен
+          schema:
+            type: string
+        "404":
+          description: Устройство не найдено
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получение информации об устройстве
+      tags:
+      - device
+  /secret-key/get/{secret-id}:
+    get:
+      consumes:
+      - application/json
+      description: Извлекает секретный ключ по secret-id из URL и возвращает данные
+        ключа
       parameters:
-      - description: Bearer token
-        in: header
-        name: Authorization
+      - description: ID секрета
+        in: path
+        name: secret-id
         required: true
         type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Информация о секретном ключе
+          schema:
+            $ref: '#/definitions/models.SecretKeyResponse'
+        "400":
+          description: Неверный токен или некорректный запрос
+        "401":
+          description: Неавторизованный доступ
+        "404":
+          description: Секретный ключ не найден
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Получение информации о секретном ключе
+      tags:
+      - secret-key
+  /secret-key/save:
+    post:
+      consumes:
+      - application/json
+      description: Сохраняет новый секретный ключ пользователя
+      parameters:
+      - description: Данные секретного ключа для сохранения
+        in: body
+        name: secretKey
+        required: true
+        schema:
+          $ref: '#/definitions/models.SecretKeyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Секретный ключ успешно сохранен
+        "400":
+          description: Неверный токен или некорректный запрос
+        "401":
+          description: Неавторизованный доступ
+        "500":
+          description: Внутренняя ошибка сервера
+      summary: Сохранение нового секретного ключа
+      tags:
+      - secret-key
+  /secret/get/{secret-id}:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает данные секрета пользователя по ID секрета
+      parameters:
+      - description: ID секрета
+        in: path
+        name: secret-id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SecretResponse'
+        "400":
+          description: Неверный запрос или отсутствует ID секрета
+          schema:
+            type: string
+        "401":
+          description: Неавторизованный доступ
+          schema:
+            type: string
+        "404":
+          description: Секрет не найден
+          schema:
+            type: string
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            type: string
+      summary: Получение секрета по ID
+      tags:
+      - secret
+  /secret/list:
+    get:
+      consumes:
+      - application/json
+      description: Возвращает список всех секретов текущего пользователя
       produces:
       - application/json
       responses:
@@ -160,101 +474,63 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/handlers.SecretResponse'
+              $ref: '#/definitions/models.SecretResponse'
             type: array
+        "400":
+          description: Неверный запрос
+          schema:
+            type: string
         "401":
-          description: unauthorized
+          description: Неавторизованный доступ
           schema:
             type: string
         "500":
-          description: failed to list secrets
+          description: Внутренняя ошибка сервера
           schema:
             type: string
-      summary: List all secrets for a user
+      summary: Получение списка всех секретов пользователя
       tags:
-      - secrets
+      - secret
+  /secret/save:
     post:
       consumes:
       - application/json
-      description: Adds a new secret for the authenticated user.
+      description: Сохраняет новый секрет пользователя
       parameters:
-      - description: Bearer token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: Secret data to save
+      - description: Данные секрета для сохранения
         in: body
         name: secret
         required: true
         schema:
-          $ref: '#/definitions/handlers.SecretSaveRequest'
+          $ref: '#/definitions/models.SecretRequest'
       produces:
       - application/json
       responses:
         "200":
-          description: OK
+          description: Секрет успешно сохранен
           schema:
             type: string
         "400":
-          description: invalid request body
+          description: Неверный запрос
           schema:
             type: string
         "401":
-          description: unauthorized
+          description: Неавторизованный доступ
           schema:
             type: string
         "500":
-          description: failed to save secret
+          description: Внутренняя ошибка сервера
           schema:
             type: string
-      summary: Add a new secret
+      summary: Сохранение нового секрета
       tags:
-      - secrets
-  /secrets/{secret_type}/{secret_name}:
-    get:
-      consumes:
-      - application/json
-      description: Retrieves a secret for the authenticated user by secret type and
-        name.
-      parameters:
-      - description: Bearer token
-        in: header
-        name: Authorization
-        required: true
-        type: string
-      - description: Secret type
-        example: password
-        in: path
-        name: secret_type
-        required: true
-        type: string
-      - description: Secret name
-        example: my-bank-password
-        in: path
-        name: secret_name
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.SecretResponse'
-        "400":
-          description: missing secret_type or secret_name URL parameter
-          schema:
-            type: string
-        "401":
-          description: unauthorized
-          schema:
-            type: string
-        "500":
-          description: failed to get secret
-          schema:
-            type: string
-      summary: Get a secret by type and name
-      tags:
-      - secrets
+      - secret
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: 'Bearer токен для авторизации в формате: "Bearer {token}"'
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

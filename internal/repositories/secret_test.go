@@ -2,122 +2,110 @@ package repositories
 
 import (
 	"context"
+	"encoding/base64"
 	"testing"
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	_ "modernc.org/sqlite"
-
 	"github.com/sbilibin2017/gophkeeper/internal/models"
+	"github.com/stretchr/testify/assert"
+
+	_ "modernc.org/sqlite"
 )
 
-func setupTestDB(t *testing.T) *sqlx.DB {
+func setupSecretTestDB(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open("sqlite", ":memory:")
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to open test db: %v", err)
+	}
 
 	schema := `
 	CREATE TABLE secrets (
+		secret_id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
 		secret_name TEXT NOT NULL,
 		secret_type TEXT NOT NULL,
-		secret_owner TEXT NOT NULL,
-		ciphertext BLOB NOT NULL,
-		aes_key_enc BLOB NOT NULL,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (secret_name, secret_type, secret_owner)
+		encrypted_payload BLOB NOT NULL,
+		nonce BLOB NOT NULL,
+		meta TEXT,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		UNIQUE(user_id, secret_name)
 	);
 	`
 	_, err = db.Exec(schema)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to create schema: %v", err)
+	}
 
 	return db
 }
 
-func TestSecretWriteRepository_SaveAndGet(t *testing.T) {
-	db := setupTestDB(t)
+func TestSecretWriteAndReadRepositories(t *testing.T) {
+	db := setupSecretTestDB(t)
 	defer db.Close()
 
+	ctx := context.Background()
 	writeRepo := NewSecretWriteRepository(db)
 	readRepo := NewSecretReadRepository(db)
 
-	ctx := context.Background()
-	owner := "user1"
+	userID := "user1"
+	secretID := "secret1"
+	secretName := "email"
+	secretType := "password"
+	payload := []byte("encrypteddata")
+	nonce := []byte("nonce123")
+	meta := `{"note":"my secret"}`
 
-	secretName := "secret1"
-	secretType := models.SecretTypeText
-	ciphertext := []byte("SecretEncrypted-data")
-	aesKeyEnc := []byte("SecretEncrypted-key")
-
-	// Save new secret
-	err := writeRepo.Save(ctx, owner, secretName, secretType, ciphertext, aesKeyEnc)
-	require.NoError(t, err)
-
-	// Get secret and verify
-	got, err := readRepo.Get(ctx, owner, secretType, secretName)
-	require.NoError(t, err)
-	assert.Equal(t, secretName, got.SecretName)
-	assert.Equal(t, secretType, got.SecretType)
-	assert.Equal(t, owner, got.SecretOwner)
-	assert.Equal(t, ciphertext, got.Ciphertext)
-	assert.Equal(t, aesKeyEnc, got.AESKeyEnc)
-
-	// Wait to ensure updated_at changes (SQLite timestamps have seconds precision)
-	timeBeforeUpdate := time.Now()
-	time.Sleep(1 * time.Second) // sleep 1 second to let the timestamp advance
-
-	// Update secret
-	updatedCiphertext := []byte("updated-SecretEncrypted-data")
-	err = writeRepo.Save(ctx, owner, secretName, secretType, updatedCiphertext, aesKeyEnc)
-	require.NoError(t, err)
-
-	gotUpdated, err := readRepo.Get(ctx, owner, secretType, secretName)
-	require.NoError(t, err)
-	assert.Equal(t, updatedCiphertext, gotUpdated.Ciphertext)
-	// updated_at should be after timeBeforeUpdate
-	assert.True(t, gotUpdated.UpdatedAt.After(timeBeforeUpdate) || gotUpdated.UpdatedAt.Equal(timeBeforeUpdate))
-}
-
-func TestSecretReadRepository_List(t *testing.T) {
-	db := setupTestDB(t)
-	defer db.Close()
-
-	writeRepo := NewSecretWriteRepository(db)
-	readRepo := NewSecretReadRepository(db)
-
-	ctx := context.Background()
-	owner := "user1"
-
-	secrets := []struct {
-		SecretName string
-		SecretType string
-		Ciphertext []byte
-		AESKeyEnc  []byte
-	}{
-		{"secret1", models.SecretTypeText, []byte("data1"), []byte("key1")},
-		{"secret2", models.SecretTypeBankCard, []byte("data2"), []byte("key2")},
+	// === Save ===
+	secret := &models.SecretDB{
+		SecretID:         secretID,
+		UserID:           userID,
+		SecretName:       secretName,
+		SecretType:       secretType,
+		EncryptedPayload: base64.StdEncoding.EncodeToString(payload),
+		Nonce:            base64.StdEncoding.EncodeToString(nonce),
+		Meta:             meta,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
+	err := writeRepo.Save(ctx, secret)
+	assert.NoError(t, err)
 
-	for _, s := range secrets {
-		err := writeRepo.Save(ctx, owner, s.SecretName, s.SecretType, s.Ciphertext, s.AESKeyEnc)
-		require.NoError(t, err)
-	}
+	// === Get ===
+	secretFromDB, err := readRepo.Get(ctx, userID, secretName)
+	assert.NoError(t, err)
 
-	gotSecrets, err := readRepo.List(ctx, owner)
-	require.NoError(t, err)
-	assert.Len(t, gotSecrets, len(secrets))
+	payloadFromDB, _ := base64.StdEncoding.DecodeString(secretFromDB.EncryptedPayload)
+	nonceFromDB, _ := base64.StdEncoding.DecodeString(secretFromDB.Nonce)
 
-	for _, expected := range secrets {
-		found := false
-		for _, got := range gotSecrets {
-			if got.SecretName == expected.SecretName && got.SecretType == expected.SecretType {
-				assert.Equal(t, expected.Ciphertext, got.Ciphertext)
-				assert.Equal(t, expected.AESKeyEnc, got.AESKeyEnc)
-				found = true
-				break
-			}
-		}
-		assert.True(t, found, "secret not found: %s", expected.SecretName)
-	}
+	assert.Equal(t, secretID, secretFromDB.SecretID)
+	assert.Equal(t, userID, secretFromDB.UserID)
+	assert.Equal(t, secretName, secretFromDB.SecretName)
+	assert.Equal(t, secretType, secretFromDB.SecretType)
+	assert.Equal(t, payload, payloadFromDB)
+	assert.Equal(t, nonce, nonceFromDB)
+	assert.Equal(t, meta, secretFromDB.Meta)
+
+	// === Update ===
+	newPayload := []byte("newdata")
+	newMeta := `{"note":"updated"}`
+	secret.EncryptedPayload = base64.StdEncoding.EncodeToString(newPayload)
+	secret.Meta = newMeta
+	secret.UpdatedAt = time.Now()
+
+	err = writeRepo.Save(ctx, secret)
+	assert.NoError(t, err)
+
+	secretUpdated, err := readRepo.Get(ctx, userID, secretName)
+	updatedPayload, _ := base64.StdEncoding.DecodeString(secretUpdated.EncryptedPayload)
+	assert.NoError(t, err)
+	assert.Equal(t, newPayload, updatedPayload)
+	assert.Equal(t, newMeta, secretUpdated.Meta)
+
+	// === List ===
+	secrets, err := readRepo.List(ctx, userID)
+	assert.NoError(t, err)
+	assert.Len(t, secrets, 1)
+	assert.Equal(t, secretID, secrets[0].SecretID)
 }

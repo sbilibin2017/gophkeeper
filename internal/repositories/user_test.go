@@ -6,62 +6,78 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/sbilibin2017/gophkeeper/internal/models"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+
 	_ "modernc.org/sqlite"
 )
 
 func setupUserTestDB(t *testing.T) *sqlx.DB {
 	db, err := sqlx.Open("sqlite", ":memory:")
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to open test db: %v", err)
+	}
 
 	schema := `
 	CREATE TABLE users (
-		username TEXT PRIMARY KEY,
+		user_id TEXT PRIMARY KEY,
+		username TEXT NOT NULL UNIQUE,
 		password_hash TEXT NOT NULL,
-		created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
 	`
 	_, err = db.Exec(schema)
-	require.NoError(t, err)
+	if err != nil {
+		t.Fatalf("failed to create schema: %v", err)
+	}
 
 	return db
 }
 
-func TestUserWriteRepository_SaveAndGet(t *testing.T) {
+func TestUserWriteAndReadRepositories(t *testing.T) {
 	db := setupUserTestDB(t)
 	defer db.Close()
 
+	ctx := context.Background()
 	writeRepo := NewUserWriteRepository(db)
 	readRepo := NewUserReadRepository(db)
 
-	ctx := context.Background()
-	username := "testuser"
+	userID := "u1"
+	username := "alice"
 	passwordHash := "hash123"
 
-	// Save new user
-	err := writeRepo.Save(ctx, username, passwordHash)
-	require.NoError(t, err)
+	// === Save ===
+	user := &models.UserDB{
+		UserID:       userID,
+		Username:     username,
+		PasswordHash: passwordHash,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+	err := writeRepo.Save(ctx, user)
+	assert.NoError(t, err)
 
-	// Get user
-	got, err := readRepo.Get(ctx, username)
-	require.NoError(t, err)
-	assert.Equal(t, username, got.Username)
-	assert.Equal(t, passwordHash, got.PasswordHash)
+	// === Get ===
+	userFromDB, err := readRepo.Get(ctx, username)
+	assert.NoError(t, err)
+	assert.Equal(t, userID, userFromDB.UserID)
+	assert.Equal(t, username, userFromDB.Username)
+	assert.Equal(t, passwordHash, userFromDB.PasswordHash)
 
-	// Capture time before update
-	timeBeforeUpdate := time.Now()
-	time.Sleep(1 * time.Second)
+	// === Update ===
+	newUsername := "alice2"
+	newPasswordHash := "hash456"
+	user.Username = newUsername
+	user.PasswordHash = newPasswordHash
+	user.UpdatedAt = time.Now()
 
-	// Update password hash
-	newPasswordHash := "updated-hash456"
-	err = writeRepo.Save(ctx, username, newPasswordHash)
-	require.NoError(t, err)
+	err = writeRepo.Save(ctx, user)
+	assert.NoError(t, err)
 
-	// Get updated user
-	updated, err := readRepo.Get(ctx, username)
-	require.NoError(t, err)
-	assert.Equal(t, newPasswordHash, updated.PasswordHash)
-	assert.True(t, updated.UpdatedAt.After(timeBeforeUpdate) || updated.UpdatedAt.Equal(timeBeforeUpdate))
+	userUpdated, err := readRepo.Get(ctx, newUsername)
+	assert.NoError(t, err)
+	assert.Equal(t, userID, userUpdated.UserID)
+	assert.Equal(t, newUsername, userUpdated.Username)
+	assert.Equal(t, newPasswordHash, userUpdated.PasswordHash)
 }

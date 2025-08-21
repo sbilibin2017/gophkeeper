@@ -2,100 +2,95 @@ package repositories
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/sbilibin2017/gophkeeper/internal/models"
 )
 
-// SecretWriteRepository handles write operations related to secrets.
+// SecretWriteRepository управляет записью секретов пользователей
 type SecretWriteRepository struct {
 	db *sqlx.DB
 }
 
+// NewSecretWriteRepository создаёт новый репозиторий записи секретов
 func NewSecretWriteRepository(db *sqlx.DB) *SecretWriteRepository {
 	return &SecretWriteRepository{db: db}
 }
 
-// Save inserts or updates a secret, taking explicit arguments.
+// Save вставляет новый секрет или обновляет существующий по secret_id
 func (r *SecretWriteRepository) Save(
 	ctx context.Context,
-	secretOwner string,
-	secretName string,
-	secretType string,
-	ciphertext []byte,
-	aesKeyEnc []byte,
+	secret *models.SecretDB,
 ) error {
 	query := `
-		INSERT INTO secrets (secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT(secret_name, secret_type, secret_owner) DO UPDATE SET
-			ciphertext = EXCLUDED.ciphertext,
-			aes_key_enc = EXCLUDED.aes_key_enc,
-			updated_at = CURRENT_TIMESTAMP;
+	INSERT INTO secrets (secret_id, user_id, secret_name, secret_type, encrypted_payload, nonce, meta, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	ON CONFLICT(secret_id) DO UPDATE SET
+		user_id = EXCLUDED.user_id,
+		secret_name = EXCLUDED.secret_name,
+		secret_type = EXCLUDED.secret_type,
+		encrypted_payload = EXCLUDED.encrypted_payload,
+		nonce = EXCLUDED.nonce,
+		meta = EXCLUDED.meta,
+		updated_at = EXCLUDED.updated_at
 	`
-	_, err := r.db.ExecContext(ctx, query,
-		secretName,
-		secretType,
-		secretOwner,
-		ciphertext,
-		aesKeyEnc,
+	_, err := r.db.ExecContext(
+		ctx,
+		query,
+		secret.SecretID,
+		secret.UserID,
+		secret.SecretName,
+		secret.SecretType,
+		secret.EncryptedPayload,
+		secret.Nonce,
+		secret.Meta,
+		secret.CreatedAt,
+		secret.UpdatedAt,
 	)
-	if err != nil {
-		return fmt.Errorf("failed to save secret: %w", err)
-	}
-	return nil
+	return err
 }
 
-// SecretReadRepository handles read operations related to secrets.
+// SecretReadRepository управляет чтением секретов пользователей
 type SecretReadRepository struct {
 	db *sqlx.DB
 }
 
+// NewSecretReadRepository создаёт новый репозиторий чтения секретов
 func NewSecretReadRepository(db *sqlx.DB) *SecretReadRepository {
 	return &SecretReadRepository{db: db}
 }
 
-// Get fetches a secret by name, type, and owner.
+// Get возвращает секрет по userID и secretName
 func (r *SecretReadRepository) Get(
 	ctx context.Context,
-	secretOwner string,
-	secretType string,
-	secretName string,
-) (*models.Secret, error) {
+	userID, secretName string,
+) (*models.SecretDB, error) {
+	var secret models.SecretDB
 	query := `
-		SELECT secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at
-		FROM secrets
-		WHERE secret_name = $1 AND secret_type = $2 AND secret_owner = $3
+	SELECT secret_id, user_id, secret_name, secret_type, encrypted_payload, nonce, meta, created_at, updated_at
+	FROM secrets
+	WHERE user_id = $1 AND secret_name = $2
 	`
-
-	var secret models.Secret
-	err := r.db.GetContext(ctx, &secret, query,
-		secretName,
-		secretType,
-		secretOwner,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get secret: %w", err)
+	if err := r.db.GetContext(ctx, &secret, query, userID, secretName); err != nil {
+		return nil, err
 	}
 	return &secret, nil
 }
 
-// List fetches all secrets for a given owner.
+// List возвращает все секреты пользователя по userID
 func (r *SecretReadRepository) List(
 	ctx context.Context,
-	secretOwner string,
-) ([]*models.Secret, error) {
+	userID string,
+) ([]*models.SecretDB, error) {
+	var secrets []*models.SecretDB
 	query := `
-		SELECT secret_name, secret_type, secret_owner, ciphertext, aes_key_enc, created_at, updated_at
-		FROM secrets
-		WHERE secret_owner = $1
+	SELECT secret_id, user_id, secret_name, secret_type, encrypted_payload, nonce, meta, created_at, updated_at
+	FROM secrets
+	WHERE user_id = $1
+	ORDER BY created_at DESC
 	`
-
-	var secrets []*models.Secret
-	err := r.db.SelectContext(ctx, &secrets, query, secretOwner)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list secrets: %w", err)
+	if err := r.db.SelectContext(ctx, &secrets, query, userID); err != nil {
+		return nil, err
 	}
 	return secrets, nil
 }
